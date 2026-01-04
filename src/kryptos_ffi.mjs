@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { BitArray$BitArray } from "./gleam.mjs";
+import { BitArray$BitArray, Result$Ok } from "./gleam.mjs";
 import { algorithm_name } from "./kryptos/hash.mjs";
 
 export function randomBytes(length) {
@@ -48,4 +48,21 @@ export function hmacUpdate(hmac, data) {
 export function hmacFinal(hmac) {
   const digest = hmac.digest();
   return BitArray$BitArray(digest);
+}
+
+export function hkdfDerive(algorithm, ikm, salt, info, length) {
+  try {
+    const name = algorithm_name(algorithm);
+    const result = crypto.hkdfSync(
+      name,
+      ikm.rawBuffer,
+      salt.rawBuffer,
+      info.rawBuffer,
+      length,
+    );
+    const buffer = new Uint8Array(result);
+    return Result$Ok(BitArray$BitArray(buffer));
+  } catch {
+    return Result$Error(undefined);
+  }
 }
