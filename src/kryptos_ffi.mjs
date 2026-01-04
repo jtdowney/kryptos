@@ -33,3 +33,19 @@ export function hashFinal(hasher) {
   const digest = hasher.digest();
   return BitArray$BitArray(digest);
 }
+
+export function hmacNew(algorithm, key) {
+  const algorithmName = algorithm_name(algorithm);
+  const hmac = crypto.createHmac(algorithmName, key.rawBuffer);
+  return hmac;
+}
+
+export function hmacUpdate(hmac, data) {
+  hmac.update(data.rawBuffer);
+  return hmac;
+}
+
+export function hmacFinal(hmac) {
+  const digest = hmac.digest();
+  return BitArray$BitArray(digest);
+}
