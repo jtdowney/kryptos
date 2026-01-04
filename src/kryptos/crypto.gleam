@@ -9,6 +9,87 @@
 //// let key = crypto.random_bytes(32)
 //// ```
 
+import gleam/bit_array
+import gleam/list
+import gleam/option.{type Option}
+import gleam/result
+import kryptos/hash.{type HashAlgorithm}
+import kryptos/hmac
+import kryptos/internal/hkdf
+import kryptos/internal/subtle
+
+/// Computes the hash digest of input data in one call.
+///
+/// ## Parameters
+/// - `algorithm`: The hash algorithm to use
+/// - `data`: The data to hash
+///
+/// ## Returns
+/// A `BitArray` containing the computed hash digest.
+pub fn hash(algorithm: HashAlgorithm, data: BitArray) -> BitArray {
+  hash.new(algorithm)
+  |> hash.update(data)
+  |> hash.final()
+}
+
+/// Computes the HMAC of input data in one call.
+///
+/// ## Parameters
+/// - `algorithm`: The hash algorithm to use for the HMAC
+/// - `key`: The secret key for authentication
+/// - `data`: The data to authenticate
+///
+/// ## Returns
+/// - `Ok(BitArray)` - The computed message authentication code
+/// - `Error(Nil)` - If the hash algorithm is not supported
+pub fn hmac(
+  algorithm: HashAlgorithm,
+  key: BitArray,
+  data: BitArray,
+) -> Result(BitArray, Nil) {
+  use hmac <- result.try(hmac.new(algorithm, key))
+
+  hmac
+  |> hmac.update(data)
+  |> hmac.final()
+  |> Ok
+}
+
+/// Derives key material using HKDF (RFC 5869).
+///
+/// HKDF combines an extract-then-expand approach to derive cryptographically
+/// strong key material from input key material.
+///
+/// ## Parameters
+/// - `algorithm`: The hash algorithm to use (must be HMAC-compatible)
+/// - `input`: Input key material (IKM) - the source keying material
+/// - `salt`: Optional salt value (None uses hash-length zeros per RFC 5869)
+/// - `info`: Context and application specific information
+/// - `length`: Desired output length in bytes (max: 255 * hash_length)
+///
+/// ## Returns
+/// - `Ok(BitArray)` - The derived key material of the requested length
+/// - `Error(Nil)` - If the algorithm is not supported or length exceeds maximum
+pub fn hkdf(
+  algorithm: HashAlgorithm,
+  input ikm: BitArray,
+  salt salt: Option(BitArray),
+  info info: BitArray,
+  length length: Int,
+) -> Result(BitArray, Nil) {
+  let hash_len = hash.byte_size(algorithm)
+  let max_length = 255 * hash_len
+  let salt_bytes =
+    option.lazy_unwrap(salt, fn() {
+      list.repeat(<<0>>, hash_len) |> bit_array.concat
+    })
+
+  case hmac.supported_hash(algorithm), length > 0, length <= max_length {
+    True, True, True -> hkdf.do_derive(algorithm, ikm, salt_bytes, info, length)
+    _, _, _ -> Error(Nil)
+  }
+}
+
 /// Generates cryptographically secure random bytes using the platform's
 /// cryptographically secure random number generator.
 ///
@@ -50,6 +131,4 @@ pub fn random_bytes(length: Int) -> BitArray
 ///   False -> reject_message()
 /// }
 /// ```
-@external(erlang, "kryptos_ffi", "constant_time_equal")
-@external(javascript, "../kryptos_ffi.mjs", "constantTimeEqual")
-pub fn constant_time_equal(a: BitArray, b: BitArray) -> Bool
+pub const constant_time_equal = subtle.constant_time_equal

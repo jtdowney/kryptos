@@ -28,13 +28,7 @@ pub type HashAlgorithm {
   Sha3x512
 }
 
-/// Returns the canonical string name of a hash algorithm.
-///
-/// ## Arguments
-/// - `algorithm`: The hash algorithm to get the name for
-///
-/// ## Returns
-/// A string containing the algorithm's canonical name (e.g., "sha256", "blake2b").
+@internal
 pub fn algorithm_name(algorithm: HashAlgorithm) -> String {
   case algorithm {
     Blake2b -> "blake2b512"
@@ -123,20 +117,3 @@ pub fn update(hasher: Hasher, data: BitArray) -> Hasher
 @external(erlang, "crypto", "hash_final")
 @external(javascript, "../kryptos_ffi.mjs", "hashFinal")
 pub fn final(hasher: Hasher) -> BitArray
-
-/// Computes the hash digest of input data in one call.
-///
-/// This is a convenience function that combines `new`, `update`, and `finish`.
-/// Use this when you have all the data available at once.
-///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to use
-/// - `input`: The data to hash
-///
-/// ## Returns
-/// A `BitArray` containing the computed hash digest.
-pub fn digest(algorithm: HashAlgorithm, data: BitArray) -> BitArray {
-  new(algorithm)
-  |> update(data)
-  |> final()
-}

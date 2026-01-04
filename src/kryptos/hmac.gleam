@@ -1,6 +1,6 @@
 import gleam/result
-import kryptos/crypto
 import kryptos/hash.{type HashAlgorithm}
+import kryptos/internal/subtle
 
 /// Checks if a hash algorithm is supported for HMAC operations.
 ///
@@ -77,32 +77,6 @@ pub fn update(hmac: Hmac, data: BitArray) -> Hmac
 @external(javascript, "../kryptos_ffi.mjs", "hmacFinal")
 pub fn final(hmac: Hmac) -> BitArray
 
-/// Computes the HMAC of input data in one call.
-///
-/// This is a convenience function that combines `new`, `update`, and `finish`.
-/// Use this when you have all the data available at once.
-///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to use for the HMAC
-/// - `key`: The secret key for authentication
-/// - `data`: The data to authenticate
-///
-/// ## Returns
-/// - `Ok(BitArray)` - The computed message authentication code
-/// - `Error(Nil)` - If the hash algorithm is not supported
-pub fn compute(
-  algorithm: HashAlgorithm,
-  key: BitArray,
-  data: BitArray,
-) -> Result(BitArray, Nil) {
-  use hmac <- result.try(new(algorithm, key))
-
-  hmac
-  |> update(data)
-  |> final()
-  |> Ok
-}
-
 /// Verifies that a MAC matches the expected value using constant-time comparison.
 ///
 /// This function computes the HMAC and compares it to the expected value in
@@ -124,6 +98,12 @@ pub fn verify(
   data: BitArray,
   expected: BitArray,
 ) -> Result(Bool, Nil) {
-  use actual <- result.try(compute(algorithm, key, data))
-  Ok(crypto.constant_time_equal(actual, expected))
+  use hmac_state <- result.try(new(algorithm, key))
+
+  let actual =
+    hmac_state
+    |> update(data)
+    |> final()
+
+  Ok(subtle.constant_time_equal(actual, expected))
 }

@@ -5,7 +5,6 @@ import gleam/json
 import gleam/list
 import kryptos/crypto
 import kryptos/hash
-import kryptos/hmac
 import simplifile
 
 pub type TestResult {
@@ -86,7 +85,7 @@ fn run_single_test(
   let assert Ok(msg) = bit_array.base16_decode(tc.msg)
   let assert Ok(expected_tag) = bit_array.base16_decode(tc.tag)
 
-  let assert Ok(computed) = hmac.compute(algorithm, key, msg)
+  let assert Ok(computed) = crypto.hmac(algorithm, key, msg)
   let tag_bytes = group.tag_size / 8
   let assert Ok(truncated) = bit_array.slice(computed, 0, tag_bytes)
   let valid = crypto.constant_time_equal(truncated, expected_tag)

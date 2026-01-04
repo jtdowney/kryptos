@@ -4,8 +4,8 @@ import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
+import kryptos/crypto
 import kryptos/hash
-import kryptos/hkdf
 import simplifile
 
 pub type TestResult {
@@ -101,7 +101,7 @@ fn run_single_test(algorithm: hash.HashAlgorithm, tc: TestCase) -> Nil {
     _ -> Some(salt_bytes)
   }
 
-  let result = hkdf.compute(algorithm, input:, salt:, info:, length:)
+  let result = crypto.hkdf(algorithm, input:, salt:, info:, length:)
 
   case tc.result {
     Valid -> {
