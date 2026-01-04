@@ -21,6 +21,7 @@
 
 import gleam/bit_array
 import gleam/bytes_tree.{type BytesTree}
+import gleam/list
 import gleam/option.{type Option}
 import gleam/result
 import kryptos/hash.{type HashAlgorithm}
@@ -63,7 +64,10 @@ pub fn compute(
 ) -> Result(BitArray, Nil) {
   let hash_len = hash.byte_size(algorithm)
   let max_length = 255 * hash_len
-  let salt_bytes = option.lazy_unwrap(salt, fn() { zero_bytes(hash_len) })
+  let salt_bytes =
+    option.lazy_unwrap(salt, fn() {
+      list.repeat(<<0>>, hash_len) |> bit_array.concat
+    })
 
   case supported_hash(algorithm), length > 0, length <= max_length {
     True, True, True -> do_derive(algorithm, ikm, salt_bytes, info, length)
@@ -139,16 +143,5 @@ fn expand_loop(
         }
       }
     }
-  }
-}
-
-fn zero_bytes(length: Int) -> BitArray {
-  zero_bytes_loop(length, <<>>)
-}
-
-fn zero_bytes_loop(remaining: Int, acc: BitArray) -> BitArray {
-  case remaining <= 0 {
-    True -> acc
-    False -> zero_bytes_loop(remaining - 1, <<acc:bits, 0>>)
   }
 }
