@@ -67,3 +67,19 @@ export function hkdfDerive(algorithm, ikm, salt, info, length) {
     return Result$Error(undefined);
   }
 }
+
+export function pbkdf2Derive(algorithm, password, salt, iterations, length) {
+  try {
+    const name = algorithm_name(algorithm);
+    const result = crypto.pbkdf2Sync(
+      password.rawBuffer,
+      salt.rawBuffer,
+      iterations,
+      length,
+      name,
+    );
+    return Result$Ok(BitArray$BitArray(result));
+  } catch {
+    return Result$Error(undefined);
+  }
+}

@@ -16,6 +16,7 @@ import gleam/result
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/hmac
 import kryptos/internal/hkdf
+import kryptos/internal/pbkdf2
 import kryptos/internal/subtle
 
 /// Computes the hash digest of input data in one call.
@@ -86,6 +87,36 @@ pub fn hkdf(
 
   case hmac.supported_hash(algorithm), length > 0, length <= max_length {
     True, True, True -> hkdf.do_derive(algorithm, ikm, salt_bytes, info, length)
+    _, _, _ -> Error(Nil)
+  }
+}
+
+/// Derives key material from a password using PBKDF2 (RFC 8018).
+///
+/// PBKDF2 applies a pseudorandom function (HMAC) to derive keys from passwords.
+/// It is designed to be computationally expensive to resist brute-force attacks.
+///
+/// ## Parameters
+/// - `algorithm`: The hash algorithm to use for HMAC (must be HMAC-compatible).
+///   SHA-256 or stronger is recommended; MD5 and SHA-1 are weak for password hashing.
+/// - `password`: The password to derive the key from
+/// - `salt`: A random salt value (should be unique per password)
+/// - `iterations`: Number of iterations (higher = slower but more secure)
+/// - `length`: Desired output length in bytes
+///
+/// ## Returns
+/// - `Ok(BitArray)` - The derived key material of the requested length
+/// - `Error(Nil)` - If the algorithm is not supported, iterations <= 0, or length <= 0
+pub fn pbkdf2(
+  algorithm: HashAlgorithm,
+  password password: BitArray,
+  salt salt: BitArray,
+  iterations iterations: Int,
+  length length: Int,
+) -> Result(BitArray, Nil) {
+  case hmac.supported_hash(algorithm), iterations > 0, length > 0 {
+    True, True, True ->
+      pbkdf2.do_derive(algorithm, password, salt, iterations, length)
     _, _, _ -> Error(Nil)
   }
 }

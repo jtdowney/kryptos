@@ -1,6 +1,6 @@
 -module(kryptos_ffi).
 
--export([random_bytes/1, constant_time_equal/2, hash_new/1, hmac_new/2]).
+-export([random_bytes/1, constant_time_equal/2, hash_new/1, hmac_new/2, pbkdf2_derive/5]).
 
 random_bytes(Length) when Length < 0 ->
     crypto:strong_rand_bytes(0);
@@ -37,3 +37,18 @@ hmac_new(sha512x256, Key) ->
     hmac_new(sha512_256, Key);
 hmac_new(Algorithm, Key) ->
     crypto:mac_init(hmac, Algorithm, Key).
+
+pbkdf2_derive(sha1, Password, Salt, Iterations, Length) ->
+    pbkdf2_derive(sha, Password, Salt, Iterations, Length);
+pbkdf2_derive(sha512x224, Password, Salt, Iterations, Length) ->
+    pbkdf2_derive(sha512_224, Password, Salt, Iterations, Length);
+pbkdf2_derive(sha512x256, Password, Salt, Iterations, Length) ->
+    pbkdf2_derive(sha512_256, Password, Salt, Iterations, Length);
+pbkdf2_derive(Algorithm, Password, Salt, Iterations, Length) ->
+    try
+        Key = crypto:pbkdf2_hmac(Algorithm, Password, Salt, Iterations, Length),
+        {ok, Key}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
