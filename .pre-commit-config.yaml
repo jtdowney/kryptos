@@ -15,11 +15,19 @@ repos:
         name: gleam check
         entry: gleam check
         language: system
+        files: ^src/.*\.gleam$
         pass_filenames: false
       - id: gleam-format
         name: gleam format --check
         entry: gleam format --check src test
         language: system
+        files: ^src/.*\.gleam$
+        pass_filenames: false
+      - id: erlfmt
+        name: erlfmt
+        entry: rebar3 fmt -c
+        language: system
+        files: ^src/.*\.erl$
         pass_filenames: false
       - id: prettier
         name: prettier --check
