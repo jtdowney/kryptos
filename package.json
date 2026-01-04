@@ -1,0 +1,17 @@
+{
+  "name": "kryptos",
+  "private": true,
+  "scripts": {
+    "lint": "eslint",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-perfectionist": "^5.1.0",
+    "globals": "^16.5.0",
+    "prettier": "^3.7.4"
+  }
+}

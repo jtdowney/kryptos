@@ -9,3 +9,27 @@ repos:
       - id: end-of-file-fixer
       - id: mixed-line-ending
       - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: gleam-check
+        name: gleam check
+        entry: gleam check
+        language: system
+        pass_filenames: false
+      - id: gleam-format
+        name: gleam format --check
+        entry: gleam format --check src test
+        language: system
+        pass_filenames: false
+      - id: prettier
+        name: prettier --check
+        entry: bun run format
+        language: system
+        files: ^src/.*\.*$
+        pass_filenames: false
+      - id: eslint
+        name: eslint
+        entry: bun run lint
+        language: system
+        files: ^src/.*\.mjs$
+        pass_filenames: false
