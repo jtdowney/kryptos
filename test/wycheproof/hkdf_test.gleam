@@ -1,19 +1,11 @@
 import gleam/bit_array
 import gleam/dynamic/decode
-import gleam/int
-import gleam/json
-import gleam/list
 import gleam/option.{None, Some}
 import kryptos/crypto
 import kryptos/hash
-import simplifile
+import wycheproof/utils.{Invalid, Valid}
 
-pub type TestResult {
-  Valid
-  Invalid
-}
-
-pub type TestCase {
+type TestCase {
   TestCase(
     tc_id: Int,
     comment: String,
@@ -22,25 +14,16 @@ pub type TestCase {
     info: String,
     size: Int,
     okm: String,
-    result: TestResult,
+    result: utils.TestResult,
   )
 }
 
-pub type TestGroup {
+type TestGroup {
   TestGroup(key_size: Int, tests: List(TestCase))
 }
 
-pub type TestFile {
+type TestFile {
   TestFile(algorithm: String, test_groups: List(TestGroup))
-}
-
-fn test_result_decoder() -> decode.Decoder(TestResult) {
-  use value <- decode.then(decode.string)
-  case value {
-    "valid" -> decode.success(Valid)
-    "invalid" -> decode.success(Invalid)
-    _ -> decode.failure(Valid, "TestResult")
-  }
 }
 
 fn test_case_decoder() -> decode.Decoder(TestCase) {
@@ -51,7 +34,7 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
   use info <- decode.field("info", decode.string)
   use size <- decode.field("size", decode.int)
   use okm <- decode.field("okm", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(TestCase(
     tc_id:,
     comment:,
@@ -80,12 +63,9 @@ fn test_file_decoder() -> decode.Decoder(TestFile) {
 }
 
 fn run_wycheproof_tests(filename: String, algorithm: hash.HashAlgorithm) -> Nil {
-  let path = "wycheproof/testvectors_v1/" <> filename
-  let assert Ok(content) = simplifile.read(path)
-  let assert Ok(test_file) = json.parse(content, test_file_decoder())
-
-  list.each(test_file.test_groups, fn(group) {
-    list.each(group.tests, fn(tc) { run_single_test(algorithm, tc) })
+  let assert Ok(test_file) = utils.load_test_file(filename, test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, fn(_group, tc) {
+    run_single_test(algorithm, tc)
   })
 }
 
@@ -102,27 +82,22 @@ fn run_single_test(algorithm: hash.HashAlgorithm, tc: TestCase) -> Nil {
   }
 
   let result = crypto.hkdf(algorithm, input:, salt:, info:, length:)
+  let context = utils.test_context(tc.tc_id, tc.comment)
 
   case tc.result {
     Valid -> {
-      let assert Ok(computed) = result as test_context(tc)
-      assert computed == expected_okm as test_context(tc)
+      let assert Ok(computed) = result as context
+      assert computed == expected_okm as context
     }
     Invalid -> {
-      // Invalid test cases should either return an error or produce different output
       case result {
         Error(Nil) -> Nil
         Ok(computed) -> {
-          // Some invalid tests produce output that doesn't match
-          assert computed != expected_okm as test_context(tc)
+          assert computed != expected_okm as context
         }
       }
     }
   }
-}
-
-fn test_context(tc: TestCase) -> String {
-  "tcId=" <> int.to_string(tc.tc_id) <> " " <> tc.comment
 }
 
 pub fn wycheproof_hkdf_sha1_test() {

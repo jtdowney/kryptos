@@ -1,43 +1,26 @@
 import gleam/bit_array
 import gleam/dynamic/decode
-import gleam/int
-import gleam/json
-import gleam/list
 import kryptos/crypto
 import kryptos/hash
-import simplifile
+import wycheproof/utils.{Invalid, Valid}
 
-pub type TestResult {
-  Valid
-  Invalid
-}
-
-pub type TestCase {
+type TestCase {
   TestCase(
     tc_id: Int,
     comment: String,
     key: String,
     msg: String,
     tag: String,
-    result: TestResult,
+    result: utils.TestResult,
   )
 }
 
-pub type TestGroup {
+type TestGroup {
   TestGroup(key_size: Int, tag_size: Int, tests: List(TestCase))
 }
 
-pub type TestFile {
+type TestFile {
   TestFile(algorithm: String, test_groups: List(TestGroup))
-}
-
-fn test_result_decoder() -> decode.Decoder(TestResult) {
-  use value <- decode.then(decode.string)
-  case value {
-    "valid" -> decode.success(Valid)
-    "invalid" -> decode.success(Invalid)
-    _ -> decode.failure(Valid, "TestResult")
-  }
 }
 
 fn test_case_decoder() -> decode.Decoder(TestCase) {
@@ -46,7 +29,7 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
   use key <- decode.field("key", decode.string)
   use msg <- decode.field("msg", decode.string)
   use tag <- decode.field("tag", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(TestCase(tc_id:, comment:, key:, msg:, tag:, result:))
 }
 
@@ -67,12 +50,9 @@ fn test_file_decoder() -> decode.Decoder(TestFile) {
 }
 
 fn run_wycheproof_tests(filename: String, algorithm: hash.HashAlgorithm) -> Nil {
-  let path = "wycheproof/testvectors_v1/" <> filename
-  let assert Ok(content) = simplifile.read(path)
-  let assert Ok(test_file) = json.parse(content, test_file_decoder())
-
-  list.each(test_file.test_groups, fn(group) {
-    list.each(group.tests, fn(tc) { run_single_test(algorithm, group, tc) })
+  let assert Ok(test_file) = utils.load_test_file(filename, test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, fn(group, tc) {
+    run_single_test(algorithm, group, tc)
   })
 }
 
@@ -94,11 +74,7 @@ fn run_single_test(
     Valid -> True
     Invalid -> False
   }
-  assert valid == expected as test_context(tc)
-}
-
-fn test_context(tc: TestCase) -> String {
-  "tcId=" <> int.to_string(tc.tc_id) <> " " <> tc.comment
+  assert valid == expected as utils.test_context(tc.tc_id, tc.comment)
 }
 
 pub fn wycheproof_hmac_sha1_test() {
