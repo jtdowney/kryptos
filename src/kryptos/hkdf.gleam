@@ -20,6 +20,7 @@
 //// ```
 
 import gleam/bit_array
+import gleam/bytes_tree.{type BytesTree}
 import gleam/option.{type Option}
 import gleam/result
 import kryptos/hash.{type HashAlgorithm}
@@ -87,19 +88,29 @@ fn do_derive(
   // T(0) = empty
   // T(i) = HMAC-Hash(PRK, T(i-1) || info || i)
   // OKM = first length octets of T
-  expand(algorithm, prk, info, length, <<>>, 1)
+  expand(algorithm, prk, info, length)
 }
 
 fn expand(
   algorithm: HashAlgorithm,
   prk: BitArray,
   info: BitArray,
+  length: Int,
+) -> Result(BitArray, Nil) {
+  expand_loop(algorithm, prk, info, length, <<>>, 1, bytes_tree.new())
+}
+
+fn expand_loop(
+  algorithm: HashAlgorithm,
+  prk: BitArray,
+  info: BitArray,
   remaining: Int,
   prev: BitArray,
   counter: Int,
+  acc: BytesTree,
 ) -> Result(BitArray, Nil) {
   case remaining <= 0 {
-    True -> Ok(<<>>)
+    True -> Ok(bytes_tree.to_bit_array(acc))
     False -> {
       // T(i) = HMAC-Hash(PRK, T(i-1) || info || counter)
       let input = bit_array.concat([prev, info, <<counter>>])
@@ -108,21 +119,23 @@ fn expand(
       let t_len = bit_array.byte_size(t)
       case remaining <= t_len {
         True -> {
-          // We have enough, take what we need
-          let assert Ok(result) = bit_array.slice(t, 0, remaining)
-          Ok(result)
+          // Final block - take what we need
+          let assert Ok(final_block) = bit_array.slice(t, 0, remaining)
+          bytes_tree.append(acc, final_block)
+          |> bytes_tree.to_bit_array
+          |> Ok
         }
         False -> {
-          // Need more, recurse
-          use rest <- result.try(expand(
+          // Accumulate and continue
+          expand_loop(
             algorithm,
             prk,
             info,
             remaining - t_len,
             t,
             counter + 1,
-          ))
-          Ok(bit_array.concat([t, rest]))
+            bytes_tree.append(acc, t),
+          )
         }
       }
     }
