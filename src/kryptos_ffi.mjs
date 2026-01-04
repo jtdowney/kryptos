@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { BitArray$BitArray, Result$Ok } from "./gleam.mjs";
+import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
 import { algorithm_name } from "./kryptos/hash.mjs";
 
 export function randomBytes(length) {
