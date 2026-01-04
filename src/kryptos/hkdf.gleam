@@ -38,20 +38,6 @@ pub fn supported_hash(algorithm: HashAlgorithm) -> Bool {
   hmac.supported_hash(algorithm)
 }
 
-/// Returns the output length in bytes for a hash algorithm.
-fn hash_length(algorithm: HashAlgorithm) -> Int {
-  case algorithm {
-    hash.Md5 -> 16
-    hash.Sha1 -> 20
-    hash.Sha256 -> 32
-    hash.Sha384 -> 48
-    hash.Sha512 -> 64
-    hash.Sha512x224 -> 28
-    hash.Sha512x256 -> 32
-    _ -> 0
-  }
-}
-
 /// Derives key material using HKDF (RFC 5869).
 ///
 /// HKDF combines an extract-then-expand approach to derive cryptographically
@@ -74,7 +60,7 @@ pub fn compute(
   info info: BitArray,
   length length: Int,
 ) -> Result(BitArray, Nil) {
-  let hash_len = hash_length(algorithm)
+  let hash_len = hash.byte_size(algorithm)
   let max_length = 255 * hash_len
   let salt_bytes = option.lazy_unwrap(salt, fn() { zero_bytes(hash_len) })
 

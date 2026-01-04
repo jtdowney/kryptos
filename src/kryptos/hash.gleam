@@ -53,6 +53,31 @@ pub fn algorithm_name(algorithm: HashAlgorithm) -> String {
   }
 }
 
+/// Returns the output size in bytes for a hash algorithm.
+///
+/// ## Parameters
+/// - `algorithm`: The hash algorithm to get the size for
+///
+/// ## Returns
+/// The digest size in bytes.
+pub fn byte_size(algorithm: HashAlgorithm) -> Int {
+  case algorithm {
+    Blake2b -> 64
+    Blake2s -> 32
+    Md5 -> 16
+    Sha1 -> 20
+    Sha256 -> 32
+    Sha384 -> 48
+    Sha512 -> 64
+    Sha512x224 -> 28
+    Sha512x256 -> 32
+    Sha3x224 -> 28
+    Sha3x256 -> 32
+    Sha3x384 -> 48
+    Sha3x512 -> 64
+  }
+}
+
 /// Represents an in-progress hash computation.
 ///
 /// Use `new` to create a hasher, `update` to add data, and `final` to get the digest.
