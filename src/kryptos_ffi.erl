@@ -1,6 +1,14 @@
 -module(kryptos_ffi).
 
--export([random_bytes/1, constant_time_equal/2, hash_new/1, hmac_new/2, pbkdf2_derive/5]).
+-export([
+    random_bytes/1,
+    constant_time_equal/2,
+    hash_new/1,
+    hmac_new/2,
+    pbkdf2_derive/5,
+    aead_seal/4,
+    aead_open/5
+]).
 
 random_bytes(Length) when Length < 0 ->
     crypto:strong_rand_bytes(0);
@@ -51,4 +59,52 @@ pbkdf2_derive(Algorithm, Password, Salt, Iterations, Length) ->
     catch
         _:_ ->
             {error, nil}
+    end.
+
+aead_cipher_name({gcm, {aes, aes128, _}, _}) ->
+    aes_128_gcm;
+aead_cipher_name({gcm, {aes, aes192, _}, _}) ->
+    aes_192_gcm;
+aead_cipher_name({gcm, {aes, aes256, _}, _}) ->
+    aes_256_gcm.
+
+aead_seal(Mode, Nonce, Plaintext, AdditionalData) ->
+    Cipher = aead_cipher_name(Mode),
+    TagSize = kryptos@aead:tag_size(Mode),
+    Key = kryptos@aead:aead_cipher_key(Mode),
+    try
+        {Ciphertext, Tag} =
+            crypto:crypto_one_time_aead(
+                Cipher,
+                Key,
+                Nonce,
+                Plaintext,
+                AdditionalData,
+                TagSize,
+                true
+            ),
+        {ok, {Ciphertext, Tag}}
+    catch
+        error:_ ->
+            {error, nil}
+    end.
+
+aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
+    Cipher = aead_cipher_name(Mode),
+    Key = kryptos@aead:aead_cipher_key(Mode),
+    case
+        crypto:crypto_one_time_aead(
+            Cipher,
+            Key,
+            Nonce,
+            Ciphertext,
+            AdditionalData,
+            Tag,
+            false
+        )
+    of
+        error ->
+            {error, nil};
+        Plaintext ->
+            {ok, Plaintext}
     end.

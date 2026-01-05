@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
+import { aead_cipher_name, aead_cipher_key } from "./kryptos/aead.mjs";
 import { algorithm_name } from "./kryptos/hash.mjs";
 
 export function randomBytes(length) {
@@ -79,6 +80,40 @@ export function pbkdf2Derive(algorithm, password, salt, iterations, length) {
       name,
     );
     return Result$Ok(BitArray$BitArray(result));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function aeadSeal(mode, nonce, plaintext, aad) {
+  const name = aead_cipher_name(mode);
+  const key = aead_cipher_key(mode);
+  const cipher = crypto.createCipheriv(name, key.rawBuffer, nonce.rawBuffer);
+  cipher.setAAD(aad.rawBuffer);
+
+  const updateOutput = cipher.update(plaintext.rawBuffer);
+  const finalOutput = cipher.final();
+  const ciphertext = Buffer.concat([updateOutput, finalOutput]);
+  const tag = cipher.getAuthTag();
+  return Result$Ok([BitArray$BitArray(ciphertext), BitArray$BitArray(tag)]);
+}
+
+export function aeadOpen(mode, nonce, tag, ciphertext, aad) {
+  try {
+    const name = aead_cipher_name(mode);
+    const key = aead_cipher_key(mode);
+    const decipher = crypto.createDecipheriv(
+      name,
+      key.rawBuffer,
+      nonce.rawBuffer,
+    );
+    decipher.setAAD(aad.rawBuffer);
+    decipher.setAuthTag(tag.rawBuffer);
+
+    const updateOutput = decipher.update(ciphertext.rawBuffer);
+    const finalOutput = decipher.final();
+    const plaintext = Buffer.concat([updateOutput, finalOutput]);
+    return Result$Ok(BitArray$BitArray(plaintext));
   } catch {
     return Result$Error(undefined);
   }

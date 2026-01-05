@@ -1,0 +1,164 @@
+import kryptos/aead
+import kryptos/block
+import kryptos/crypto
+
+pub fn aes_128_gcm_test() {
+  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<"attack at dawn":utf8>>
+  let assert Ok(#(ciphertext, tag)) = aead.seal(mode, nonce:, plaintext:)
+  let assert Ok(output) = aead.open(mode, nonce:, tag:, ciphertext:)
+
+  assert output == plaintext
+}
+
+pub fn aes_192_gcm_test() {
+  let assert Ok(cipher) = block.new_aes_192(crypto.random_bytes(24))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<"attack at dawn":utf8>>
+  let assert Ok(#(ciphertext, tag)) = aead.seal(mode, nonce:, plaintext:)
+  let assert Ok(output) = aead.open(mode, nonce:, tag:, ciphertext:)
+
+  assert output == plaintext
+}
+
+pub fn aes_256_gcm_test() {
+  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<"attack at dawn":utf8>>
+  let assert Ok(#(ciphertext, tag)) = aead.seal(mode, nonce:, plaintext:)
+  let assert Ok(output) = aead.open(mode, nonce:, tag:, ciphertext:)
+
+  assert output == plaintext
+}
+
+pub fn aes_gcm_with_aad_test() {
+  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<"secret message":utf8>>
+  let aad = <<"header data":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) =
+    aead.seal_with_aad(mode, nonce, plaintext, aad)
+  let assert Ok(output) = aead.open_with_aad(mode, nonce, tag, ciphertext, aad)
+
+  assert output == plaintext
+}
+
+pub fn wrong_nonce_size_seal_test() {
+  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let mode = aead.gcm(cipher)
+  let wrong_nonce = crypto.random_bytes(8)
+  let plaintext = <<"test":utf8>>
+
+  assert aead.seal(mode, nonce: wrong_nonce, plaintext:) == Error(Nil)
+}
+
+pub fn wrong_nonce_size_open_test() {
+  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let mode = aead.gcm(cipher)
+  let wrong_nonce = crypto.random_bytes(8)
+  let tag = crypto.random_bytes(16)
+  let ciphertext = <<"test":utf8>>
+
+  assert aead.open(mode, nonce: wrong_nonce, tag:, ciphertext:) == Error(Nil)
+}
+
+pub fn tampered_ciphertext_test() {
+  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<"secret":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) = aead.seal(mode, nonce:, plaintext:)
+  let tampered = <<0xFF, ciphertext:bits>>
+
+  assert aead.open(mode, nonce:, tag:, ciphertext: tampered) == Error(Nil)
+}
+
+pub fn tampered_tag_test() {
+  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<"secret":utf8>>
+
+  let assert Ok(#(ciphertext, _tag)) = aead.seal(mode, nonce:, plaintext:)
+  let tampered_tag = crypto.random_bytes(16)
+
+  assert aead.open(mode, nonce:, tag: tampered_tag, ciphertext:) == Error(Nil)
+}
+
+pub fn wrong_aad_test() {
+  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<"secret":utf8>>
+  let aad = <<"correct aad":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) =
+    aead.seal_with_aad(mode, nonce, plaintext, aad)
+  let wrong_aad = <<"wrong aad":utf8>>
+
+  assert aead.open_with_aad(mode, nonce, tag, ciphertext, wrong_aad)
+    == Error(Nil)
+}
+
+pub fn empty_plaintext_test() {
+  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<>>
+
+  let assert Ok(#(ciphertext, tag)) = aead.seal(mode, nonce:, plaintext:)
+  let assert Ok(output) = aead.open(mode, nonce:, tag:, ciphertext:)
+
+  assert output == plaintext
+}
+
+pub fn wrong_key_test() {
+  let assert Ok(cipher1) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher2) = block.new_aes_256(crypto.random_bytes(32))
+  let nonce = crypto.random_bytes(12)
+  let plaintext = <<"secret":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) =
+    aead.seal(aead.gcm(cipher1), nonce:, plaintext:)
+
+  assert aead.open(aead.gcm(cipher2), nonce:, tag:, ciphertext:) == Error(Nil)
+}
+
+pub fn aes_128_wrong_key_size_test() {
+  assert block.new_aes_128(crypto.random_bytes(15)) == Error(Nil)
+  assert block.new_aes_128(crypto.random_bytes(17)) == Error(Nil)
+}
+
+pub fn aes_192_wrong_key_size_test() {
+  assert block.new_aes_192(crypto.random_bytes(23)) == Error(Nil)
+  assert block.new_aes_192(crypto.random_bytes(25)) == Error(Nil)
+}
+
+pub fn aes_256_wrong_key_size_test() {
+  assert block.new_aes_256(crypto.random_bytes(31)) == Error(Nil)
+  assert block.new_aes_256(crypto.random_bytes(33)) == Error(Nil)
+}
+
+pub fn wrong_tag_size_test() {
+  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let mode = aead.gcm(cipher)
+  let nonce = crypto.random_bytes(aead.nonce_size(mode))
+  let plaintext = <<"secret":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) = aead.seal(mode, nonce:, plaintext:)
+
+  let assert <<truncated_tag:bytes-size(15), _:bytes>> = tag
+  assert aead.open(mode, nonce:, tag: truncated_tag, ciphertext:) == Error(Nil)
+
+  let extended_tag = <<tag:bits, 0xFF>>
+  assert aead.open(mode, nonce:, tag: extended_tag, ciphertext:) == Error(Nil)
+
+  assert aead.open(mode, nonce:, tag: <<>>, ciphertext:) == Error(Nil)
+}
