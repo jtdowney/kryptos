@@ -118,3 +118,55 @@ export function aeadOpen(mode, nonce, tag, ciphertext, aad) {
     return Result$Error(undefined);
   }
 }
+
+function ecCurveName(curve) {
+  switch (curve.constructor.name) {
+    case "P224":
+      return "secp224r1";
+    case "P256":
+      return "prime256v1";
+    case "P384":
+      return "secp384r1";
+    case "P521":
+      return "secp521r1";
+    case "Secp256k1":
+      return "secp256k1";
+    default:
+      throw new Error(`Unsupported curve: ${curve.constructor.name}`);
+  }
+}
+
+export function ecGenerateKeyPair(curve) {
+  const curveName = ecCurveName(curve);
+  const { privateKey, publicKey } = crypto.generateKeyPairSync("ec", {
+    namedCurve: curveName,
+  });
+
+  return [privateKey, publicKey];
+}
+
+export function ecdsaSign(privateKey, message, hashAlgorithm) {
+  const algorithmName = algorithm_name(hashAlgorithm);
+  const signature = crypto.sign(algorithmName, message.rawBuffer, {
+    key: privateKey,
+    dsaEncoding: "der",
+  });
+  return BitArray$BitArray(signature);
+}
+
+export function ecdsaVerify(publicKey, message, signature, hashAlgorithm) {
+  try {
+    const algorithmName = algorithm_name(hashAlgorithm);
+    return crypto.verify(
+      algorithmName,
+      message.rawBuffer,
+      {
+        key: publicKey,
+        dsaEncoding: "der",
+      },
+      signature.rawBuffer,
+    );
+  } catch {
+    return false;
+  }
+}

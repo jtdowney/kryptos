@@ -7,7 +7,10 @@
     hmac_new/2,
     pbkdf2_derive/5,
     aead_seal/4,
-    aead_open/5
+    aead_open/5,
+    ec_generate_key_pair/1,
+    ecdsa_sign/3,
+    ecdsa_verify/4
 ]).
 
 random_bytes(Length) when Length < 0 ->
@@ -20,22 +23,34 @@ constant_time_equal(A, B) when byte_size(A) =:= byte_size(B) ->
 constant_time_equal(_, _) ->
     false.
 
-hash_new(sha1) ->
-    hash_new(sha);
-hash_new(sha512x224) ->
-    hash_new(sha512_224);
-hash_new(sha512x256) ->
-    hash_new(sha512_256);
-hash_new(sha3x224) ->
-    hash_new(sha3_224);
-hash_new(sha3x256) ->
-    hash_new(sha3_256);
-hash_new(sha3x384) ->
-    hash_new(sha3_384);
-hash_new(sha3x512) ->
-    hash_new(sha3_512);
+hash_algorithm_name(sha1) ->
+    sha;
+hash_algorithm_name(sha224) ->
+    sha224;
+hash_algorithm_name(sha256) ->
+    sha256;
+hash_algorithm_name(sha384) ->
+    sha384;
+hash_algorithm_name(sha512) ->
+    sha512;
+hash_algorithm_name(sha512x224) ->
+    sha512_224;
+hash_algorithm_name(sha512x256) ->
+    sha512_256;
+hash_algorithm_name(sha3x224) ->
+    sha3_224;
+hash_algorithm_name(sha3x256) ->
+    sha3_256;
+hash_algorithm_name(sha3x384) ->
+    sha3_384;
+hash_algorithm_name(sha3x512) ->
+    sha3_512;
+hash_algorithm_name(Name) ->
+    Name.
+
 hash_new(Algorithm) ->
-    crypto:hash_init(Algorithm).
+    Name = hash_algorithm_name(Algorithm),
+    crypto:hash_init(Name).
 
 hmac_new(sha1, Key) ->
     hmac_new(sha, Key);
@@ -109,4 +124,152 @@ aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
             {error, nil};
         Plaintext ->
             {ok, Plaintext}
+    end.
+
+ec_curve_name(p224) ->
+    secp224r1;
+ec_curve_name(p256) ->
+    secp256r1;
+ec_curve_name(p384) ->
+    secp384r1;
+ec_curve_name(p521) ->
+    secp521r1;
+ec_curve_name(secp256k1) ->
+    secp256k1.
+
+ec_generate_key_pair(Curve) ->
+    CurveName = ec_curve_name(Curve),
+    OID = ec_curve_oid(CurveName),
+    {PubPoint, PrivScalar} = crypto:generate_key(ecdh, CurveName),
+    PrivKey =
+        {'ECPrivateKey', ecPrivkeyVer1, PrivScalar, {namedCurve, OID}, PubPoint, asn1_NOVALUE},
+    PubKey = {{'ECPoint', PubPoint}, {namedCurve, CurveName}},
+    {PrivKey, PubKey}.
+
+ec_private_key_from_bytes(Curve, PrivateScalar) ->
+    try
+        CurveName = ec_curve_name(Curve),
+        OID = ec_curve_oid(CurveName),
+        % Generate a temporary key to get the public point
+        % We need to compute the public key from the private scalar
+        {{'ECPoint', _}, {namedCurve, CurveName}} =
+            TempPub = ec_compute_public_key(CurveName, PrivateScalar),
+        Point = element(2, element(1, TempPub)),
+        PrivKey =
+            {'ECPrivateKey', ecPrivkeyVer1, PrivateScalar, {namedCurve, OID}, Point, asn1_NOVALUE},
+        PubKey = {{'ECPoint', Point}, {namedCurve, CurveName}},
+        {ok, {PrivKey, PubKey}}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+ec_compute_public_key(CurveName, PrivateScalar) ->
+    % Use crypto to compute the public key point from private scalar
+    {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, PrivateScalar),
+    {{'ECPoint', PublicPoint}, {namedCurve, CurveName}}.
+
+ec_public_key_from_x509(DerBytes) ->
+    try
+        % Decode the SubjectPublicKeyInfo structure
+        {'SubjectPublicKeyInfo', AlgId, PublicKeyBits} =
+            public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
+        {'AlgorithmIdentifier', _, {namedCurve, OID}} = AlgId,
+        CurveName = ec_oid_to_name(OID),
+        % PublicKeyBits is the raw EC point
+        {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+ec_oid_to_name({1, 2, 840, 10045, 3, 1, 7}) ->
+    secp256r1;
+ec_oid_to_name({1, 3, 132, 0, 34}) ->
+    secp384r1;
+ec_oid_to_name({1, 3, 132, 0, 35}) ->
+    secp521r1;
+ec_oid_to_name({1, 3, 132, 0, 10}) ->
+    secp256k1.
+
+ecdsa_sign(PrivateKey, Message, HashAlgorithm) ->
+    DigestType = hash_algorithm_name(HashAlgorithm),
+    public_key:sign(Message, DigestType, PrivateKey).
+
+ecdsa_verify(PubKey, Message, Signature, HashAlgorithm) ->
+    try
+        DigestType = hash_algorithm_name(HashAlgorithm),
+        public_key:verify(Message, DigestType, Signature, PubKey)
+    catch
+        _:_ ->
+            false
+    end.
+
+ec_curve_oid(secp256r1) ->
+    {1, 2, 840, 10045, 3, 1, 7};
+ec_curve_oid(secp384r1) ->
+    {1, 3, 132, 0, 34};
+ec_curve_oid(secp521r1) ->
+    {1, 3, 132, 0, 35};
+ec_curve_oid(secp256k1) ->
+    {1, 3, 132, 0, 10}.
+
+ecdh_compute_shared_secret(PrivateKey, PeerPublicKey) ->
+    try
+        {{'ECPoint', PeerPoint}, {namedCurve, PeerCurveName}} = PeerPublicKey,
+        {namedCurve, PrivateOID} = element(4, PrivateKey),
+        ExpectedOID = ec_curve_oid(PeerCurveName),
+        case PrivateOID =:= ExpectedOID of
+            false ->
+                {error, nil};
+            true ->
+                PrivateScalar = element(3, PrivateKey),
+                SharedSecret = crypto:compute_key(ecdh, PeerPoint, PrivateScalar, PeerCurveName),
+                {ok, SharedSecret}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+xdh_generate_key_pair(Curve) ->
+    {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve),
+    {{PrivKey, Curve}, {PubKey, Curve}}.
+
+xdh_compute_shared_secret({PrivKey, PrivCurve}, {PeerPubKey, PeerCurve}) ->
+    try
+        case PrivCurve =:= PeerCurve of
+            false ->
+                {error, nil};
+            true ->
+                SharedSecret = crypto:compute_key(ecdh, PeerPubKey, PrivKey, PrivCurve),
+                {ok, SharedSecret}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+xdh_private_key_from_bytes(Curve, PrivateBytes) ->
+    try
+        ExpectedSize = kryptos@xdh:key_size(Curve),
+        case byte_size(PrivateBytes) of
+            ExpectedSize ->
+                {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve, PrivateBytes),
+                {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
+            _ ->
+                {error, nil}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+xdh_public_key_from_bytes(Curve, PublicBytes) ->
+    ExpectedSize = kryptos@xdh:key_size(Curve),
+    case byte_size(PublicBytes) of
+        ExpectedSize ->
+            {ok, {PublicBytes, Curve}};
+        _ ->
+            {error, nil}
     end.
