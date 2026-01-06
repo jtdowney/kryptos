@@ -1,23 +1,44 @@
 //// Public key cryptography types.
 ////
 //// This module provides opaque types for asymmetric cryptography keys.
-//// Keys are parameterized by their algorithm type to prevent misuse
-//// (e.g., using an RSA key where an EC key is expected).
+//// Keys are parameterized by three capability markers that indicate which
+//// operations they support:
+////
+//// - `signing`: Digital signature capability (e.g., `ECDSA`)
+//// - `encrypting`: Encryption capability (e.g., `Nil` for EC keys)
+//// - `key_agreement`: Key agreement capability (e.g., `ECDH`)
+////
+//// This phantom type system prevents misuse at compile time. For example,
+//// an EC key with type `PrivateKey(ECDSA, Nil, ECDH)` can be used for both
+//// signing and key agreement, but not for encryption.
 
 /// An opaque private key for asymmetric cryptography.
 ///
-/// Private keys should be kept secret and are used for signing operations.
-/// The type parameter indicates the key algorithm (e.g., `EllipticCurve`).
-pub type PrivateKey(key_type)
+/// Private keys should be kept secret. The type parameters indicate which
+/// operations this key supports:
+///
+/// - `signing`: The signing algorithm (e.g., `ECDSA`) or `Nil` if unsupported
+/// - `encrypting`: The encryption algorithm or `Nil` if unsupported
+/// - `key_agreement`: The key agreement protocol (e.g., `ECDH`) or `Nil` if unsupported
+pub type PrivateKey(signing, encrypting, key_agreement)
 
 /// An opaque public key for asymmetric cryptography.
 ///
-/// Public keys can be freely shared and are used for signature verification.
-/// The type parameter indicates the key algorithm (e.g., `EllipticCurve`).
-pub type PublicKey(key_type)
-
-/// Marker type for elliptic curve keys.
+/// Public keys can be freely shared. The type parameters indicate which
+/// operations this key supports:
 ///
-/// Used as a type parameter for `PrivateKey` and `PublicKey` to indicate
-/// the key is for elliptic curve cryptography (ECDSA, ECDH).
-pub type EllipticCurve
+/// - `signing`: The signing algorithm (e.g., `ECDSA`) or `Nil` if unsupported
+/// - `encrypting`: The encryption algorithm or `Nil` if unsupported
+/// - `key_agreement`: The key agreement protocol (e.g., `ECDH`) or `Nil` if unsupported
+pub type PublicKey(signing, encrypting, key_agreement)
+
+/// Marker type for ECDSA (Elliptic Curve Digital Signature Algorithm) capability.
+///
+/// Used as the `signing` type parameter to indicate a key supports ECDSA signatures.
+pub type ECDSA
+
+/// Marker type for ECDH (Elliptic Curve Diffie-Hellman) capability.
+///
+/// Used as the `key_agreement` type parameter to indicate a key supports ECDH
+/// key agreement.
+pub type ECDH

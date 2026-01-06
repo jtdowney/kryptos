@@ -11,7 +11,9 @@
 //// let #(private_key, public_key) = ec.generate_key_pair(ec.P256)
 //// ```
 
-import kryptos/public_key.{type EllipticCurve, type PrivateKey, type PublicKey}
+import kryptos/public_key.{
+  type ECDH, type ECDSA, type PrivateKey, type PublicKey,
+}
 
 /// Supported elliptic curves for key generation.
 pub type Curve {
@@ -39,4 +41,4 @@ pub type Curve {
 @external(javascript, "../kryptos_ffi.mjs", "ecGenerateKeyPair")
 pub fn generate_key_pair(
   curve: Curve,
-) -> #(PrivateKey(EllipticCurve), PublicKey(EllipticCurve))
+) -> #(PrivateKey(ECDSA, Nil, ECDH), PublicKey(ECDSA, Nil, ECDH))
