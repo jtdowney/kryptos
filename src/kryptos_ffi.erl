@@ -9,8 +9,11 @@
     aead_seal/4,
     aead_open/5,
     ec_generate_key_pair/1,
+    ec_private_key_from_bytes/2,
+    ec_public_key_from_x509/1,
     ecdsa_sign/3,
-    ecdsa_verify/4
+    ecdsa_verify/4,
+    ecdh_compute_shared_secret/2
 ]).
 
 random_bytes(Length) when Length < 0 ->
@@ -126,8 +129,6 @@ aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
             {ok, Plaintext}
     end.
 
-ec_curve_name(p224) ->
-    secp224r1;
 ec_curve_name(p256) ->
     secp256r1;
 ec_curve_name(p384) ->

@@ -15,8 +15,6 @@ import kryptos/public_key.{type EllipticCurve, type PrivateKey, type PublicKey}
 
 /// Supported elliptic curves for key generation.
 pub type Curve {
-  /// NIST P-224 curve (secp224r1). 224-bit key size.
-  P224
   /// NIST P-256 curve (secp256r1, prime256v1). 256-bit key size.
   P256
   /// NIST P-384 curve (secp384r1). 384-bit key size.

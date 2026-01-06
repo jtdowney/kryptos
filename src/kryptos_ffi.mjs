@@ -121,8 +121,6 @@ export function aeadOpen(mode, nonce, tag, ciphertext, aad) {
 
 function ecCurveName(curve) {
   switch (curve.constructor.name) {
-    case "P224":
-      return "secp224r1";
     case "P256":
       return "prime256v1";
     case "P384":
@@ -143,6 +141,107 @@ export function ecGenerateKeyPair(curve) {
   });
 
   return [privateKey, publicKey];
+}
+
+function ecCurveToJwkCrv(curveName) {
+  switch (curveName) {
+    case "prime256v1":
+      return "P-256";
+    case "secp384r1":
+      return "P-384";
+    case "secp521r1":
+      return "P-521";
+    case "secp256k1":
+      return "secp256k1";
+    default:
+      throw new Error(`Unsupported curve: ${curveName}`);
+  }
+}
+
+function ecCurveCoordSize(curveName) {
+  switch (curveName) {
+    case "prime256v1":
+    case "secp256k1":
+      return 32;
+    case "secp384r1":
+      return 48;
+    case "secp521r1":
+      return 66;
+    default:
+      throw new Error(`Unsupported curve: ${curveName}`);
+  }
+}
+
+export function ecPrivateKeyFromBytes(curve, privateScalar) {
+  try {
+    const curveName = ecCurveName(curve);
+    const coordSize = ecCurveCoordSize(curveName);
+
+    // Use ECDH to compute the public point from the private scalar
+    const ecdh = crypto.createECDH(curveName);
+    const privBuffer = Buffer.from(privateScalar.rawBuffer);
+    ecdh.setPrivateKey(privBuffer);
+    const publicPoint = ecdh.getPublicKey();
+
+    // Public point is in uncompressed format: 0x04 || x || y
+    const x = publicPoint.subarray(1, 1 + coordSize);
+    const y = publicPoint.subarray(1 + coordSize);
+
+    // Create JWK with all required fields
+    // Must use Buffer for base64url encoding
+    const jwk = {
+      kty: "EC",
+      crv: ecCurveToJwkCrv(curveName),
+      x: Buffer.from(x).toString("base64url"),
+      y: Buffer.from(y).toString("base64url"),
+      d: privBuffer.toString("base64url"),
+    };
+
+    const privateKey = crypto.createPrivateKey({ key: jwk, format: "jwk" });
+    const publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
+
+    return Result$Ok([privateKey, publicKey]);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+// OID for ecPublicKey (1.2.840.10045.2.1)
+const EC_PUBLIC_KEY_OID = Buffer.from([
+  0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+]);
+
+function validateSpkiUsesNamedCurve(derBytes) {
+  const buf = Buffer.from(derBytes);
+  const oidIndex = buf.indexOf(EC_PUBLIC_KEY_OID);
+  if (oidIndex === -1) {
+    return false;
+  }
+
+  const paramTagIndex = oidIndex + EC_PUBLIC_KEY_OID.length;
+  if (paramTagIndex >= buf.length) {
+    return false;
+  }
+
+  const paramTag = buf[paramTagIndex];
+  return paramTag === 0x06;
+}
+
+export function ecPublicKeyFromX509(derBytes) {
+  try {
+    if (!validateSpkiUsesNamedCurve(derBytes.rawBuffer)) {
+      return Result$Error(undefined);
+    }
+
+    const publicKey = crypto.createPublicKey({
+      key: derBytes.rawBuffer,
+      format: "der",
+      type: "spki",
+    });
+    return Result$Ok(publicKey);
+  } catch {
+    return Result$Error(undefined);
+  }
 }
 
 export function ecdsaSign(privateKey, message, hashAlgorithm) {
@@ -168,5 +267,17 @@ export function ecdsaVerify(publicKey, message, signature, hashAlgorithm) {
     );
   } catch {
     return false;
+  }
+}
+
+export function ecdhComputeSharedSecret(privateKey, peerPublicKey) {
+  try {
+    const sharedSecret = crypto.diffieHellman({
+      privateKey: privateKey,
+      publicKey: peerPublicKey,
+    });
+    return Result$Ok(BitArray$BitArray(sharedSecret));
+  } catch {
+    return Result$Error(undefined);
   }
 }

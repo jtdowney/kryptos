@@ -1,14 +1,7 @@
 import gleam/bit_array
-import kryptos/ec.{P224, P256, P384, P521, Secp256k1}
+import kryptos/ec.{P256, P384, P521, Secp256k1}
 import kryptos/ecdsa
 import kryptos/hash.{Sha256, Sha384, Sha512}
-
-pub fn p224_sign_verify_test() {
-  let #(private_key, public_key) = ec.generate_key_pair(P224)
-  let message = <<"too many secrets":utf8>>
-  let signature = ecdsa.sign(private_key, message, Sha256)
-  assert ecdsa.verify(public_key, message, signature, Sha256)
-}
 
 pub fn p256_sign_verify_test() {
   let #(private_key, public_key) = ec.generate_key_pair(P256)
