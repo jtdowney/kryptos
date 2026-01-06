@@ -124,3 +124,46 @@ pub fn wycheproof_aes_gcm_test() {
     utils.load_test_file("aes_gcm_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
+
+fn run_chacha20_poly1305_test(_group: TestGroup, tc: TestCase) -> Nil {
+  let assert Ok(key) = bit_array.base16_decode(tc.key)
+  let assert Ok(iv) = bit_array.base16_decode(tc.iv)
+  let assert Ok(aad) = bit_array.base16_decode(tc.aad)
+  let assert Ok(msg) = bit_array.base16_decode(tc.msg)
+  let assert Ok(expected_ct) = bit_array.base16_decode(tc.ct)
+  let assert Ok(expected_tag) = bit_array.base16_decode(tc.tag)
+  let context = utils.test_context(tc.tc_id, tc.comment)
+
+  let assert Ok(ctx) = aead.chacha20_poly1305(key) as context
+
+  case tc.result {
+    Valid -> {
+      // Test encryption
+      let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
+        as context
+      assert ct == expected_ct as context
+      assert tag == expected_tag as context
+
+      // Test decryption
+      let assert Ok(plaintext) =
+        aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
+        as context
+      assert plaintext == msg as context
+    }
+    Invalid -> {
+      // Invalid test cases should fail decryption
+      let result = aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
+      assert result == Error(Nil) as context
+    }
+  }
+}
+
+pub fn wycheproof_chacha20_poly1305_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("chacha20_poly1305_test.json", test_file_decoder())
+  utils.run_tests(
+    test_file.test_groups,
+    fn(g) { g.tests },
+    run_chacha20_poly1305_test,
+  )
+}
