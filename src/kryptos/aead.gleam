@@ -24,6 +24,8 @@ import kryptos/block.{type BlockCipher, Aes}
 pub type AeadMode {
   /// AES-GCM with the specified cipher and nonce size.
   Gcm(cipher: BlockCipher, nonce_size: Int)
+  /// ChaCha20-Poly1305 with a 256-bit key (RFC 8439).
+  ChaCha20Poly1305(key: BitArray)
 }
 
 /// Creates an AES-GCM mode with the given block cipher.
@@ -44,6 +46,24 @@ pub fn gcm(cipher: BlockCipher) -> AeadMode {
   Gcm(cipher:, nonce_size: 12)
 }
 
+/// Creates a ChaCha20-Poly1305 AEAD mode with the given key.
+///
+/// Uses standard parameters per RFC 8439: 12-byte (96-bit) nonce and
+/// 16-byte (128-bit) authentication tag.
+///
+/// ## Parameters
+/// - `key`: A 32-byte (256-bit) key
+///
+/// ## Returns
+/// - `Ok(AeadMode)` if the key is exactly 32 bytes
+/// - `Error(Nil)` if the key size is incorrect
+pub fn chacha20_poly1305(key: BitArray) -> Result(AeadMode, Nil) {
+  case bit_array.byte_size(key) == 32 {
+    True -> Ok(ChaCha20Poly1305(key))
+    False -> Error(Nil)
+  }
+}
+
 /// Returns the required nonce size in bytes for an AEAD mode.
 ///
 /// ## Parameters
@@ -54,6 +74,7 @@ pub fn gcm(cipher: BlockCipher) -> AeadMode {
 pub fn nonce_size(mode: AeadMode) -> Int {
   case mode {
     Gcm(nonce_size:, ..) -> nonce_size
+    ChaCha20Poly1305(..) -> 12
   }
 }
 
@@ -67,6 +88,7 @@ pub fn nonce_size(mode: AeadMode) -> Int {
 pub fn tag_size(mode: AeadMode) -> Int {
   case mode {
     Gcm(..) -> 16
+    ChaCha20Poly1305(..) -> 16
   }
 }
 
@@ -198,6 +220,7 @@ pub fn aead_cipher_name(mode: AeadMode) -> String {
             block.Aes256 -> "aes-256-gcm"
           }
       }
+    ChaCha20Poly1305(..) -> "chacha20-poly1305"
   }
 }
 
@@ -208,5 +231,6 @@ pub fn aead_cipher_key(mode: AeadMode) -> BitArray {
       case cipher {
         Aes(key:, ..) -> key
       }
+    ChaCha20Poly1305(key:) -> key
   }
 }

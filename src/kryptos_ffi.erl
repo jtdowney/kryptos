@@ -66,7 +66,9 @@ aead_cipher_name({gcm, {aes, aes128, _}, _}) ->
 aead_cipher_name({gcm, {aes, aes192, _}, _}) ->
     aes_192_gcm;
 aead_cipher_name({gcm, {aes, aes256, _}, _}) ->
-    aes_256_gcm.
+    aes_256_gcm;
+aead_cipher_name({cha_cha20_poly1305, _}) ->
+    chacha20_poly1305.
 
 aead_seal(Mode, Nonce, Plaintext, AdditionalData) ->
     Cipher = aead_cipher_name(Mode),
