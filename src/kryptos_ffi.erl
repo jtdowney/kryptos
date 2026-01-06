@@ -13,7 +13,11 @@
     ec_public_key_from_x509/1,
     ecdsa_sign/3,
     ecdsa_verify/4,
-    ecdh_compute_shared_secret/2
+    ecdh_compute_shared_secret/2,
+    xdh_generate_key_pair/1,
+    xdh_compute_shared_secret/2,
+    xdh_private_key_from_bytes/2,
+    xdh_public_key_from_bytes/2
 ]).
 
 random_bytes(Length) when Length < 0 ->

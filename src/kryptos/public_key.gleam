@@ -42,3 +42,9 @@ pub type ECDSA
 /// Used as the `key_agreement` type parameter to indicate a key supports ECDH
 /// key agreement.
 pub type ECDH
+
+/// Marker type for XDH (X25519/X448 Diffie-Hellman) capability.
+///
+/// Used as the `key_agreement` type parameter to indicate a key supports XDH
+/// key agreement using Montgomery curves (X25519 or X448).
+pub type XDH

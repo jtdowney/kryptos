@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
 import { aead_cipher_name, aead_cipher_key } from "./kryptos/aead.mjs";
 import { algorithm_name } from "./kryptos/hash.mjs";
+import { key_size as xdh_key_size } from "./kryptos/xdh.mjs";
 
 export function randomBytes(length) {
   if (length < 0) {
@@ -277,6 +278,76 @@ export function ecdhComputeSharedSecret(privateKey, peerPublicKey) {
       publicKey: peerPublicKey,
     });
     return Result$Ok(BitArray$BitArray(sharedSecret));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function xdhGenerateKeyPair(curve) {
+  const curveName = curve.constructor.name.toLowerCase();
+  const { privateKey, publicKey } = crypto.generateKeyPairSync(curveName);
+  return [privateKey, publicKey];
+}
+
+export function xdhComputeSharedSecret(privateKey, peerPublicKey) {
+  try {
+    const sharedSecret = crypto.diffieHellman({
+      privateKey: privateKey,
+      publicKey: peerPublicKey,
+    });
+    return Result$Ok(BitArray$BitArray(sharedSecret));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+// DER prefixes for X25519/X448 keys
+const XDH_PRIVATE_DER_PREFIX = {
+  x25519: Buffer.from("302e020100300506032b656e04220420", "hex"),
+  x448: Buffer.from("3046020100300506032b656f043a0438", "hex"),
+};
+
+const XDH_PUBLIC_DER_PREFIX = {
+  x25519: Buffer.from("302a300506032b656e032100", "hex"),
+  x448: Buffer.from("3042300506032b656f033900", "hex"),
+};
+
+export function xdhPrivateKeyFromBytes(curve, privateBytes) {
+  try {
+    const curveName = curve.constructor.name.toLowerCase();
+    const expectedSize = xdh_key_size(curve);
+    if (privateBytes.byteSize !== expectedSize) {
+      return Result$Error(undefined);
+    }
+    const prefix = XDH_PRIVATE_DER_PREFIX[curveName];
+    const der = Buffer.concat([prefix, Buffer.from(privateBytes.rawBuffer)]);
+    const privateKey = crypto.createPrivateKey({
+      key: der,
+      format: "der",
+      type: "pkcs8",
+    });
+    const publicKey = crypto.createPublicKey(privateKey);
+    return Result$Ok([privateKey, publicKey]);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function xdhPublicKeyFromBytes(curve, publicBytes) {
+  try {
+    const curveName = curve.constructor.name.toLowerCase();
+    const expectedSize = xdh_key_size(curve);
+    if (publicBytes.byteSize !== expectedSize) {
+      return Result$Error(undefined);
+    }
+    const prefix = XDH_PUBLIC_DER_PREFIX[curveName];
+    const der = Buffer.concat([prefix, Buffer.from(publicBytes.rawBuffer)]);
+    const publicKey = crypto.createPublicKey({
+      key: der,
+      format: "der",
+      type: "spki",
+    });
+    return Result$Ok(publicKey);
   } catch {
     return Result$Error(undefined);
   }
