@@ -92,26 +92,26 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
     Error(Nil) -> Nil
     Ok(cipher) -> {
       let nonce_size = group.iv_size / 8
-      let mode = Gcm(cipher, nonce_size)
+      let ctx = Gcm(cipher, nonce_size)
 
       case tc.result {
         Valid -> {
           // Test encryption
-          let assert Ok(#(ct, tag)) = aead.seal_with_aad(mode, iv, msg, aad)
+          let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
             as context
           assert ct == expected_ct as context
           assert tag == expected_tag as context
 
           // Test decryption
           let assert Ok(plaintext) =
-            aead.open_with_aad(mode, iv, expected_tag, expected_ct, aad)
+            aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
             as context
           assert plaintext == msg as context
         }
         Invalid -> {
           // Invalid test cases should fail decryption
           let result =
-            aead.open_with_aad(mode, iv, expected_tag, expected_ct, aad)
+            aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
           assert result == Error(Nil) as context
         }
       }
