@@ -43,14 +43,6 @@ pub type Curve {
   Secp256k1
 }
 
-/// Error when importing an EC key.
-pub type ImportError {
-  /// The key data is malformed or corrupted.
-  InvalidKeyData
-  /// The curve is not supported or doesn't match the key.
-  UnsupportedCurve
-}
-
 /// Generates a new elliptic curve key pair.
 ///
 /// The private key should be kept secret and used for signing.
@@ -73,10 +65,10 @@ pub fn generate_key_pair(curve: Curve) -> #(PrivateKey, PublicKey)
 /// - `pem`: PEM-encoded key string
 ///
 /// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(ImportError)` on failure.
+/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_import_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPrivateKeyPem")
-pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), ImportError)
+pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), Nil)
 
 /// Imports an EC private key from DER-encoded data.
 ///
@@ -86,10 +78,10 @@ pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), ImportError)
 /// - `der`: DER-encoded key data
 ///
 /// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(ImportError)` on failure.
+/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_import_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPrivateKeyDer")
-pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), ImportError)
+pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), Nil)
 
 /// Exports an EC private key to PEM format.
 ///
@@ -129,10 +121,10 @@ pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 /// - `pem`: PEM-encoded key string
 ///
 /// ## Returns
-/// `Ok(public_key)` on success, `Error(ImportError)` on failure.
+/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_import_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPublicKeyPem")
-pub fn public_key_from_pem(pem: String) -> Result(PublicKey, ImportError)
+pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
 
 /// Imports an EC public key from DER-encoded data.
 ///
@@ -142,10 +134,10 @@ pub fn public_key_from_pem(pem: String) -> Result(PublicKey, ImportError)
 /// - `der`: DER-encoded key data
 ///
 /// ## Returns
-/// `Ok(public_key)` on success, `Error(ImportError)` on failure.
+/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_import_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPublicKeyDer")
-pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, ImportError)
+pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
 
 /// Exports an EC public key to PEM format.
 ///

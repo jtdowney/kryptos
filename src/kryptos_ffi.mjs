@@ -1,16 +1,15 @@
 import crypto from "node:crypto";
 
 import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
-import { tag_size } from "./kryptos/aead.mjs";
-import { cipher_name, cipher_key, cipher_iv } from "./kryptos/block.mjs";
-import { key_size as eddsa_key_size } from "./kryptos/eddsa.mjs";
-import { InvalidKeyData as EddsaImportError$InvalidKeyData } from "./kryptos/eddsa.mjs";
-import { algorithm_name } from "./kryptos/hash.mjs";
-import { InvalidKeyData as RsaImportError$InvalidKeyData } from "./kryptos/rsa.mjs";
 import {
-  key_size as xdh_key_size,
-  InvalidKeyData as XdhImportError$InvalidKeyData,
-} from "./kryptos/xdh.mjs";
+  aead_cipher_key,
+  aead_cipher_name,
+  tag_size,
+} from "./kryptos/aead.mjs";
+import { cipher_name, cipher_key, iv_size } from "./kryptos/cipher_modes.mjs";
+import { key_size as eddsa_key_size } from "./kryptos/eddsa.mjs";
+import { algorithm_name } from "./kryptos/hash.mjs";
+import { key_size as xdh_key_size } from "./kryptos/xdh.mjs";
 
 export function randomBytes(length) {
   if (length < 0) {
@@ -403,7 +402,7 @@ export function ecdhComputeSharedSecret(privateKey, peerPublicKey) {
   }
 }
 
-function importPrivateKeyPem(pem, type, allowedTypes, InvalidKeyData) {
+function importPrivateKeyPem(pem, type, allowedTypes) {
   try {
     const privateKey = crypto.createPrivateKey({
       key: pem,
@@ -412,17 +411,17 @@ function importPrivateKeyPem(pem, type, allowedTypes, InvalidKeyData) {
     });
 
     if (!allowedTypes.includes(privateKey.asymmetricKeyType)) {
-      return Result$Error(InvalidKeyData());
+      return Result$Error(undefined);
     }
 
     const publicKey = crypto.createPublicKey(privateKey);
     return Result$Ok([privateKey, publicKey]);
   } catch {
-    return Result$Error(InvalidKeyData());
+    return Result$Error(undefined);
   }
 }
 
-function importPrivateKeyDer(der, type, allowedTypes, InvalidKeyData) {
+function importPrivateKeyDer(der, type, allowedTypes) {
   try {
     const privateKey = crypto.createPrivateKey({
       key: der.rawBuffer,
@@ -431,17 +430,17 @@ function importPrivateKeyDer(der, type, allowedTypes, InvalidKeyData) {
     });
 
     if (!allowedTypes.includes(privateKey.asymmetricKeyType)) {
-      return Result$Error(new InvalidKeyData());
+      return Result$Error(undefined);
     }
 
     const publicKey = crypto.createPublicKey(privateKey);
     return Result$Ok([privateKey, publicKey]);
   } catch {
-    return Result$Error(new InvalidKeyData());
+    return Result$Error(undefined);
   }
 }
 
-function importPublicKeyPem(pem, type, allowedTypes, InvalidKeyData) {
+function importPublicKeyPem(pem, type, allowedTypes) {
   try {
     const publicKey = crypto.createPublicKey({
       key: pem,
@@ -450,19 +449,19 @@ function importPublicKeyPem(pem, type, allowedTypes, InvalidKeyData) {
     });
 
     if (!allowedTypes.includes(publicKey.asymmetricKeyType)) {
-      return Result$Error(new InvalidKeyData());
+      return Result$Error(undefined);
     }
 
     return Result$Ok(publicKey);
   } catch {
-    return Result$Error(new InvalidKeyData());
+    return Result$Error(undefined);
   }
 }
 
-function importPublicKeyDer(der, type, allowedTypes, InvalidKeyData, validate) {
+function importPublicKeyDer(der, type, allowedTypes, validate) {
   try {
     if (validate && !validate(der.rawBuffer)) {
-      return Result$Error(new InvalidKeyData());
+      return Result$Error(undefined);
     }
 
     const publicKey = crypto.createPublicKey({
@@ -472,45 +471,29 @@ function importPublicKeyDer(der, type, allowedTypes, InvalidKeyData, validate) {
     });
 
     if (!allowedTypes.includes(publicKey.asymmetricKeyType)) {
-      return Result$Error(new InvalidKeyData());
+      return Result$Error(undefined);
     }
 
     return Result$Ok(publicKey);
   } catch {
-    return Result$Error(new InvalidKeyData());
+    return Result$Error(undefined);
   }
 }
 
 export function ecImportPrivateKeyPem(pem) {
-  return importPrivateKeyPem(
-    pem,
-    "pkcs8",
-    ["ec"],
-    EcImportError$InvalidKeyData,
-  );
+  return importPrivateKeyPem(pem, "pkcs8", ["ec"]);
 }
 
 export function ecImportPrivateKeyDer(der) {
-  return importPrivateKeyDer(
-    der,
-    "pkcs8",
-    ["ec"],
-    EcImportError$InvalidKeyData,
-  );
+  return importPrivateKeyDer(der, "pkcs8", ["ec"]);
 }
 
 export function ecImportPublicKeyPem(pem) {
-  return importPublicKeyPem(pem, "spki", ["ec"], EcImportError$InvalidKeyData);
+  return importPublicKeyPem(pem, "spki", ["ec"]);
 }
 
 export function ecImportPublicKeyDer(der) {
-  return importPublicKeyDer(
-    der,
-    "spki",
-    ["ec"],
-    EcImportError$InvalidKeyData,
-    validateSpkiUsesNamedCurve,
-  );
+  return importPublicKeyDer(der, "spki", ["ec"], validateSpkiUsesNamedCurve);
 }
 
 export function ecExportPrivateKeyPem(key) {
@@ -776,22 +759,22 @@ function rsaFormatToType(format, isPrivate) {
 
 export function rsaImportPrivateKeyPem(pem, format) {
   const type = rsaFormatToType(format, true);
-  return importPrivateKeyPem(pem, type, ["rsa"], RsaImportError$InvalidKeyData);
+  return importPrivateKeyPem(pem, type, ["rsa"]);
 }
 
 export function rsaImportPrivateKeyDer(der, format) {
   const type = rsaFormatToType(format, true);
-  return importPrivateKeyDer(der, type, ["rsa"], RsaImportError$InvalidKeyData);
+  return importPrivateKeyDer(der, type, ["rsa"]);
 }
 
 export function rsaImportPublicKeyPem(pem, format) {
   const type = rsaFormatToType(format, false);
-  return importPublicKeyPem(pem, type, ["rsa"], RsaImportError$InvalidKeyData);
+  return importPublicKeyPem(pem, type, ["rsa"]);
 }
 
 export function rsaImportPublicKeyDer(der, format) {
   const type = rsaFormatToType(format, false);
-  return importPublicKeyDer(der, type, ["rsa"], RsaImportError$InvalidKeyData);
+  return importPublicKeyDer(der, type, ["rsa"]);
 }
 
 export function rsaExportPrivateKeyPem(key, format) {
@@ -914,39 +897,19 @@ export function eddsaPublicKeyFromBytes(curve, publicBytes) {
 }
 
 export function eddsaImportPrivateKeyPem(pem) {
-  return importPrivateKeyPem(
-    pem,
-    "pkcs8",
-    ["ed25519", "ed448"],
-    EddsaImportError$InvalidKeyData,
-  );
+  return importPrivateKeyPem(pem, "pkcs8", ["ed25519", "ed448"]);
 }
 
 export function eddsaImportPrivateKeyDer(der) {
-  return importPrivateKeyDer(
-    der,
-    "pkcs8",
-    ["ed25519", "ed448"],
-    EddsaImportError$InvalidKeyData,
-  );
+  return importPrivateKeyDer(der, "pkcs8", ["ed25519", "ed448"]);
 }
 
 export function eddsaImportPublicKeyPem(pem) {
-  return importPublicKeyPem(
-    pem,
-    "spki",
-    ["ed25519", "ed448"],
-    EddsaImportError$InvalidKeyData,
-  );
+  return importPublicKeyPem(pem, "spki", ["ed25519", "ed448"]);
 }
 
 export function eddsaImportPublicKeyDer(der) {
-  return importPublicKeyDer(
-    der,
-    "spki",
-    ["ed25519", "ed448"],
-    EddsaImportError$InvalidKeyData,
-  );
+  return importPublicKeyDer(der, "spki", ["ed25519", "ed448"]);
 }
 
 export function eddsaExportPrivateKeyPem(key) {
@@ -992,39 +955,19 @@ export function eddsaPublicKeyFromPrivate(privateKey) {
 // XDH module-specific functions
 
 export function xdhImportPrivateKeyPem(pem) {
-  return importPrivateKeyPem(
-    pem,
-    "pkcs8",
-    ["x25519", "x448"],
-    XdhImportError$InvalidKeyData,
-  );
+  return importPrivateKeyPem(pem, "pkcs8", ["x25519", "x448"]);
 }
 
 export function xdhImportPrivateKeyDer(der) {
-  return importPrivateKeyDer(
-    der,
-    "pkcs8",
-    ["x25519", "x448"],
-    XdhImportError$InvalidKeyData,
-  );
+  return importPrivateKeyDer(der, "pkcs8", ["x25519", "x448"]);
 }
 
 export function xdhImportPublicKeyPem(pem) {
-  return importPublicKeyPem(
-    pem,
-    "spki",
-    ["x25519", "x448"],
-    XdhImportError$InvalidKeyData,
-  );
+  return importPublicKeyPem(pem, "spki", ["x25519", "x448"]);
 }
 
 export function xdhImportPublicKeyDer(der) {
-  return importPublicKeyDer(
-    der,
-    "spki",
-    ["x25519", "x448"],
-    XdhImportError$InvalidKeyData,
-  );
+  return importPublicKeyDer(der, "spki", ["x25519", "x448"]);
 }
 
 export function xdhExportPrivateKeyPem(key) {

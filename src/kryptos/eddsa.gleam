@@ -25,12 +25,6 @@ pub type PrivateKey
 /// An EdDSA public key.
 pub type PublicKey
 
-/// Error when importing an EdDSA key.
-pub type ImportError {
-  InvalidKeyData
-  UnsupportedCurve
-}
-
 /// Supported curves for EdDSA signatures.
 pub type Curve {
   /// Ed25519 curve. 32-byte keys, 64-byte signatures.
@@ -129,7 +123,7 @@ pub fn public_key_from_bytes(
 /// Returns the private key and derived public key, or an error if invalid.
 @external(erlang, "kryptos_ffi", "eddsa_import_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaImportPrivateKeyPem")
-pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), ImportError)
+pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), Nil)
 
 /// Imports a private key from DER-encoded data.
 ///
@@ -137,7 +131,7 @@ pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), ImportError)
 /// Returns the private key and derived public key, or an error if invalid.
 @external(erlang, "kryptos_ffi", "eddsa_import_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaImportPrivateKeyDer")
-pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), ImportError)
+pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), Nil)
 
 /// Exports a private key to PEM format (PKCS#8).
 pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
@@ -158,14 +152,14 @@ pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 /// Expects an SPKI encoded EdDSA public key.
 @external(erlang, "kryptos_ffi", "eddsa_import_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaImportPublicKeyPem")
-pub fn public_key_from_pem(pem: String) -> Result(PublicKey, ImportError)
+pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
 
 /// Imports a public key from DER-encoded data.
 ///
 /// Expects an SPKI encoded EdDSA public key.
 @external(erlang, "kryptos_ffi", "eddsa_import_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaImportPublicKeyDer")
-pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, ImportError)
+pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
 
 /// Exports a public key to PEM format (SPKI).
 pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
