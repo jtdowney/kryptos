@@ -1,7 +1,11 @@
 import crypto from "node:crypto";
 
 import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
-import { aead_cipher_name, aead_cipher_key } from "./kryptos/aead.mjs";
+import {
+  aead_cipher_key,
+  aead_cipher_name,
+  tag_size,
+} from "./kryptos/aead.mjs";
 import { InvalidKeyData as EcImportError$InvalidKeyData } from "./kryptos/ec.mjs";
 import { key_size as eddsa_key_size } from "./kryptos/eddsa.mjs";
 import { InvalidKeyData as EddsaImportError$InvalidKeyData } from "./kryptos/eddsa.mjs";
@@ -100,8 +104,21 @@ export function pbkdf2Derive(algorithm, password, salt, iterations, length) {
 export function aeadSeal(mode, nonce, plaintext, aad) {
   const name = aead_cipher_name(mode);
   const key = aead_cipher_key(mode);
-  const cipher = crypto.createCipheriv(name, key.rawBuffer, nonce.rawBuffer);
-  cipher.setAAD(aad.rawBuffer);
+  const tagSize = tag_size(mode);
+
+  const isCcm = name.includes("ccm");
+  const cipherOptions = isCcm ? { authTagLength: tagSize } : undefined;
+  const aadOptions = isCcm
+    ? { plaintextLength: plaintext.byteSize }
+    : undefined;
+
+  const cipher = crypto.createCipheriv(
+    name,
+    key.rawBuffer,
+    nonce.rawBuffer,
+    cipherOptions,
+  );
+  cipher.setAAD(aad.rawBuffer, aadOptions);
 
   const updateOutput = cipher.update(plaintext.rawBuffer);
   const finalOutput = cipher.final();
@@ -114,12 +131,21 @@ export function aeadOpen(mode, nonce, tag, ciphertext, aad) {
   try {
     const name = aead_cipher_name(mode);
     const key = aead_cipher_key(mode);
+    const tagSize = tag_size(mode);
+
+    const isCcm = name.includes("ccm");
+    const cipherOptions = isCcm ? { authTagLength: tagSize } : undefined;
+    const aadOptions = isCcm
+      ? { plaintextLength: ciphertext.byteSize }
+      : undefined;
+
     const decipher = crypto.createDecipheriv(
       name,
       key.rawBuffer,
       nonce.rawBuffer,
+      cipherOptions,
     );
-    decipher.setAAD(aad.rawBuffer);
+    decipher.setAAD(aad.rawBuffer, aadOptions);
     decipher.setAuthTag(tag.rawBuffer);
 
     const updateOutput = decipher.update(ciphertext.rawBuffer);

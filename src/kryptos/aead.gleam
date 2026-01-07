@@ -18,12 +18,15 @@
 //// ```
 
 import gleam/bit_array
+import gleam/list
 import kryptos/block.{type BlockCipher, Aes}
 
 /// AEAD context with its configuration.
 pub type AeadContext {
   /// AES-GCM with the specified cipher and nonce size.
   Gcm(cipher: BlockCipher, nonce_size: Int)
+  /// AES-CCM with configurable nonce and tag sizes (RFC 3610).
+  Ccm(cipher: BlockCipher, nonce_size: Int, tag_size: Int)
   /// ChaCha20-Poly1305 with a 256-bit key (RFC 8439).
   ChaCha20Poly1305(key: BitArray)
 }
@@ -44,6 +47,47 @@ pub type AeadContext {
 /// An AES-GCM context ready for encryption or decryption.
 pub fn gcm(cipher: BlockCipher) -> AeadContext {
   Gcm(cipher:, nonce_size: 12)
+}
+
+/// Creates an AES-CCM context with the given block cipher.
+///
+/// Uses standard parameters: 16-byte (128-bit) authentication tag and
+/// 13-byte (104-bit) nonce, which allows messages up to 64KB.
+///
+/// ## Parameters
+/// - `cipher`: The AES block cipher (128, 192, or 256 bit)
+///
+/// ## Returns
+/// An AES-CCM context ready for encryption or decryption.
+pub fn ccm(cipher: BlockCipher) -> AeadContext {
+  Ccm(cipher:, nonce_size: 13, tag_size: 16)
+}
+
+/// Creates an AES-CCM context with custom nonce and tag sizes.
+///
+/// CCM allows flexible nonce and tag sizes per RFC 3610:
+/// - Nonce size affects maximum message length (larger nonce = smaller max message)
+/// - Tag size affects authentication strength (larger tag = stronger)
+///
+/// ## Parameters
+/// - `cipher`: The AES block cipher (128, 192, or 256 bit)
+/// - `nonce_size`: Nonce size in bytes (7-13)
+/// - `tag_size`: Authentication tag size in bytes (4, 6, 8, 10, 12, 14, or 16)
+///
+/// ## Returns
+/// - `Ok(AeadContext)` if the sizes are valid
+/// - `Error(Nil)` if any size is out of range
+pub fn ccm_with_sizes(
+  cipher: BlockCipher,
+  nonce_size nonce_size: Int,
+  tag_size tag_size: Int,
+) -> Result(AeadContext, Nil) {
+  let valid_nonce = nonce_size >= 7 && nonce_size <= 13
+  let valid_tag = list.contains([4, 6, 8, 10, 12, 14, 16], tag_size)
+  case valid_nonce && valid_tag {
+    True -> Ok(Ccm(cipher:, nonce_size:, tag_size:))
+    False -> Error(Nil)
+  }
 }
 
 /// Creates a ChaCha20-Poly1305 AEAD context with the given key.
@@ -74,6 +118,7 @@ pub fn chacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
 pub fn nonce_size(ctx: AeadContext) -> Int {
   case ctx {
     Gcm(nonce_size:, ..) -> nonce_size
+    Ccm(nonce_size:, ..) -> nonce_size
     ChaCha20Poly1305(..) -> 12
   }
 }
@@ -88,6 +133,7 @@ pub fn nonce_size(ctx: AeadContext) -> Int {
 pub fn tag_size(ctx: AeadContext) -> Int {
   case ctx {
     Gcm(..) -> 16
+    Ccm(tag_size:, ..) -> tag_size
     ChaCha20Poly1305(..) -> 16
   }
 }
@@ -220,6 +266,15 @@ pub fn aead_cipher_name(ctx: AeadContext) -> String {
             block.Aes256 -> "aes-256-gcm"
           }
       }
+    Ccm(cipher:, ..) ->
+      case cipher {
+        Aes(key_size:, ..) ->
+          case key_size {
+            block.Aes128 -> "aes-128-ccm"
+            block.Aes192 -> "aes-192-ccm"
+            block.Aes256 -> "aes-256-ccm"
+          }
+      }
     ChaCha20Poly1305(..) -> "chacha20-poly1305"
   }
 }
@@ -228,6 +283,10 @@ pub fn aead_cipher_name(ctx: AeadContext) -> String {
 pub fn aead_cipher_key(ctx: AeadContext) -> BitArray {
   case ctx {
     Gcm(cipher:, ..) ->
+      case cipher {
+        Aes(key:, ..) -> key
+      }
+    Ccm(cipher:, ..) ->
       case cipher {
         Aes(key:, ..) -> key
       }

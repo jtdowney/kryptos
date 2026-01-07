@@ -139,6 +139,12 @@ aead_cipher_name({gcm, {aes, aes192, _}, _}) ->
     aes_192_gcm;
 aead_cipher_name({gcm, {aes, aes256, _}, _}) ->
     aes_256_gcm;
+aead_cipher_name({ccm, {aes, aes128, _}, _, _}) ->
+    aes_128_ccm;
+aead_cipher_name({ccm, {aes, aes192, _}, _, _}) ->
+    aes_192_ccm;
+aead_cipher_name({ccm, {aes, aes256, _}, _, _}) ->
+    aes_256_ccm;
 aead_cipher_name({cha_cha20_poly1305, _}) ->
     chacha20_poly1305.
 

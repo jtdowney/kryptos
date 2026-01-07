@@ -167,3 +167,58 @@ pub fn wycheproof_chacha20_poly1305_test() {
     run_chacha20_poly1305_test,
   )
 }
+
+fn run_ccm_test(group: TestGroup, tc: TestCase) -> Nil {
+  let nonce_size = group.iv_size / 8
+  let tag_size = group.tag_size / 8
+
+  let assert Ok(key) = bit_array.base16_decode(tc.key)
+  let assert Ok(iv) = bit_array.base16_decode(tc.iv)
+  let assert Ok(aad) = bit_array.base16_decode(tc.aad)
+  let assert Ok(msg) = bit_array.base16_decode(tc.msg)
+  let assert Ok(expected_ct) = bit_array.base16_decode(tc.ct)
+  let assert Ok(expected_tag) = bit_array.base16_decode(tc.tag)
+  let context = utils.test_context(tc.tc_id, tc.comment)
+
+  case create_cipher(key, group.key_size) {
+    Error(Nil) -> Nil
+    Ok(cipher) -> {
+      // Use ccm_with_sizes to properly validate nonce/tag sizes
+      case aead.ccm_with_sizes(cipher, nonce_size:, tag_size:) {
+        Error(Nil) -> {
+          // Invalid configuration - should only happen for Invalid test cases
+          assert tc.result == Invalid as context
+        }
+        Ok(ctx) -> {
+          case tc.result {
+            Valid -> {
+              // Test encryption
+              let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
+                as context
+              assert ct == expected_ct as context
+              assert tag == expected_tag as context
+
+              // Test decryption
+              let assert Ok(plaintext) =
+                aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
+                as context
+              assert plaintext == msg as context
+            }
+            Invalid -> {
+              // Invalid test cases should fail decryption
+              let result =
+                aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
+              assert result == Error(Nil) as context
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pub fn wycheproof_aes_ccm_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("aes_ccm_test.json", test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_ccm_test)
+}
