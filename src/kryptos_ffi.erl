@@ -26,7 +26,12 @@
     rsa_encrypt/3,
     rsa_decrypt/3,
     rsa_private_key_from_pkcs8/1,
-    rsa_public_key_from_x509/1
+    rsa_public_key_from_x509/1,
+    eddsa_generate_key_pair/1,
+    eddsa_sign/2,
+    eddsa_verify/3,
+    eddsa_private_key_from_bytes/2,
+    eddsa_public_key_from_bytes/2
 ]).
 
 random_bytes(Length) when Length < 0 ->
@@ -401,5 +406,44 @@ rsa_public_key_from_x509(DerBytes) ->
         {ok, RSAPubKey}
     catch
         _:_ ->
+            {error, nil}
+    end.
+
+eddsa_generate_key_pair(Curve) ->
+    {PubKey, PrivKey} = crypto:generate_key(eddsa, Curve),
+    {{PrivKey, Curve}, {PubKey, Curve}}.
+
+eddsa_sign({PrivKey, Curve}, Message) ->
+    crypto:sign(eddsa, none, Message, [PrivKey, Curve]).
+
+eddsa_verify({PubKey, Curve}, Message, Signature) ->
+    try
+        crypto:verify(eddsa, none, Message, Signature, [PubKey, Curve])
+    catch
+        _:_ ->
+            false
+    end.
+
+eddsa_private_key_from_bytes(Curve, PrivateBytes) ->
+    try
+        ExpectedSize = kryptos@eddsa:key_size(Curve),
+        case byte_size(PrivateBytes) of
+            ExpectedSize ->
+                {PubKey, PrivKey} = crypto:generate_key(eddsa, Curve, PrivateBytes),
+                {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
+            _ ->
+                {error, nil}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+eddsa_public_key_from_bytes(Curve, PublicBytes) ->
+    ExpectedSize = kryptos@eddsa:key_size(Curve),
+    case byte_size(PublicBytes) of
+        ExpectedSize ->
+            {ok, {PublicBytes, Curve}};
+        _ ->
             {error, nil}
     end.

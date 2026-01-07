@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
 import { aead_cipher_name, aead_cipher_key } from "./kryptos/aead.mjs";
+import { key_size as eddsa_key_size } from "./kryptos/eddsa.mjs";
 import { algorithm_name } from "./kryptos/hash.mjs";
 import { key_size as xdh_key_size } from "./kryptos/xdh.mjs";
 
@@ -490,6 +491,81 @@ export function rsaPublicKeyFromX509(derBytes) {
     if (publicKey.asymmetricKeyType !== "rsa") {
       return Result$Error(undefined);
     }
+    return Result$Ok(publicKey);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function eddsaGenerateKeyPair(curve) {
+  const curveName = curve.constructor.name.toLowerCase();
+  const { privateKey, publicKey } = crypto.generateKeyPairSync(curveName);
+  return [privateKey, publicKey];
+}
+
+export function eddsaSign(privateKey, message) {
+  const signature = crypto.sign(null, message.rawBuffer, privateKey);
+  return BitArray$BitArray(signature);
+}
+
+export function eddsaVerify(publicKey, message, signature) {
+  try {
+    return crypto.verify(
+      null,
+      message.rawBuffer,
+      publicKey,
+      signature.rawBuffer,
+    );
+  } catch {
+    return false;
+  }
+}
+
+const EDDSA_PRIVATE_DER_PREFIX = {
+  ed25519: Buffer.from("302e020100300506032b657004220420", "hex"),
+  ed448: Buffer.from("3047020100300506032b6571043b0439", "hex"),
+};
+
+const EDDSA_PUBLIC_DER_PREFIX = {
+  ed25519: Buffer.from("302a300506032b6570032100", "hex"),
+  ed448: Buffer.from("3043300506032b6571033a00", "hex"),
+};
+
+export function eddsaPrivateKeyFromBytes(curve, privateBytes) {
+  try {
+    const curveName = curve.constructor.name.toLowerCase();
+    const expectedSize = eddsa_key_size(curve);
+    if (privateBytes.byteSize !== expectedSize) {
+      return Result$Error(undefined);
+    }
+    const prefix = EDDSA_PRIVATE_DER_PREFIX[curveName];
+    const der = Buffer.concat([prefix, Buffer.from(privateBytes.rawBuffer)]);
+    const privateKey = crypto.createPrivateKey({
+      key: der,
+      format: "der",
+      type: "pkcs8",
+    });
+    const publicKey = crypto.createPublicKey(privateKey);
+    return Result$Ok([privateKey, publicKey]);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function eddsaPublicKeyFromBytes(curve, publicBytes) {
+  try {
+    const curveName = curve.constructor.name.toLowerCase();
+    const expectedSize = eddsa_key_size(curve);
+    if (publicBytes.byteSize !== expectedSize) {
+      return Result$Error(undefined);
+    }
+    const prefix = EDDSA_PUBLIC_DER_PREFIX[curveName];
+    const der = Buffer.concat([prefix, Buffer.from(publicBytes.rawBuffer)]);
+    const publicKey = crypto.createPublicKey({
+      key: der,
+      format: "der",
+      type: "spki",
+    });
     return Result$Ok(publicKey);
   } catch {
     return Result$Error(undefined);

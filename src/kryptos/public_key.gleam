@@ -55,3 +55,9 @@ pub type XDH
 /// supports RSA operations. RSA keys can be used for both signing (PKCS#1 v1.5,
 /// PSS) and encryption (PKCS#1 v1.5, OAEP).
 pub type RSA
+
+/// Marker type for EdDSA (Edwards-curve Digital Signature Algorithm) capability.
+///
+/// Used as the `signing` type parameter to indicate a key supports EdDSA
+/// signatures using Ed25519 or Ed448 curves.
+pub type EdDSA
