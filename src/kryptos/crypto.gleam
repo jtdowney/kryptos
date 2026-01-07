@@ -10,9 +10,11 @@
 //// ```
 
 import gleam/bit_array
+import gleam/int
 import gleam/list
 import gleam/option.{type Option}
 import gleam/result
+import gleam/string
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/hmac
 import kryptos/internal/hkdf
@@ -134,6 +136,30 @@ pub fn pbkdf2(
 @external(erlang, "kryptos_ffi", "random_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "randomBytes")
 pub fn random_bytes(length: Int) -> BitArray
+
+/// Generates a cryptographically secure random UUID v4.
+///
+/// ## Returns
+/// A `String` containing a UUID v4.
+@external(javascript, "../kryptos_ffi.mjs", "randomUuid")
+pub fn random_uuid() -> String {
+  let assert <<a:32, b:16, c_raw:16, d_raw:16, e:48>> = random_bytes(16)
+  let c = int.bitwise_or(int.bitwise_and(c_raw, 0x0FFF), 0x4000)
+  let d = int.bitwise_or(int.bitwise_and(d_raw, 0x3FFF), 0x8000)
+
+  let uuid =
+    string.pad_start(int.to_base16(a), 8, "0")
+    <> "-"
+    <> string.pad_start(int.to_base16(b), 4, "0")
+    <> "-"
+    <> string.pad_start(int.to_base16(c), 4, "0")
+    <> "-"
+    <> string.pad_start(int.to_base16(d), 4, "0")
+    <> "-"
+    <> string.pad_start(int.to_base16(e), 12, "0")
+
+  string.lowercase(uuid)
+}
 
 /// Compares two `BitArray` in constant time.
 ///

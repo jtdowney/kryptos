@@ -15,6 +15,10 @@ export function randomBytes(length) {
   return BitArray$BitArray(buffer);
 }
 
+export function randomUuid() {
+  return crypto.randomUUID();
+}
+
 export function constantTimeEqual(a, b) {
   if (a.byteSize !== b.byteSize) {
     return false;
