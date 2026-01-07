@@ -1,19 +1,24 @@
-import kryptos/ec.{type Curve}
-import kryptos/public_key.{
-  type ECDH, type ECDSA, type PrivateKey, type PublicKey,
-}
+import gleam/result
+import kryptos/ec.{type Curve, type PrivateKey, type PublicKey}
 
 /// Import a private key from raw scalar bytes. Internal use only for testing.
 @external(erlang, "kryptos_ffi", "ec_private_key_from_bytes")
 @external(javascript, "../../kryptos_ffi.mjs", "ecPrivateKeyFromBytes")
+fn do_private_key_from_bytes(
+  curve: Curve,
+  private_scalar: BitArray,
+) -> Result(#(PrivateKey, PublicKey), ec.ImportError)
+
 pub fn private_key_from_bytes(
   curve: Curve,
   private_scalar: BitArray,
-) -> Result(#(PrivateKey(ECDSA, Nil, ECDH), PublicKey(ECDSA, Nil, ECDH)), Nil)
+) -> Result(#(PrivateKey, PublicKey), Nil) {
+  do_private_key_from_bytes(curve, private_scalar)
+  |> result.map_error(fn(_) { Nil })
+}
 
 /// Import a public key from X509/DER encoded bytes. Internal use only for testing.
-@external(erlang, "kryptos_ffi", "ec_public_key_from_x509")
-@external(javascript, "../../kryptos_ffi.mjs", "ecPublicKeyFromX509")
-pub fn public_key_from_x509(
-  der_bytes: BitArray,
-) -> Result(PublicKey(ECDSA, Nil, ECDH), Nil)
+pub fn public_key_from_x509(der_bytes: BitArray) -> Result(PublicKey, Nil) {
+  ec.public_key_from_der(der_bytes)
+  |> result.map_error(fn(_) { Nil })
+}

@@ -1,6 +1,23 @@
+import birdie
 import gleam/bit_array
 import gleam/int
 import kryptos/eddsa.{Ed25519, Ed448}
+
+// Test key: 32 bytes of deterministic data for Ed25519
+const test_ed25519_private_bytes = <<
+  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+  0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
+  0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+>>
+
+// Test key: 57 bytes of deterministic data for Ed448
+const test_ed448_private_bytes = <<
+  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+  0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
+  0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+  0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34,
+  0x35, 0x36, 0x37, 0x38, 0x39,
+>>
 
 pub fn ed25519_sign_verify_test() {
   let #(private_key, public_key) = eddsa.generate_key_pair(Ed25519)
@@ -90,4 +107,125 @@ pub fn ed25519_key_size_test() {
 
 pub fn ed448_key_size_test() {
   assert eddsa.key_size(Ed448) == 57
+}
+
+// PEM/DER export tests with birdie snapshots
+
+pub fn ed25519_export_private_key_pem_test() {
+  let assert Ok(#(private_key, _public_key)) =
+    eddsa.from_bytes(Ed25519, test_ed25519_private_bytes)
+  let assert Ok(pem) = eddsa.to_pem(private_key)
+
+  birdie.snap(pem, title: "eddsa ed25519 private key pem")
+}
+
+pub fn ed448_export_private_key_pem_test() {
+  let assert Ok(#(private_key, _public_key)) =
+    eddsa.from_bytes(Ed448, test_ed448_private_bytes)
+  let assert Ok(pem) = eddsa.to_pem(private_key)
+
+  birdie.snap(pem, title: "eddsa ed448 private key pem")
+}
+
+pub fn ed25519_export_public_key_pem_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    eddsa.from_bytes(Ed25519, test_ed25519_private_bytes)
+  let assert Ok(pem) = eddsa.public_key_to_pem(public_key)
+
+  birdie.snap(pem, title: "eddsa ed25519 public key pem")
+}
+
+pub fn ed448_export_public_key_pem_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    eddsa.from_bytes(Ed448, test_ed448_private_bytes)
+  let assert Ok(pem) = eddsa.public_key_to_pem(public_key)
+
+  birdie.snap(pem, title: "eddsa ed448 public key pem")
+}
+
+pub fn ed25519_export_private_key_der_test() {
+  let assert Ok(#(private_key, _public_key)) =
+    eddsa.from_bytes(Ed25519, test_ed25519_private_bytes)
+  let assert Ok(der) = eddsa.to_der(private_key)
+
+  birdie.snap(
+    bit_array.base16_encode(der),
+    title: "eddsa ed25519 private key der",
+  )
+}
+
+pub fn ed448_export_private_key_der_test() {
+  let assert Ok(#(private_key, _public_key)) =
+    eddsa.from_bytes(Ed448, test_ed448_private_bytes)
+  let assert Ok(der) = eddsa.to_der(private_key)
+
+  birdie.snap(
+    bit_array.base16_encode(der),
+    title: "eddsa ed448 private key der",
+  )
+}
+
+pub fn ed25519_export_public_key_der_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    eddsa.from_bytes(Ed25519, test_ed25519_private_bytes)
+  let assert Ok(der) = eddsa.public_key_to_der(public_key)
+
+  birdie.snap(
+    bit_array.base16_encode(der),
+    title: "eddsa ed25519 public key der",
+  )
+}
+
+pub fn ed448_export_public_key_der_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    eddsa.from_bytes(Ed448, test_ed448_private_bytes)
+  let assert Ok(der) = eddsa.public_key_to_der(public_key)
+
+  birdie.snap(bit_array.base16_encode(der), title: "eddsa ed448 public key der")
+}
+
+// Import roundtrip tests
+
+pub fn ed25519_import_private_key_pem_roundtrip_test() {
+  let assert Ok(#(private_key, original_public)) =
+    eddsa.from_bytes(Ed25519, test_ed25519_private_bytes)
+  let assert Ok(pem) = eddsa.to_pem(private_key)
+  let assert Ok(#(imported_private, _imported_public)) = eddsa.from_pem(pem)
+
+  let message = <<"ed25519 roundtrip test":utf8>>
+  let signature = eddsa.sign(imported_private, message)
+  let valid = eddsa.verify(original_public, message, signature)
+  assert valid == True
+}
+
+pub fn ed448_import_private_key_pem_roundtrip_test() {
+  let assert Ok(#(private_key, original_public)) =
+    eddsa.from_bytes(Ed448, test_ed448_private_bytes)
+  let assert Ok(pem) = eddsa.to_pem(private_key)
+  let assert Ok(#(imported_private, _imported_public)) = eddsa.from_pem(pem)
+
+  let message = <<"ed448 roundtrip test":utf8>>
+  let signature = eddsa.sign(imported_private, message)
+  let valid = eddsa.verify(original_public, message, signature)
+  assert valid == True
+}
+
+pub fn ed25519_import_public_key_pem_roundtrip_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    eddsa.from_bytes(Ed25519, test_ed25519_private_bytes)
+  let assert Ok(pem) = eddsa.public_key_to_pem(public_key)
+  let assert Ok(_imported_public) = eddsa.public_key_from_pem(pem)
+}
+
+pub fn public_key_from_private_key_test() {
+  let assert Ok(#(private_key, public_key)) =
+    eddsa.from_bytes(Ed25519, test_ed25519_private_bytes)
+  let derived_public = eddsa.public_key_from_private_key(private_key)
+
+  let message = <<"derived public key test":utf8>>
+  let signature = eddsa.sign(private_key, message)
+  let valid1 = eddsa.verify(public_key, message, signature)
+  let valid2 = eddsa.verify(derived_public, message, signature)
+  assert valid1 == True
+  assert valid2 == True
 }

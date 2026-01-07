@@ -1,0 +1,10 @@
+---
+version: 1.5.3
+title: xdh x448 private key pem
+file: ./test/kryptos/xdh_test.gleam
+test_name: x448_export_private_key_pem_test
+---
+-----BEGIN PRIVATE KEY-----
+MEYCAQAwBQYDK2VvBDoEOAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8g
+ISIjJCUmJygpKissLS4vMDEyMzQ1Njc4
+-----END PRIVATE KEY-----

@@ -4,3 +4,8 @@
 /node_modules
 /_build
 erl_crash.dump
+
+# cc-sessions runtime files
+sessions/sessions-state.json
+sessions/transcripts/
+sessions/.archived/

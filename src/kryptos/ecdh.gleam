@@ -22,7 +22,7 @@
 //// // alice_shared == bob_shared
 //// ```
 
-import kryptos/public_key.{type ECDH, type PrivateKey, type PublicKey}
+import kryptos/ec.{type PrivateKey, type PublicKey}
 
 /// Computes a shared secret using ECDH key agreement.
 ///
@@ -37,6 +37,6 @@ import kryptos/public_key.{type ECDH, type PrivateKey, type PublicKey}
 @external(erlang, "kryptos_ffi", "ecdh_compute_shared_secret")
 @external(javascript, "../kryptos_ffi.mjs", "ecdhComputeSharedSecret")
 pub fn compute_shared_secret(
-  private_key: PrivateKey(signing, encrypting, ECDH),
-  peer_public_key: PublicKey(signing, encrypting, ECDH),
+  private_key: PrivateKey,
+  peer_public_key: PublicKey,
 ) -> Result(BitArray, Nil)

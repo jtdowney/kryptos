@@ -1,0 +1,9 @@
+---
+version: 1.5.3
+title: eddsa ed25519 public key pem
+file: ./test/kryptos/eddsa_test.gleam
+test_name: ed25519_export_public_key_pem_test
+---
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=
+-----END PUBLIC KEY-----

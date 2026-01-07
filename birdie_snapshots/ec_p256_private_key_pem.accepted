@@ -1,0 +1,11 @@
+---
+version: 1.5.3
+title: ec p256 private key pem
+file: ./test/kryptos/ec_test.gleam
+test_name: export_private_key_pem_test
+---
+-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgAQIDBAUGBwgJCgsM
+DQ4PEBESExQVFhcYGRobHB0eHyChRANCAARRXD1uueOWuQTT/sp/VP3NDMHpl783
+XcpRWtCmw7QDX0U2vjpQ8xj7+aVHWQKiIVAr7w1X4IxTsswKVvF9n5NU
+-----END PRIVATE KEY-----

@@ -17,8 +17,8 @@
 //// // valid == True
 //// ```
 
+import kryptos/ec.{type PrivateKey, type PublicKey}
 import kryptos/hash.{type HashAlgorithm}
-import kryptos/public_key.{type ECDSA, type PrivateKey, type PublicKey}
 
 /// Signs a message using ECDSA with the specified hash algorithm.
 ///
@@ -36,7 +36,7 @@ import kryptos/public_key.{type ECDSA, type PrivateKey, type PublicKey}
 @external(erlang, "kryptos_ffi", "ecdsa_sign")
 @external(javascript, "../kryptos_ffi.mjs", "ecdsaSign")
 pub fn sign(
-  private_key: PrivateKey(ECDSA, encrypting, key_agree),
+  private_key: PrivateKey,
   message: BitArray,
   hash: HashAlgorithm,
 ) -> BitArray
@@ -58,7 +58,7 @@ pub fn sign(
 @external(erlang, "kryptos_ffi", "ecdsa_verify")
 @external(javascript, "../kryptos_ffi.mjs", "ecdsaVerify")
 pub fn verify(
-  public_key: PublicKey(ECDSA, encrypting, key_agree),
+  public_key: PublicKey,
   message: BitArray,
   signature signature: BitArray,
   hash hash: HashAlgorithm,

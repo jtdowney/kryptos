@@ -1,0 +1,9 @@
+---
+version: 1.5.3
+title: xdh x25519 private key pem
+file: ./test/kryptos/xdh_test.gleam
+test_name: x25519_export_private_key_pem_test
+---
+-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VuBCIEIAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8g
+-----END PRIVATE KEY-----

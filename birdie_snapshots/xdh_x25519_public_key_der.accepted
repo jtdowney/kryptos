@@ -1,0 +1,7 @@
+---
+version: 1.5.3
+title: xdh x25519 public key der
+file: ./test/kryptos/xdh_test.gleam
+test_name: x25519_export_public_key_der_test
+---
+302A300506032B656E03210007A37CBC142093C8B755DC1B10E86CB426374AD16AA853ED0BDFC0B2B86D1C7C

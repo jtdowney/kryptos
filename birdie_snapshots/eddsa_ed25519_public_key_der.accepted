@@ -1,0 +1,7 @@
+---
+version: 1.5.3
+title: eddsa ed25519 public key der
+file: ./test/kryptos/eddsa_test.gleam
+test_name: ed25519_export_public_key_der_test
+---
+302A300506032B657003210079B5562E8FE654F94078B112E8A98BA7901F853AE695BED7E0E3910BAD049664

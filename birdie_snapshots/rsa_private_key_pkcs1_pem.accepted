@@ -1,0 +1,21 @@
+---
+version: 1.5.3
+title: rsa private key pkcs1 pem
+file: ./test/kryptos/rsa_test.gleam
+test_name: export_private_pkcs1_pem_test
+---
+-----BEGIN RSA PRIVATE KEY-----
+MIICXAIBAAKBgQC0YjCwISrvH7mwUaPAYHq+va/ZNuWai/T0Jeam4WbdqfVl84yW
+qT5kN7a7WM0/5VzHaRUENBcnieXKU4P8RpeFs+ubQ49BCFCwcLR0BpcKy8IwOeMS
++jO1Rh6bVM+KlounehuSWDIE7E/DcT22/nEDz6+a9xKtSi1ZEBsRTxOXsQIDAQAB
+AoGAXGn4ej9OKBNI+k8md0ebiZWzTgW03QjRI7/H9iuBkJ34W6xdHqxIiWLHm2Qe
+jNF5xhhPIMKlECZf5SC6z+3xar5p9qyEA+kPuqdzSsjDcifXtRSweltVH6d6tFhf
+814d6fZT+RCFrxEEyyW1k96/cSvhh2fHgAAeSqvtBfJ3wAECQQDfHt+XtEey+Kfs
+RSGF60Syd2MdiWYJAewZ/PzKj2VNsSV5ytkDM6RikKthze3U5uKd6TA9Sva+HC0G
+10LyrCYRAkEAzwjv4BgPD/a0MGxZxK4wnH2LaRB5HxO5eZiqvHNw+XRjaiWyuyIh
+kj5pUSbWdwRIIXRZxvEcM2MUZvSQMUBjkQJBAMjQULKy0NGnSaN1bOz/S+UCR6u4
+58KgWtpMfQ/XkgE9H1Wu0d6e0PaQbU1vPnNxPEOy40WC2+2tIeUM92SqmfECQGmH
+vFN6X8EelTUAt576vBYNITJoSwSd0ytZPHlatCqmFRg95CCzTpOGHNyeC/JZgnmb
+Ipma6SZ6STJ16hSqsNECQH/P9rRTEjqqS8B+4SOaSZfwtUpjGAXScdQ1quWKjb2+
+kfUFNID4FPVLwOoeEXXtpuhtjtnvlhO5C5alT6t7j5Q=
+-----END RSA PRIVATE KEY-----

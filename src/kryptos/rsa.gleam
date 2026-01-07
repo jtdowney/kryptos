@@ -38,7 +38,36 @@
 //// ```
 
 import kryptos/hash.{type HashAlgorithm}
-import kryptos/public_key.{type PrivateKey, type PublicKey, type RSA}
+
+/// An RSA private key.
+pub type PrivateKey
+
+/// An RSA public key.
+pub type PublicKey
+
+/// Format for encoding/decoding RSA private keys.
+pub type PrivateKeyFormat {
+  /// PKCS#8 format (PrivateKeyInfo) - works with all key types.
+  Pkcs8
+  /// PKCS#1 format (RSAPrivateKey) - RSA-specific.
+  Pkcs1
+}
+
+/// Format for encoding/decoding RSA public keys.
+pub type PublicKeyFormat {
+  /// SPKI format (SubjectPublicKeyInfo) - works with all key types.
+  Spki
+  /// PKCS#1 format (RSAPublicKey) - RSA-specific.
+  RsaPublicKey
+}
+
+/// Error when importing an RSA key.
+pub type ImportError {
+  /// The key data is malformed or corrupted.
+  InvalidKeyData
+  /// The key format is not supported or doesn't match the data.
+  UnsupportedFormat
+}
 
 /// The minimum allowed RSA key size in bits.
 pub const min_key_size = 1024
@@ -89,9 +118,7 @@ pub type EncryptPadding {
 /// ```gleam
 /// let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
 /// ```
-pub fn generate_key_pair(
-  bits: Int,
-) -> Result(#(PrivateKey(RSA, RSA, Nil), PublicKey(RSA, RSA, Nil)), Nil) {
+pub fn generate_key_pair(bits: Int) -> Result(#(PrivateKey, PublicKey), Nil) {
   case bits >= min_key_size {
     True -> Ok(do_generate_key_pair(bits))
     False -> Error(Nil)
@@ -100,9 +127,7 @@ pub fn generate_key_pair(
 
 @external(erlang, "kryptos_ffi", "rsa_generate_key_pair")
 @external(javascript, "../kryptos_ffi.mjs", "rsaGenerateKeyPair")
-fn do_generate_key_pair(
-  bits: Int,
-) -> #(PrivateKey(RSA, RSA, Nil), PublicKey(RSA, RSA, Nil))
+fn do_generate_key_pair(bits: Int) -> #(PrivateKey, PublicKey)
 
 /// Signs a message using RSA with the specified hash algorithm and padding.
 ///
@@ -119,7 +144,7 @@ fn do_generate_key_pair(
 @external(erlang, "kryptos_ffi", "rsa_sign")
 @external(javascript, "../kryptos_ffi.mjs", "rsaSign")
 pub fn sign(
-  private_key: PrivateKey(RSA, encrypting, key_agree),
+  private_key: PrivateKey,
   message: BitArray,
   hash: HashAlgorithm,
   padding: SignPadding,
@@ -143,7 +168,7 @@ pub fn sign(
 @external(erlang, "kryptos_ffi", "rsa_verify")
 @external(javascript, "../kryptos_ffi.mjs", "rsaVerify")
 pub fn verify(
-  public_key: PublicKey(RSA, encrypting, key_agree),
+  public_key: PublicKey,
   message: BitArray,
   signature: BitArray,
   hash: HashAlgorithm,
@@ -166,7 +191,7 @@ pub fn verify(
 @external(erlang, "kryptos_ffi", "rsa_encrypt")
 @external(javascript, "../kryptos_ffi.mjs", "rsaEncrypt")
 pub fn encrypt(
-  public_key: PublicKey(signing, RSA, key_agree),
+  public_key: PublicKey,
   plaintext: BitArray,
   padding: EncryptPadding,
 ) -> Result(BitArray, Nil)
@@ -183,7 +208,135 @@ pub fn encrypt(
 @external(erlang, "kryptos_ffi", "rsa_decrypt")
 @external(javascript, "../kryptos_ffi.mjs", "rsaDecrypt")
 pub fn decrypt(
-  private_key: PrivateKey(signing, RSA, key_agree),
+  private_key: PrivateKey,
   ciphertext: BitArray,
   padding: EncryptPadding,
 ) -> Result(BitArray, Nil)
+
+/// Imports an RSA private key from PEM-encoded data.
+///
+/// ## Parameters
+/// - `pem`: PEM-encoded key string
+/// - `format`: The key format (Pkcs8 or Pkcs1)
+///
+/// ## Returns
+/// `Ok(#(private_key, public_key))` on success, `Error(ImportError)` on failure.
+@external(erlang, "kryptos_ffi", "rsa_import_private_key_pem")
+@external(javascript, "../kryptos_ffi.mjs", "rsaImportPrivateKeyPem")
+pub fn from_pem(
+  pem: String,
+  format: PrivateKeyFormat,
+) -> Result(#(PrivateKey, PublicKey), ImportError)
+
+/// Imports an RSA private key from DER-encoded data.
+///
+/// ## Parameters
+/// - `der`: DER-encoded key data
+/// - `format`: The key format (Pkcs8 or Pkcs1)
+///
+/// ## Returns
+/// `Ok(#(private_key, public_key))` on success, `Error(ImportError)` on failure.
+@external(erlang, "kryptos_ffi", "rsa_import_private_key_der")
+@external(javascript, "../kryptos_ffi.mjs", "rsaImportPrivateKeyDer")
+pub fn from_der(
+  der: BitArray,
+  format: PrivateKeyFormat,
+) -> Result(#(PrivateKey, PublicKey), ImportError)
+
+/// Exports an RSA private key to PEM format.
+///
+/// ## Parameters
+/// - `key`: The private key to export
+/// - `format`: The output format (Pkcs8 or Pkcs1)
+///
+/// ## Returns
+/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
+@external(erlang, "kryptos_ffi", "rsa_export_private_key_pem")
+@external(javascript, "../kryptos_ffi.mjs", "rsaExportPrivateKeyPem")
+pub fn to_pem(key: PrivateKey, format: PrivateKeyFormat) -> Result(String, Nil)
+
+/// Exports an RSA private key to DER format.
+///
+/// ## Parameters
+/// - `key`: The private key to export
+/// - `format`: The output format (Pkcs8 or Pkcs1)
+///
+/// ## Returns
+/// `Ok(der_data)` on success, `Error(Nil)` on failure.
+@external(erlang, "kryptos_ffi", "rsa_export_private_key_der")
+@external(javascript, "../kryptos_ffi.mjs", "rsaExportPrivateKeyDer")
+pub fn to_der(
+  key: PrivateKey,
+  format: PrivateKeyFormat,
+) -> Result(BitArray, Nil)
+
+/// Imports an RSA public key from PEM-encoded data.
+///
+/// ## Parameters
+/// - `pem`: PEM-encoded key string
+/// - `format`: The key format (Spki or RsaPublicKey)
+///
+/// ## Returns
+/// `Ok(public_key)` on success, `Error(ImportError)` on failure.
+@external(erlang, "kryptos_ffi", "rsa_import_public_key_pem")
+@external(javascript, "../kryptos_ffi.mjs", "rsaImportPublicKeyPem")
+pub fn public_key_from_pem(
+  pem: String,
+  format: PublicKeyFormat,
+) -> Result(PublicKey, ImportError)
+
+/// Imports an RSA public key from DER-encoded data.
+///
+/// ## Parameters
+/// - `der`: DER-encoded key data
+/// - `format`: The key format (Spki or RsaPublicKey)
+///
+/// ## Returns
+/// `Ok(public_key)` on success, `Error(ImportError)` on failure.
+@external(erlang, "kryptos_ffi", "rsa_import_public_key_der")
+@external(javascript, "../kryptos_ffi.mjs", "rsaImportPublicKeyDer")
+pub fn public_key_from_der(
+  der: BitArray,
+  format: PublicKeyFormat,
+) -> Result(PublicKey, ImportError)
+
+/// Exports an RSA public key to PEM format.
+///
+/// ## Parameters
+/// - `key`: The public key to export
+/// - `format`: The output format (Spki or RsaPublicKey)
+///
+/// ## Returns
+/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
+@external(erlang, "kryptos_ffi", "rsa_export_public_key_pem")
+@external(javascript, "../kryptos_ffi.mjs", "rsaExportPublicKeyPem")
+pub fn public_key_to_pem(
+  key: PublicKey,
+  format: PublicKeyFormat,
+) -> Result(String, Nil)
+
+/// Exports an RSA public key to DER format.
+///
+/// ## Parameters
+/// - `key`: The public key to export
+/// - `format`: The output format (Spki or RsaPublicKey)
+///
+/// ## Returns
+/// `Ok(der_data)` on success, `Error(Nil)` on failure.
+@external(erlang, "kryptos_ffi", "rsa_export_public_key_der")
+@external(javascript, "../kryptos_ffi.mjs", "rsaExportPublicKeyDer")
+pub fn public_key_to_der(
+  key: PublicKey,
+  format: PublicKeyFormat,
+) -> Result(BitArray, Nil)
+
+/// Derives the public key from an RSA private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The corresponding public key.
+@external(erlang, "kryptos_ffi", "rsa_public_key_from_private")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyFromPrivate")
+pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey

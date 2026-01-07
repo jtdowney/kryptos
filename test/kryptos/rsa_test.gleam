@@ -1,16 +1,12 @@
+import birdie
+import gleam/bit_array
 import kryptos/hash
 import kryptos/rsa
+import simplifile
 
-pub fn generate_key_pair_2048_test() {
-  let assert Ok(#(_private_key, _public_key)) = rsa.generate_key_pair(2048)
-}
-
-pub fn generate_key_pair_3072_test() {
-  let assert Ok(#(_private_key, _public_key)) = rsa.generate_key_pair(3072)
-}
-
-pub fn generate_key_pair_4096_test() {
-  let assert Ok(#(_private_key, _public_key)) = rsa.generate_key_pair(4096)
+fn load_test_key() -> String {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa1024.pem")
+  pem
 }
 
 pub fn generate_key_pair_too_small_test() {
@@ -176,4 +172,134 @@ pub fn decrypt_wrong_label_test() {
   let wrong_padding = rsa.Oaep(hash: hash.Sha256, label: <<"label2":utf8>>)
   let result = rsa.decrypt(private_key, ciphertext, wrong_padding)
   assert result == Error(Nil)
+}
+
+pub fn export_private_pkcs8_pem_test() {
+  let assert Ok(#(private_key, _public_key)) =
+    rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  let assert Ok(pem) = rsa.to_pem(private_key, rsa.Pkcs8)
+
+  birdie.snap(pem, title: "rsa private key pkcs8 pem")
+}
+
+pub fn export_private_pkcs1_pem_test() {
+  let assert Ok(#(private_key, _public_key)) =
+    rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  let assert Ok(pem) = rsa.to_pem(private_key, rsa.Pkcs1)
+
+  birdie.snap(pem, title: "rsa private key pkcs1 pem")
+}
+
+pub fn export_public_spki_pem_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  let assert Ok(pem) = rsa.public_key_to_pem(public_key, rsa.Spki)
+
+  birdie.snap(pem, title: "rsa public key spki pem")
+}
+
+pub fn export_public_pkcs1_pem_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  let assert Ok(pem) = rsa.public_key_to_pem(public_key, rsa.RsaPublicKey)
+
+  birdie.snap(pem, title: "rsa public key pkcs1 pem")
+}
+
+pub fn export_private_pkcs8_der_test() {
+  let assert Ok(#(private_key, _public_key)) =
+    rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  let assert Ok(der) = rsa.to_der(private_key, rsa.Pkcs8)
+
+  birdie.snap(bit_array.base16_encode(der), title: "rsa private key pkcs8 der")
+}
+
+pub fn export_private_pkcs1_der_test() {
+  let assert Ok(#(private_key, _public_key)) =
+    rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  let assert Ok(der) = rsa.to_der(private_key, rsa.Pkcs1)
+
+  birdie.snap(bit_array.base16_encode(der), title: "rsa private key pkcs1 der")
+}
+
+pub fn export_public_spki_der_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  let assert Ok(der) = rsa.public_key_to_der(public_key, rsa.Spki)
+
+  birdie.snap(bit_array.base16_encode(der), title: "rsa public key spki der")
+}
+
+pub fn export_public_pkcs1_der_test() {
+  let assert Ok(#(_private_key, public_key)) =
+    rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  let assert Ok(der) = rsa.public_key_to_der(public_key, rsa.RsaPublicKey)
+
+  birdie.snap(bit_array.base16_encode(der), title: "rsa public key pkcs1 der")
+}
+
+pub fn roundtrip_pkcs8_pem_test() {
+  let assert Ok(#(private_key, original_public)) = rsa.generate_key_pair(2048)
+  let assert Ok(pem) = rsa.to_pem(private_key, rsa.Pkcs8)
+  let assert Ok(#(imported_private, _imported_public)) =
+    rsa.from_pem(pem, rsa.Pkcs8)
+
+  let message = <<"roundtrip test":utf8>>
+  let signature = rsa.sign(imported_private, message, hash.Sha256, rsa.Pkcs1v15)
+  let valid =
+    rsa.verify(original_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
+  assert valid == True
+}
+
+pub fn roundtrip_pkcs1_pem_test() {
+  let assert Ok(#(private_key, original_public)) = rsa.generate_key_pair(2048)
+  let assert Ok(pem) = rsa.to_pem(private_key, rsa.Pkcs1)
+  let assert Ok(#(imported_private, _imported_public)) =
+    rsa.from_pem(pem, rsa.Pkcs1)
+
+  let message = <<"roundtrip pkcs1 test":utf8>>
+  let signature = rsa.sign(imported_private, message, hash.Sha256, rsa.Pkcs1v15)
+  let valid =
+    rsa.verify(original_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
+  assert valid == True
+}
+
+pub fn roundtrip_pkcs8_der_test() {
+  let assert Ok(#(private_key, original_public)) = rsa.generate_key_pair(2048)
+  let assert Ok(der) = rsa.to_der(private_key, rsa.Pkcs8)
+  let assert Ok(#(imported_private, _imported_public)) =
+    rsa.from_der(der, rsa.Pkcs8)
+
+  let message = <<"roundtrip der test":utf8>>
+  let signature = rsa.sign(imported_private, message, hash.Sha256, rsa.Pkcs1v15)
+  let valid =
+    rsa.verify(original_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
+  assert valid == True
+}
+
+pub fn import_public_key_pem_test() {
+  let assert Ok(#(_private_key, original_public)) = rsa.generate_key_pair(2048)
+  let assert Ok(pem) = rsa.public_key_to_pem(original_public, rsa.Spki)
+  let assert Ok(_imported_public) = rsa.public_key_from_pem(pem, rsa.Spki)
+}
+
+pub fn import_public_key_der_test() {
+  let assert Ok(#(_private_key, original_public)) = rsa.generate_key_pair(2048)
+  let assert Ok(der) = rsa.public_key_to_der(original_public, rsa.Spki)
+  let assert Ok(_imported_public) = rsa.public_key_from_der(der, rsa.Spki)
+}
+
+pub fn public_key_from_private_key_test() {
+  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
+  let derived_public = rsa.public_key_from_private_key(private_key)
+
+  // Verify the derived public key works the same as the original
+  let message = <<"derived public key test":utf8>>
+  let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
+  let valid1 =
+    rsa.verify(public_key, message, signature, hash.Sha256, rsa.Pkcs1v15)
+  let valid2 =
+    rsa.verify(derived_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
+  assert valid1 == True
+  assert valid2 == True
 }

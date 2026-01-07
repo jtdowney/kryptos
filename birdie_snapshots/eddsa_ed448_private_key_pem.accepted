@@ -1,0 +1,10 @@
+---
+version: 1.5.3
+title: eddsa ed448 private key pem
+file: ./test/kryptos/eddsa_test.gleam
+test_name: ed448_export_private_key_pem_test
+---
+-----BEGIN PRIVATE KEY-----
+MEcCAQAwBQYDK2VxBDsEOQECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8g
+ISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OQ==
+-----END PRIVATE KEY-----
