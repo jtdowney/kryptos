@@ -30,7 +30,7 @@
 //// import kryptos/crypto
 ////
 //// // CBC encryption with random IV
-//// let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+//// let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
 //// let assert Ok(ctx) = block.cbc(cipher, iv: crypto.random_bytes(16))
 //// let assert Ok(ciphertext) = block.encrypt(ctx, <<"secret":utf8>>)
 //// let assert Ok(decrypted) = block.decrypt(ctx, ciphertext)
@@ -38,21 +38,12 @@
 //// ```
 
 import gleam/bit_array
-
-/// Supported AES key sizes.
-pub type AesKeySize {
-  /// AES with 128-bit key (16 bytes)
-  Aes128
-  /// AES with 192-bit key (24 bytes)
-  Aes192
-  /// AES with 256-bit key (32 bytes)
-  Aes256
-}
+import gleam/int
 
 /// A block cipher with its associated key material.
 pub opaque type BlockCipher {
   /// AES block cipher with the specified key size and key.
-  Aes(key_size: AesKeySize, key: BitArray)
+  Aes(key_size: Int, key: BitArray)
 }
 
 /// Context for block cipher modes of operation.
@@ -76,12 +67,7 @@ pub opaque type CipherContext {
 /// The key size in bytes (16, 24, or 32 for AES).
 pub fn key_size(cipher: BlockCipher) -> Int {
   case cipher {
-    Aes(key_size:, ..) ->
-      case key_size {
-        Aes128 -> 16
-        Aes192 -> 24
-        Aes256 -> 32
-      }
+    Aes(key_size:, ..) -> key_size
   }
 }
 
@@ -106,9 +92,9 @@ pub fn block_size(cipher: BlockCipher) -> Int {
 /// ## Returns
 /// - `Ok(BlockCipher)` if the key is exactly 16 bytes
 /// - `Error(Nil)` if the key size is incorrect
-pub fn new_aes_128(key: BitArray) -> Result(BlockCipher, Nil) {
+pub fn aes_128(key: BitArray) -> Result(BlockCipher, Nil) {
   case bit_array.byte_size(key) == 16 {
-    True -> Ok(Aes(Aes128, key))
+    True -> Ok(Aes(128, key))
     False -> Error(Nil)
   }
 }
@@ -121,9 +107,9 @@ pub fn new_aes_128(key: BitArray) -> Result(BlockCipher, Nil) {
 /// ## Returns
 /// - `Ok(BlockCipher)` if the key is exactly 24 bytes
 /// - `Error(Nil)` if the key size is incorrect
-pub fn new_aes_192(key: BitArray) -> Result(BlockCipher, Nil) {
+pub fn aes_192(key: BitArray) -> Result(BlockCipher, Nil) {
   case bit_array.byte_size(key) == 24 {
-    True -> Ok(Aes(Aes192, key))
+    True -> Ok(Aes(192, key))
     False -> Error(Nil)
   }
 }
@@ -136,9 +122,9 @@ pub fn new_aes_192(key: BitArray) -> Result(BlockCipher, Nil) {
 /// ## Returns
 /// - `Ok(BlockCipher)` if the key is exactly 32 bytes
 /// - `Error(Nil)` if the key size is incorrect
-pub fn new_aes_256(key: BitArray) -> Result(BlockCipher, Nil) {
+pub fn aes_256(key: BitArray) -> Result(BlockCipher, Nil) {
   case bit_array.byte_size(key) == 32 {
-    True -> Ok(Aes(Aes256, key))
+    True -> Ok(Aes(256, key))
     False -> Error(Nil)
   }
 }
@@ -262,30 +248,15 @@ pub fn cipher_name(ctx: CipherContext) -> String {
   case ctx {
     Ecb(cipher:) ->
       case cipher {
-        Aes(key_size:, ..) ->
-          case key_size {
-            Aes128 -> "aes-128-ecb"
-            Aes192 -> "aes-192-ecb"
-            Aes256 -> "aes-256-ecb"
-          }
+        Aes(key_size:, ..) -> "aes-" <> int.to_string(key_size) <> "-ecb"
       }
     Cbc(cipher:, ..) ->
       case cipher {
-        Aes(key_size:, ..) ->
-          case key_size {
-            Aes128 -> "aes-128-cbc"
-            Aes192 -> "aes-192-cbc"
-            Aes256 -> "aes-256-cbc"
-          }
+        Aes(key_size:, ..) -> "aes-" <> int.to_string(key_size) <> "-cbc"
       }
     Ctr(cipher:, ..) ->
       case cipher {
-        Aes(key_size:, ..) ->
-          case key_size {
-            Aes128 -> "aes-128-ctr"
-            Aes192 -> "aes-192-ctr"
-            Aes256 -> "aes-256-ctr"
-          }
+        Aes(key_size:, ..) -> "aes-" <> int.to_string(key_size) <> "-ctr"
       }
   }
 }

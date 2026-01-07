@@ -135,17 +135,17 @@ pbkdf2_derive(Algorithm, Password, Salt, Iterations, Length) ->
             {error, nil}
     end.
 
-aead_cipher_name({gcm, {aes, aes128, _}, _}) ->
+aead_cipher_name({gcm, {aes, 128, _}, _}) ->
     aes_128_gcm;
-aead_cipher_name({gcm, {aes, aes192, _}, _}) ->
+aead_cipher_name({gcm, {aes, 192, _}, _}) ->
     aes_192_gcm;
-aead_cipher_name({gcm, {aes, aes256, _}, _}) ->
+aead_cipher_name({gcm, {aes, 256, _}, _}) ->
     aes_256_gcm;
-aead_cipher_name({ccm, {aes, aes128, _}, _, _}) ->
+aead_cipher_name({ccm, {aes, 128, _}, _, _}) ->
     aes_128_ccm;
-aead_cipher_name({ccm, {aes, aes192, _}, _, _}) ->
+aead_cipher_name({ccm, {aes, 192, _}, _, _}) ->
     aes_192_ccm;
-aead_cipher_name({ccm, {aes, aes256, _}, _, _}) ->
+aead_cipher_name({ccm, {aes, 256, _}, _, _}) ->
     aes_256_ccm;
 aead_cipher_name({cha_cha20_poly1305, _}) ->
     chacha20_poly1305.
@@ -199,19 +199,31 @@ aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
     end.
 
 %% Block cipher modes (ECB, CBC, CTR)
-cipher_name({ecb, {aes, aes128, _}}) -> aes_128_ecb;
-cipher_name({ecb, {aes, aes192, _}}) -> aes_192_ecb;
-cipher_name({ecb, {aes, aes256, _}}) -> aes_256_ecb;
-cipher_name({cbc, {aes, aes128, _}, _}) -> aes_128_cbc;
-cipher_name({cbc, {aes, aes192, _}, _}) -> aes_192_cbc;
-cipher_name({cbc, {aes, aes256, _}, _}) -> aes_256_cbc;
-cipher_name({ctr, {aes, aes128, _}, _}) -> aes_128_ctr;
-cipher_name({ctr, {aes, aes192, _}, _}) -> aes_192_ctr;
-cipher_name({ctr, {aes, aes256, _}, _}) -> aes_256_ctr.
+cipher_name({ecb, {aes, 128, _}}) ->
+    aes_128_ecb;
+cipher_name({ecb, {aes, 192, _}}) ->
+    aes_192_ecb;
+cipher_name({ecb, {aes, 256, _}}) ->
+    aes_256_ecb;
+cipher_name({cbc, {aes, 128, _}, _}) ->
+    aes_128_cbc;
+cipher_name({cbc, {aes, 192, _}, _}) ->
+    aes_192_cbc;
+cipher_name({cbc, {aes, 256, _}, _}) ->
+    aes_256_cbc;
+cipher_name({ctr, {aes, 128, _}, _}) ->
+    aes_128_ctr;
+cipher_name({ctr, {aes, 192, _}, _}) ->
+    aes_192_ctr;
+cipher_name({ctr, {aes, 256, _}, _}) ->
+    aes_256_ctr.
 
-cipher_padding({ecb, _}) -> pkcs_padding;
-cipher_padding({cbc, _, _}) -> pkcs_padding;
-cipher_padding({ctr, _, _}) -> none.
+cipher_padding({ecb, _}) ->
+    pkcs_padding;
+cipher_padding({cbc, _, _}) ->
+    pkcs_padding;
+cipher_padding({ctr, _, _}) ->
+    none.
 
 cipher_encrypt(Mode, Plaintext) ->
     Cipher = cipher_name(Mode),
@@ -219,9 +231,14 @@ cipher_encrypt(Mode, Plaintext) ->
     Iv = kryptos@block:cipher_iv(Mode),
     Padding = cipher_padding(Mode),
     try
-        Ciphertext = crypto:crypto_one_time(Cipher, Key, Iv, Plaintext, [
-            {encrypt, true}, {padding, Padding}
-        ]),
+        Ciphertext =
+            crypto:crypto_one_time(
+                Cipher,
+                Key,
+                Iv,
+                Plaintext,
+                [{encrypt, true}, {padding, Padding}]
+            ),
         {ok, Ciphertext}
     catch
         error:_ ->
@@ -234,9 +251,14 @@ cipher_decrypt(Mode, Ciphertext) ->
     Iv = kryptos@block:cipher_iv(Mode),
     Padding = cipher_padding(Mode),
     try
-        Plaintext = crypto:crypto_one_time(Cipher, Key, Iv, Ciphertext, [
-            {encrypt, false}, {padding, Padding}
-        ]),
+        Plaintext =
+            crypto:crypto_one_time(
+                Cipher,
+                Key,
+                Iv,
+                Ciphertext,
+                [{encrypt, false}, {padding, Padding}]
+            ),
         {ok, Plaintext}
     catch
         error:_ ->
@@ -396,7 +418,8 @@ ec_export_private_key_der(Key) ->
     end.
 
 ec_private_key_to_der(Key) ->
-    {'PrivateKeyInfo', Der, not_encrypted} = public_key:pem_entry_encode('PrivateKeyInfo', Key),
+    {'PrivateKeyInfo', Der, not_encrypted} =
+        public_key:pem_entry_encode('PrivateKeyInfo', Key),
     Der.
 
 ec_export_public_key_pem(Key) ->
@@ -421,9 +444,8 @@ ec_export_public_key_der(Key) ->
 ec_public_key_to_der({{'ECPoint', Point}, {namedCurve, CurveName}}) ->
     CurveOID = ec_curve_oid(CurveName),
     Key = {{'ECPoint', Point}, {namedCurve, CurveOID}},
-    {'SubjectPublicKeyInfo', Der, not_encrypted} = public_key:pem_entry_encode(
-        'SubjectPublicKeyInfo', Key
-    ),
+    {'SubjectPublicKeyInfo', Der, not_encrypted} =
+        public_key:pem_entry_encode('SubjectPublicKeyInfo', Key),
     Der.
 
 ec_public_key_from_private({'ECPrivateKey', _, _, _, PublicPoint, _} = _PrivKey) ->
@@ -549,7 +571,11 @@ rsa_sign_padding_opts(pkcs1v15, _Hash) ->
 rsa_sign_padding_opts({pss, SaltLength}, Hash) ->
     DigestType = hash_algorithm_name(Hash),
     Salt = rsa_pss_salt_length(SaltLength),
-    [{rsa_padding, rsa_pkcs1_pss_padding}, {rsa_pss_saltlen, Salt}, {rsa_mgf1_md, DigestType}].
+    [
+        {rsa_padding, rsa_pkcs1_pss_padding},
+        {rsa_pss_saltlen, Salt},
+        {rsa_mgf1_md, DigestType}
+    ].
 
 rsa_pss_salt_length(salt_length_hash_len) ->
     -1;
@@ -577,12 +603,17 @@ rsa_encrypt_padding_opts(encrypt_pkcs1v15) ->
     [{rsa_padding, rsa_pkcs1_padding}];
 rsa_encrypt_padding_opts({oaep, Hash, Label}) ->
     DigestType = hash_algorithm_name(Hash),
-    Opts = [
-        {rsa_padding, rsa_pkcs1_oaep_padding}, {rsa_oaep_md, DigestType}, {rsa_mgf1_md, DigestType}
-    ],
+    Opts =
+        [
+            {rsa_padding, rsa_pkcs1_oaep_padding},
+            {rsa_oaep_md, DigestType},
+            {rsa_mgf1_md, DigestType}
+        ],
     case Label of
-        <<>> -> Opts;
-        _ -> [{rsa_oaep_label, Label} | Opts]
+        <<>> ->
+            Opts;
+        _ ->
+            [{rsa_oaep_label, Label} | Opts]
     end.
 
 rsa_encrypt(PublicKey, Plaintext, Padding) ->
@@ -608,10 +639,11 @@ rsa_decrypt(PrivateKey, Ciphertext, Padding) ->
 rsa_private_key_from_pkcs8(DerBytes) ->
     try
         RSAPrivKey = public_key:der_decode('PrivateKeyInfo', DerBytes),
-        PubKey = #'RSAPublicKey'{
-            modulus = RSAPrivKey#'RSAPrivateKey'.modulus,
-            publicExponent = RSAPrivKey#'RSAPrivateKey'.publicExponent
-        },
+        PubKey =
+            #'RSAPublicKey'{
+                modulus = RSAPrivKey#'RSAPrivateKey'.modulus,
+                publicExponent = RSAPrivKey#'RSAPrivateKey'.publicExponent
+            },
         {ok, {RSAPrivKey, PubKey}}
     catch
         _:_ ->
@@ -621,7 +653,7 @@ rsa_private_key_from_pkcs8(DerBytes) ->
 rsa_public_key_from_x509(DerBytes) ->
     try
         PubKey = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-        {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', ?'rsaEncryption', _}, PublicKeyDer} =
+        {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', ?rsaEncryption, _}, PublicKeyDer} =
             PubKey,
         RSAPubKey = public_key:der_decode('RSAPublicKey', PublicKeyDer),
         {ok, RSAPubKey}
@@ -655,15 +687,18 @@ rsa_import_private_key_der(DerBytes, Format) ->
             {error, invalid_key_data}
     end.
 
-rsa_private_format_types(pkcs8) -> {'PrivateKeyInfo', 'PrivateKeyInfo'};
-rsa_private_format_types(pkcs1) -> {'RSAPrivateKey', 'RSAPrivateKey'}.
+rsa_private_format_types(pkcs8) ->
+    {'PrivateKeyInfo', 'PrivateKeyInfo'};
+rsa_private_format_types(pkcs1) ->
+    {'RSAPrivateKey', 'RSAPrivateKey'}.
 
 rsa_import_private_key_from_der(DerBytes, DerType) ->
     RSAPrivKey = public_key:der_decode(DerType, DerBytes),
-    RSAPubKey = #'RSAPublicKey'{
-        modulus = RSAPrivKey#'RSAPrivateKey'.modulus,
-        publicExponent = RSAPrivKey#'RSAPrivateKey'.publicExponent
-    },
+    RSAPubKey =
+        #'RSAPublicKey'{
+            modulus = RSAPrivKey#'RSAPrivateKey'.modulus,
+            publicExponent = RSAPrivKey#'RSAPrivateKey'.publicExponent
+        },
     {ok, {RSAPrivKey, RSAPubKey}}.
 
 rsa_import_public_key_pem(PemData, Format) ->
@@ -688,12 +723,15 @@ rsa_import_public_key_der(DerBytes, Format) ->
             {error, invalid_key_data}
     end.
 
-rsa_public_format_types(spki) -> {'SubjectPublicKeyInfo', spki};
-rsa_public_format_types(rsa_public_key) -> {'RSAPublicKey', rsa_public_key}.
+rsa_public_format_types(spki) ->
+    {'SubjectPublicKeyInfo', spki};
+rsa_public_format_types(rsa_public_key) ->
+    {'RSAPublicKey', rsa_public_key}.
 
 rsa_import_public_key_from_der(DerBytes, spki) ->
     PubKey = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-    {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', ?'rsaEncryption', _}, PublicKeyDer} = PubKey,
+    {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', ?rsaEncryption, _}, PublicKeyDer} =
+        PubKey,
     RSAPubKey = public_key:der_decode('RSAPublicKey', PublicKeyDer),
     {ok, RSAPubKey};
 rsa_import_public_key_from_der(DerBytes, rsa_public_key) ->
@@ -721,13 +759,16 @@ rsa_export_private_key_der(Key, Format) ->
     end.
 
 rsa_private_key_to_der(Key, pkcs8) ->
-    {'PrivateKeyInfo', Der, not_encrypted} = public_key:pem_entry_encode('PrivateKeyInfo', Key),
+    {'PrivateKeyInfo', Der, not_encrypted} =
+        public_key:pem_entry_encode('PrivateKeyInfo', Key),
     Der;
 rsa_private_key_to_der(Key, pkcs1) ->
     public_key:der_encode('RSAPrivateKey', Key).
 
-rsa_private_pem_type(pkcs8) -> 'PrivateKeyInfo';
-rsa_private_pem_type(pkcs1) -> 'RSAPrivateKey'.
+rsa_private_pem_type(pkcs8) ->
+    'PrivateKeyInfo';
+rsa_private_pem_type(pkcs1) ->
+    'RSAPrivateKey'.
 
 rsa_export_public_key_pem(Key, Format) ->
     try
@@ -750,15 +791,16 @@ rsa_export_public_key_der(Key, Format) ->
     end.
 
 rsa_public_key_to_der(Key, spki) ->
-    {'SubjectPublicKeyInfo', Der, not_encrypted} = public_key:pem_entry_encode(
-        'SubjectPublicKeyInfo', Key
-    ),
+    {'SubjectPublicKeyInfo', Der, not_encrypted} =
+        public_key:pem_entry_encode('SubjectPublicKeyInfo', Key),
     Der;
 rsa_public_key_to_der(Key, rsa_public_key) ->
     public_key:der_encode('RSAPublicKey', Key).
 
-rsa_public_pem_type(spki) -> 'SubjectPublicKeyInfo';
-rsa_public_pem_type(rsa_public_key) -> 'RSAPublicKey'.
+rsa_public_pem_type(spki) ->
+    'SubjectPublicKeyInfo';
+rsa_public_pem_type(rsa_public_key) ->
+    'RSAPublicKey'.
 
 rsa_public_key_from_private(PrivKey) ->
     #'RSAPublicKey'{
@@ -1032,10 +1074,14 @@ xdh_public_key_from_private({_PrivBytes, Curve} = PrivKey) ->
 
 %% EdDSA/XDH ASN.1 encoding helpers
 
-eddsa_xdh_curve_oid(ed25519) -> {1, 3, 101, 112};
-eddsa_xdh_curve_oid(ed448) -> {1, 3, 101, 113};
-eddsa_xdh_curve_oid(x25519) -> {1, 3, 101, 110};
-eddsa_xdh_curve_oid(x448) -> {1, 3, 101, 111}.
+eddsa_xdh_curve_oid(ed25519) ->
+    {1, 3, 101, 112};
+eddsa_xdh_curve_oid(ed448) ->
+    {1, 3, 101, 113};
+eddsa_xdh_curve_oid(x25519) ->
+    {1, 3, 101, 110};
+eddsa_xdh_curve_oid(x448) ->
+    {1, 3, 101, 111}.
 
 %% Manual DER encoding for EdDSA/XDH PKCS#8
 %% Erlang's public_key module doesn't support these key types for der_encode
@@ -1043,20 +1089,13 @@ eddsa_xdh_private_to_pkcs8(KeyBytes, Curve) ->
     OID = encode_oid(eddsa_xdh_curve_oid(Curve)),
     InnerOctet = encode_octet_string(KeyBytes),
     AlgSeq = encode_sequence([OID]),
-    encode_sequence([
-        encode_integer(0),
-        AlgSeq,
-        encode_octet_string(InnerOctet)
-    ]).
+    encode_sequence([encode_integer(0), AlgSeq, encode_octet_string(InnerOctet)]).
 
 %% Manual DER encoding for EdDSA/XDH SPKI
 eddsa_xdh_public_to_spki(PubBytes, Curve) ->
     OID = encode_oid(eddsa_xdh_curve_oid(Curve)),
     AlgSeq = encode_sequence([OID]),
-    encode_sequence([
-        AlgSeq,
-        encode_bit_string(PubBytes)
-    ]).
+    encode_sequence([AlgSeq, encode_bit_string(PubBytes)]).
 
 %% ASN.1 DER encoding primitives
 
@@ -1113,7 +1152,7 @@ encode_oid_component_high(0, Acc) ->
 encode_oid_component_high(N, <<>>) ->
     encode_oid_component_high(N bsr 7, <<(N band 127)>>);
 encode_oid_component_high(N, Acc) ->
-    encode_oid_component_high(N bsr 7, <<((N band 127) bor 128), Acc/binary>>).
+    encode_oid_component_high(N bsr 7, <<(N band 127 bor 128), Acc/binary>>).
 
 %% PKCS#8 DER parsing helpers (used by module-specific import functions)
 
@@ -1167,7 +1206,7 @@ decode_oid_components(Bytes, Acc) ->
 decode_oid_component([Byte | Rest], Acc) when Byte < 128 ->
     {Acc * 128 + Byte, Rest};
 decode_oid_component([Byte | Rest], Acc) ->
-    decode_oid_component(Rest, Acc * 128 + (Byte band 127)).
+    decode_oid_component(Rest, Acc * 128 + Byte band 127).
 
 %% Extract the privateKey OCTET STRING from PKCS#8 structure
 extract_pkcs8_private_key(DerBytes) ->

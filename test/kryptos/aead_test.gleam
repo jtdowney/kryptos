@@ -4,7 +4,7 @@ import kryptos/block
 import kryptos/crypto
 
 pub fn aes_128_gcm_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"attack at dawn":utf8>>
@@ -15,7 +15,7 @@ pub fn aes_128_gcm_test() {
 }
 
 pub fn aes_192_gcm_test() {
-  let assert Ok(cipher) = block.new_aes_192(crypto.random_bytes(24))
+  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"attack at dawn":utf8>>
@@ -26,7 +26,7 @@ pub fn aes_192_gcm_test() {
 }
 
 pub fn aes_256_gcm_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"attack at dawn":utf8>>
@@ -37,7 +37,7 @@ pub fn aes_256_gcm_test() {
 }
 
 pub fn aes_gcm_with_aad_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret message":utf8>>
@@ -51,7 +51,7 @@ pub fn aes_gcm_with_aad_test() {
 }
 
 pub fn wrong_nonce_size_seal_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = aead.gcm(cipher)
   let wrong_nonce = crypto.random_bytes(8)
   let plaintext = <<"test":utf8>>
@@ -60,7 +60,7 @@ pub fn wrong_nonce_size_seal_test() {
 }
 
 pub fn wrong_nonce_size_open_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = aead.gcm(cipher)
   let wrong_nonce = crypto.random_bytes(8)
   let tag = crypto.random_bytes(16)
@@ -70,7 +70,7 @@ pub fn wrong_nonce_size_open_test() {
 }
 
 pub fn tampered_ciphertext_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret":utf8>>
@@ -82,7 +82,7 @@ pub fn tampered_ciphertext_test() {
 }
 
 pub fn tampered_tag_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret":utf8>>
@@ -94,7 +94,7 @@ pub fn tampered_tag_test() {
 }
 
 pub fn wrong_aad_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret":utf8>>
@@ -109,7 +109,7 @@ pub fn wrong_aad_test() {
 }
 
 pub fn empty_plaintext_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<>>
@@ -121,8 +121,8 @@ pub fn empty_plaintext_test() {
 }
 
 pub fn wrong_key_test() {
-  let assert Ok(cipher1) = block.new_aes_256(crypto.random_bytes(32))
-  let assert Ok(cipher2) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher1) = block.aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher2) = block.aes_256(crypto.random_bytes(32))
   let nonce = crypto.random_bytes(12)
   let plaintext = <<"secret":utf8>>
 
@@ -133,22 +133,22 @@ pub fn wrong_key_test() {
 }
 
 pub fn aes_128_wrong_key_size_test() {
-  assert block.new_aes_128(crypto.random_bytes(15)) == Error(Nil)
-  assert block.new_aes_128(crypto.random_bytes(17)) == Error(Nil)
+  assert block.aes_128(crypto.random_bytes(15)) == Error(Nil)
+  assert block.aes_128(crypto.random_bytes(17)) == Error(Nil)
 }
 
 pub fn aes_192_wrong_key_size_test() {
-  assert block.new_aes_192(crypto.random_bytes(23)) == Error(Nil)
-  assert block.new_aes_192(crypto.random_bytes(25)) == Error(Nil)
+  assert block.aes_192(crypto.random_bytes(23)) == Error(Nil)
+  assert block.aes_192(crypto.random_bytes(25)) == Error(Nil)
 }
 
 pub fn aes_256_wrong_key_size_test() {
-  assert block.new_aes_256(crypto.random_bytes(31)) == Error(Nil)
-  assert block.new_aes_256(crypto.random_bytes(33)) == Error(Nil)
+  assert block.aes_256(crypto.random_bytes(31)) == Error(Nil)
+  assert block.aes_256(crypto.random_bytes(33)) == Error(Nil)
 }
 
 pub fn wrong_tag_size_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.gcm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret":utf8>>
@@ -268,7 +268,7 @@ pub fn chacha20_poly1305_wrong_key_size_test() {
 }
 
 pub fn aes_128_ccm_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"attack at dawn":utf8>>
@@ -279,7 +279,7 @@ pub fn aes_128_ccm_test() {
 }
 
 pub fn aes_192_ccm_test() {
-  let assert Ok(cipher) = block.new_aes_192(crypto.random_bytes(24))
+  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"attack at dawn":utf8>>
@@ -290,7 +290,7 @@ pub fn aes_192_ccm_test() {
 }
 
 pub fn aes_256_ccm_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"attack at dawn":utf8>>
@@ -301,7 +301,7 @@ pub fn aes_256_ccm_test() {
 }
 
 pub fn aes_ccm_with_aad_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret message":utf8>>
@@ -315,7 +315,7 @@ pub fn aes_ccm_with_aad_test() {
 }
 
 pub fn aes_ccm_with_custom_sizes_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let assert Ok(ctx) = aead.ccm_with_sizes(cipher, nonce_size: 12, tag_size: 8)
   assert aead.nonce_size(ctx) == 12
   assert aead.tag_size(ctx) == 8
@@ -329,20 +329,20 @@ pub fn aes_ccm_with_custom_sizes_test() {
 }
 
 pub fn ccm_invalid_nonce_size_config_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   assert aead.ccm_with_sizes(cipher, nonce_size: 6, tag_size: 16) == Error(Nil)
   assert aead.ccm_with_sizes(cipher, nonce_size: 14, tag_size: 16) == Error(Nil)
 }
 
 pub fn ccm_invalid_tag_size_config_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   assert aead.ccm_with_sizes(cipher, nonce_size: 13, tag_size: 5) == Error(Nil)
   assert aead.ccm_with_sizes(cipher, nonce_size: 13, tag_size: 17) == Error(Nil)
   assert aead.ccm_with_sizes(cipher, nonce_size: 13, tag_size: 3) == Error(Nil)
 }
 
 pub fn ccm_wrong_nonce_size_seal_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = aead.ccm(cipher)
   let wrong_nonce = crypto.random_bytes(8)
   let plaintext = <<"test":utf8>>
@@ -351,7 +351,7 @@ pub fn ccm_wrong_nonce_size_seal_test() {
 }
 
 pub fn ccm_wrong_nonce_size_open_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = aead.ccm(cipher)
   let wrong_nonce = crypto.random_bytes(8)
   let tag = crypto.random_bytes(16)
@@ -361,7 +361,7 @@ pub fn ccm_wrong_nonce_size_open_test() {
 }
 
 pub fn ccm_tampered_ciphertext_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret":utf8>>
@@ -373,7 +373,7 @@ pub fn ccm_tampered_ciphertext_test() {
 }
 
 pub fn ccm_tampered_tag_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret":utf8>>
@@ -385,7 +385,7 @@ pub fn ccm_tampered_tag_test() {
 }
 
 pub fn ccm_wrong_aad_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret":utf8>>
@@ -400,7 +400,7 @@ pub fn ccm_wrong_aad_test() {
 }
 
 pub fn ccm_empty_plaintext_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<>>
@@ -412,8 +412,8 @@ pub fn ccm_empty_plaintext_test() {
 }
 
 pub fn ccm_wrong_key_test() {
-  let assert Ok(cipher1) = block.new_aes_256(crypto.random_bytes(32))
-  let assert Ok(cipher2) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher1) = block.aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher2) = block.aes_256(crypto.random_bytes(32))
   let nonce = crypto.random_bytes(13)
   let plaintext = <<"secret":utf8>>
 
@@ -424,7 +424,7 @@ pub fn ccm_wrong_key_test() {
 }
 
 pub fn ccm_wrong_tag_size_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = aead.ccm(cipher)
   let nonce = crypto.random_bytes(aead.nonce_size(ctx))
   let plaintext = <<"secret":utf8>>

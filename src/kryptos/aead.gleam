@@ -11,7 +11,7 @@
 //// import kryptos/block
 //// import kryptos/crypto
 ////
-//// let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+//// let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
 //// let ctx = aead.gcm(cipher)
 //// let nonce = crypto.random_bytes(aead.nonce_size(ctx))
 //// let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext: <<"secret":utf8>>)
@@ -22,7 +22,7 @@ import gleam/list
 import kryptos/block.{type BlockCipher}
 
 /// AEAD context with its configuration.
-pub type AeadContext {
+pub opaque type AeadContext {
   /// AES-GCM with the specified cipher and nonce size.
   Gcm(cipher: BlockCipher, nonce_size: Int)
   /// AES-CCM with configurable nonce and tag sizes (RFC 3610).
@@ -47,6 +47,28 @@ pub type AeadContext {
 /// An AES-GCM context ready for encryption or decryption.
 pub fn gcm(cipher: BlockCipher) -> AeadContext {
   Gcm(cipher:, nonce_size: 12)
+}
+
+/// Creates an AES-GCM context with a custom nonce size.
+///
+/// GCM supports variable nonce sizes, though 12 bytes is strongly recommended.
+/// This function is primarily useful for compatibility testing with test vectors.
+///
+/// ## Parameters
+/// - `cipher`: The AES block cipher (128, 192, or 256 bit)
+/// - `nonce_size`: The nonce size in bytes (1-64)
+///
+/// ## Returns
+/// - `Ok(AeadContext)` if the nonce size is valid
+/// - `Error(Nil)` if the nonce size is out of range
+pub fn gcm_with_nonce_size(
+  cipher: BlockCipher,
+  nonce_size: Int,
+) -> Result(AeadContext, Nil) {
+  case nonce_size >= 1 && nonce_size <= 64 {
+    True -> Ok(Gcm(cipher:, nonce_size:))
+    False -> Error(Nil)
+  }
 }
 
 /// Creates an AES-CCM context with the given block cipher.

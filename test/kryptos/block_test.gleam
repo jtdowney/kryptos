@@ -3,7 +3,7 @@ import kryptos/block
 import kryptos/crypto
 
 pub fn ecb_aes_128_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = block.ecb(cipher)
   let plaintext = <<"attack at dawn!!":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -13,7 +13,7 @@ pub fn ecb_aes_128_roundtrip_test() {
 }
 
 pub fn ecb_aes_192_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_192(crypto.random_bytes(24))
+  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
   let ctx = block.ecb(cipher)
   let plaintext = <<"attack at dawn!!":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -23,7 +23,7 @@ pub fn ecb_aes_192_roundtrip_test() {
 }
 
 pub fn ecb_aes_256_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let ctx = block.ecb(cipher)
   let plaintext = <<"attack at dawn!!":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -34,7 +34,7 @@ pub fn ecb_aes_256_roundtrip_test() {
 
 pub fn ecb_pattern_visibility_test() {
   // ECB encrypts identical blocks to identical ciphertext
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = block.ecb(cipher)
   // Two identical 16-byte blocks
   let plaintext = <<"AAAAAAAAAAAAAAAA":utf8>>
@@ -47,7 +47,7 @@ pub fn ecb_pattern_visibility_test() {
 }
 
 pub fn cbc_aes_128_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
   let plaintext = <<"attack at dawn":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -57,7 +57,7 @@ pub fn cbc_aes_128_roundtrip_test() {
 }
 
 pub fn cbc_aes_192_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_192(crypto.random_bytes(24))
+  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
   let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
   let plaintext = <<"attack at dawn":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -67,7 +67,7 @@ pub fn cbc_aes_192_roundtrip_test() {
 }
 
 pub fn cbc_aes_256_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
   let plaintext = <<"attack at dawn":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -78,7 +78,7 @@ pub fn cbc_aes_256_roundtrip_test() {
 
 pub fn cbc_pkcs7_padding_test() {
   // CBC with PKCS7 padding should handle various plaintext sizes
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
 
   // Test various sizes that need different padding amounts
@@ -101,7 +101,7 @@ pub fn cbc_pkcs7_padding_test() {
 }
 
 pub fn cbc_empty_plaintext_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
   let plaintext = <<>>
 
@@ -112,14 +112,14 @@ pub fn cbc_empty_plaintext_test() {
 }
 
 pub fn cbc_wrong_iv_size_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let wrong_iv = crypto.random_bytes(8)
 
   assert block.cbc(cipher, wrong_iv) == Error(Nil)
 }
 
 pub fn cbc_different_iv_different_ciphertext_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let plaintext = <<"same plaintext":utf8>>
 
   let assert Ok(ctx1) = block.cbc(cipher, crypto.random_bytes(16))
@@ -133,8 +133,8 @@ pub fn cbc_different_iv_different_ciphertext_test() {
 }
 
 pub fn cbc_wrong_key_test() {
-  let assert Ok(cipher1) = block.new_aes_256(crypto.random_bytes(32))
-  let assert Ok(cipher2) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher1) = block.aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher2) = block.aes_256(crypto.random_bytes(32))
   let iv = crypto.random_bytes(16)
   let plaintext = <<"secret":utf8>>
 
@@ -155,7 +155,7 @@ pub fn cbc_wrong_key_test() {
 }
 
 pub fn ctr_aes_128_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
   let plaintext = <<"attack at dawn":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -165,7 +165,7 @@ pub fn ctr_aes_128_roundtrip_test() {
 }
 
 pub fn ctr_aes_192_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_192(crypto.random_bytes(24))
+  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
   let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
   let plaintext = <<"attack at dawn":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -175,7 +175,7 @@ pub fn ctr_aes_192_roundtrip_test() {
 }
 
 pub fn ctr_aes_256_roundtrip_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
   let plaintext = <<"attack at dawn":utf8>>
   let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
@@ -185,7 +185,7 @@ pub fn ctr_aes_256_roundtrip_test() {
 }
 
 pub fn ctr_empty_plaintext_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
   let plaintext = <<>>
 
@@ -197,14 +197,14 @@ pub fn ctr_empty_plaintext_test() {
 }
 
 pub fn ctr_wrong_nonce_size_test() {
-  let assert Ok(cipher) = block.new_aes_128(crypto.random_bytes(16))
+  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let wrong_nonce = crypto.random_bytes(8)
 
   assert block.ctr(cipher, wrong_nonce) == Error(Nil)
 }
 
 pub fn ctr_different_nonce_different_ciphertext_test() {
-  let assert Ok(cipher) = block.new_aes_256(crypto.random_bytes(32))
+  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
   let plaintext = <<"same plaintext":utf8>>
 
   let assert Ok(ctx1) = block.ctr(cipher, crypto.random_bytes(16))

@@ -1,7 +1,6 @@
 import gleam/bit_array
-import gleam/bool
 import gleam/dynamic/decode
-import kryptos/aead.{Gcm}
+import kryptos/aead
 import kryptos/block
 import wycheproof/utils.{Invalid, Valid}
 
@@ -69,17 +68,14 @@ fn test_file_decoder() -> decode.Decoder(TestFile) {
 
 fn create_cipher(key: BitArray, key_size: Int) -> Result(block.BlockCipher, Nil) {
   case key_size {
-    128 -> block.new_aes_128(key)
-    192 -> block.new_aes_192(key)
-    256 -> block.new_aes_256(key)
+    128 -> block.aes_128(key)
+    192 -> block.aes_192(key)
+    256 -> block.aes_256(key)
     _ -> Error(Nil)
   }
 }
 
 fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
-  // OpenSSL 3.x limits GCM IVs to 64 bytes (512 bits)
-  use <- bool.guard(group.iv_size > 512, Nil)
-
   let assert Ok(key) = bit_array.base16_decode(tc.key)
   let assert Ok(iv) = bit_array.base16_decode(tc.iv)
   let assert Ok(aad) = bit_array.base16_decode(tc.aad)
@@ -92,28 +88,31 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
     Error(Nil) -> Nil
     Ok(cipher) -> {
       let nonce_size = group.iv_size / 8
-      let ctx = Gcm(cipher, nonce_size)
+      case aead.gcm_with_nonce_size(cipher, nonce_size) {
+        // Nonce size out of range - skip this test
+        Error(Nil) -> Nil
+        Ok(ctx) ->
+          case tc.result {
+            Valid -> {
+              // Test encryption
+              let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
+                as context
+              assert ct == expected_ct as context
+              assert tag == expected_tag as context
 
-      case tc.result {
-        Valid -> {
-          // Test encryption
-          let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
-            as context
-          assert ct == expected_ct as context
-          assert tag == expected_tag as context
-
-          // Test decryption
-          let assert Ok(plaintext) =
-            aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
-            as context
-          assert plaintext == msg as context
-        }
-        Invalid -> {
-          // Invalid test cases should fail decryption
-          let result =
-            aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
-          assert result == Error(Nil) as context
-        }
+              // Test decryption
+              let assert Ok(plaintext) =
+                aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
+                as context
+              assert plaintext == msg as context
+            }
+            Invalid -> {
+              // Invalid test cases should fail decryption
+              let result =
+                aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
+              assert result == Error(Nil) as context
+            }
+          }
       }
     }
   }
