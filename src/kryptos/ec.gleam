@@ -22,6 +22,9 @@
 //// let assert Ok(#(imported_private, _)) = ec.from_pem(pem)
 //// ```
 
+import gleam/result
+import gleam/string
+
 /// An elliptic curve private key.
 pub type PrivateKey
 
@@ -97,9 +100,13 @@ pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), ImportError)
 ///
 /// ## Returns
 /// `Ok(pem_string)` on success, `Error(Nil)` on failure.
+pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
+  do_to_pem(key) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+}
+
 @external(erlang, "kryptos_ffi", "ec_export_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "ecExportPrivateKeyPem")
-pub fn to_pem(key: PrivateKey) -> Result(String, Nil)
+fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 
 /// Exports an EC private key to DER format.
 ///
@@ -149,9 +156,14 @@ pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, ImportError)
 ///
 /// ## Returns
 /// `Ok(pem_string)` on success, `Error(Nil)` on failure.
+pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
+  do_public_key_to_pem(key)
+  |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+}
+
 @external(erlang, "kryptos_ffi", "ec_export_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "ecExportPublicKeyPem")
-pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil)
+fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 
 /// Exports an EC public key to DER format.
 ///

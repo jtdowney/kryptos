@@ -7,3 +7,4 @@ test_name: x25519_export_public_key_pem_test
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VuAyEAB6N8vBQgk8i3VdwbEOhstCY3StFqqFPtC9/AsrhtHHw=
 -----END PUBLIC KEY-----
+

@@ -37,6 +37,9 @@
 //// let assert Ok(decrypted) = rsa.decrypt(private_key, ciphertext, padding)
 //// ```
 
+import gleam/result
+import gleam/string
+
 import kryptos/hash.{type HashAlgorithm}
 
 /// An RSA private key.
@@ -251,9 +254,13 @@ pub fn from_der(
 ///
 /// ## Returns
 /// `Ok(pem_string)` on success, `Error(Nil)` on failure.
+pub fn to_pem(key: PrivateKey, format: PrivateKeyFormat) -> Result(String, Nil) {
+  do_to_pem(key, format) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+}
+
 @external(erlang, "kryptos_ffi", "rsa_export_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "rsaExportPrivateKeyPem")
-pub fn to_pem(key: PrivateKey, format: PrivateKeyFormat) -> Result(String, Nil)
+fn do_to_pem(key: PrivateKey, format: PrivateKeyFormat) -> Result(String, Nil)
 
 /// Exports an RSA private key to DER format.
 ///
@@ -308,9 +315,17 @@ pub fn public_key_from_der(
 ///
 /// ## Returns
 /// `Ok(pem_string)` on success, `Error(Nil)` on failure.
+pub fn public_key_to_pem(
+  key: PublicKey,
+  format: PublicKeyFormat,
+) -> Result(String, Nil) {
+  do_public_key_to_pem(key, format)
+  |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+}
+
 @external(erlang, "kryptos_ffi", "rsa_export_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "rsaExportPublicKeyPem")
-pub fn public_key_to_pem(
+fn do_public_key_to_pem(
   key: PublicKey,
   format: PublicKeyFormat,
 ) -> Result(String, Nil)

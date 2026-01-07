@@ -22,6 +22,7 @@
 //// ```
 
 import gleam/result
+import gleam/string
 
 /// An XDH private key.
 pub type PrivateKey
@@ -150,9 +151,13 @@ pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), ImportError)
 pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), ImportError)
 
 /// Exports a private key to PEM format (PKCS#8).
+pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
+  do_to_pem(key) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+}
+
 @external(erlang, "kryptos_ffi", "xdh_export_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "xdhExportPrivateKeyPem")
-pub fn to_pem(key: PrivateKey) -> Result(String, Nil)
+fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 
 /// Exports a private key to DER format (PKCS#8).
 @external(erlang, "kryptos_ffi", "xdh_export_private_key_der")
@@ -174,9 +179,14 @@ pub fn public_key_from_pem(pem: String) -> Result(PublicKey, ImportError)
 pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, ImportError)
 
 /// Exports a public key to PEM format (SPKI).
+pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
+  do_public_key_to_pem(key)
+  |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+}
+
 @external(erlang, "kryptos_ffi", "xdh_export_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "xdhExportPublicKeyPem")
-pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil)
+fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 
 /// Exports a public key to DER format (SPKI).
 @external(erlang, "kryptos_ffi", "xdh_export_public_key_der")

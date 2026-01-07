@@ -7,3 +7,4 @@ test_name: ed25519_export_private_key_pem_test
 -----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8g
 -----END PRIVATE KEY-----
+

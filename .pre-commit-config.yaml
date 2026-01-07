@@ -7,8 +7,10 @@ repos:
       - id: check-toml
       - id: check-yaml
       - id: end-of-file-fixer
+        exclude: ^birdie_snapshots/.*\.accepted$
       - id: mixed-line-ending
       - id: trailing-whitespace
+        exclude: ^birdie_snapshots/.*\.accepted$
   - repo: local
     hooks:
       - id: gleam-check
