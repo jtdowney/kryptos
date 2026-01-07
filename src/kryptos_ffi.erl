@@ -10,6 +10,8 @@
     pbkdf2_derive/5,
     aead_seal/4,
     aead_open/5,
+    cipher_encrypt/2,
+    cipher_decrypt/2,
     ec_generate_key_pair/1,
     ec_private_key_from_bytes/2,
     ec_public_key_from_x509/1,
@@ -148,10 +150,17 @@ aead_cipher_name({ccm, {aes, aes256, _}, _, _}) ->
 aead_cipher_name({cha_cha20_poly1305, _}) ->
     chacha20_poly1305.
 
+aead_cipher_key({gcm, {aes, _, Key}, _}) ->
+    Key;
+aead_cipher_key({ccm, {aes, _, Key}, _, _}) ->
+    Key;
+aead_cipher_key({cha_cha20_poly1305, Key}) ->
+    Key.
+
 aead_seal(Mode, Nonce, Plaintext, AdditionalData) ->
     Cipher = aead_cipher_name(Mode),
     TagSize = kryptos@aead:tag_size(Mode),
-    Key = kryptos@aead:aead_cipher_key(Mode),
+    Key = aead_cipher_key(Mode),
     try
         {Ciphertext, Tag} =
             crypto:crypto_one_time_aead(
@@ -171,7 +180,7 @@ aead_seal(Mode, Nonce, Plaintext, AdditionalData) ->
 
 aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
     Cipher = aead_cipher_name(Mode),
-    Key = kryptos@aead:aead_cipher_key(Mode),
+    Key = aead_cipher_key(Mode),
     case
         crypto:crypto_one_time_aead(
             Cipher,
@@ -187,6 +196,51 @@ aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
             {error, nil};
         Plaintext ->
             {ok, Plaintext}
+    end.
+
+%% Block cipher modes (ECB, CBC, CTR)
+cipher_name({ecb, {aes, aes128, _}}) -> aes_128_ecb;
+cipher_name({ecb, {aes, aes192, _}}) -> aes_192_ecb;
+cipher_name({ecb, {aes, aes256, _}}) -> aes_256_ecb;
+cipher_name({cbc, {aes, aes128, _}, _}) -> aes_128_cbc;
+cipher_name({cbc, {aes, aes192, _}, _}) -> aes_192_cbc;
+cipher_name({cbc, {aes, aes256, _}, _}) -> aes_256_cbc;
+cipher_name({ctr, {aes, aes128, _}, _}) -> aes_128_ctr;
+cipher_name({ctr, {aes, aes192, _}, _}) -> aes_192_ctr;
+cipher_name({ctr, {aes, aes256, _}, _}) -> aes_256_ctr.
+
+cipher_padding({ecb, _}) -> pkcs_padding;
+cipher_padding({cbc, _, _}) -> pkcs_padding;
+cipher_padding({ctr, _, _}) -> none.
+
+cipher_encrypt(Mode, Plaintext) ->
+    Cipher = cipher_name(Mode),
+    Key = kryptos@block:cipher_key(Mode),
+    Iv = kryptos@block:cipher_iv(Mode),
+    Padding = cipher_padding(Mode),
+    try
+        Ciphertext = crypto:crypto_one_time(Cipher, Key, Iv, Plaintext, [
+            {encrypt, true}, {padding, Padding}
+        ]),
+        {ok, Ciphertext}
+    catch
+        error:_ ->
+            {error, nil}
+    end.
+
+cipher_decrypt(Mode, Ciphertext) ->
+    Cipher = cipher_name(Mode),
+    Key = kryptos@block:cipher_key(Mode),
+    Iv = kryptos@block:cipher_iv(Mode),
+    Padding = cipher_padding(Mode),
+    try
+        Plaintext = crypto:crypto_one_time(Cipher, Key, Iv, Ciphertext, [
+            {encrypt, false}, {padding, Padding}
+        ]),
+        {ok, Plaintext}
+    catch
+        error:_ ->
+            {error, nil}
     end.
 
 ec_curve_name(p256) ->

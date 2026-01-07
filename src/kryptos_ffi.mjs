@@ -1,12 +1,8 @@
 import crypto from "node:crypto";
 
 import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
-import {
-  aead_cipher_key,
-  aead_cipher_name,
-  tag_size,
-} from "./kryptos/aead.mjs";
-import { InvalidKeyData as EcImportError$InvalidKeyData } from "./kryptos/ec.mjs";
+import { tag_size } from "./kryptos/aead.mjs";
+import { cipher_name, cipher_key, cipher_iv } from "./kryptos/block.mjs";
 import { key_size as eddsa_key_size } from "./kryptos/eddsa.mjs";
 import { InvalidKeyData as EddsaImportError$InvalidKeyData } from "./kryptos/eddsa.mjs";
 import { algorithm_name } from "./kryptos/hash.mjs";
@@ -101,6 +97,38 @@ export function pbkdf2Derive(algorithm, password, salt, iterations, length) {
   }
 }
 
+function aead_cipher_name(mode) {
+  const modeName = mode.constructor.name;
+  if (modeName === "ChaCha20Poly1305") {
+    return "chacha20-poly1305";
+  }
+
+  // Gcm or Ccm - get the cipher's key_size
+  const cipher = mode.cipher;
+  const keySizeName = cipher.key_size.constructor.name;
+  const suffix = modeName === "Gcm" ? "gcm" : "ccm";
+
+  switch (keySizeName) {
+    case "Aes128":
+      return `aes-128-${suffix}`;
+    case "Aes192":
+      return `aes-192-${suffix}`;
+    case "Aes256":
+      return `aes-256-${suffix}`;
+    default:
+      throw new Error(`Unknown key size: ${keySizeName}`);
+  }
+}
+
+function aead_cipher_key(mode) {
+  const modeName = mode.constructor.name;
+  if (modeName === "ChaCha20Poly1305") {
+    return mode.key;
+  }
+  // Gcm or Ccm - key is in cipher.key
+  return mode.cipher.key;
+}
+
 export function aeadSeal(mode, nonce, plaintext, aad) {
   const name = aead_cipher_name(mode);
   const key = aead_cipher_key(mode);
@@ -151,6 +179,61 @@ export function aeadOpen(mode, nonce, tag, ciphertext, aad) {
     const updateOutput = decipher.update(ciphertext.rawBuffer);
     const finalOutput = decipher.final();
     const plaintext = Buffer.concat([updateOutput, finalOutput]);
+    return Result$Ok(BitArray$BitArray(plaintext));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+// Block cipher modes (ECB, CBC, CTR)
+function cipherNeedsPadding(mode) {
+  const modeName = mode.constructor.name;
+  // CTR mode doesn't need padding, ECB and CBC do
+  return modeName !== "Ctr";
+}
+
+export function cipherEncrypt(mode, plaintext) {
+  try {
+    const name = cipher_name(mode);
+    const key = cipher_key(mode);
+    const iv = cipher_iv(mode);
+
+    // ECB mode doesn't use an IV (pass null)
+    const ivBuffer = iv.byteSize === 0 ? null : iv.rawBuffer;
+
+    const cipher = crypto.createCipheriv(name, key.rawBuffer, ivBuffer);
+
+    // Set auto-padding: enabled for ECB/CBC, disabled for CTR
+    cipher.setAutoPadding(cipherNeedsPadding(mode));
+
+    const updateOutput = cipher.update(plaintext.rawBuffer);
+    const finalOutput = cipher.final();
+    const ciphertext = Buffer.concat([updateOutput, finalOutput]);
+
+    return Result$Ok(BitArray$BitArray(ciphertext));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function cipherDecrypt(mode, ciphertext) {
+  try {
+    const name = cipher_name(mode);
+    const key = cipher_key(mode);
+    const iv = cipher_iv(mode);
+
+    // ECB mode doesn't use an IV (pass null)
+    const ivBuffer = iv.byteSize === 0 ? null : iv.rawBuffer;
+
+    const decipher = crypto.createDecipheriv(name, key.rawBuffer, ivBuffer);
+
+    // Set auto-padding: enabled for ECB/CBC, disabled for CTR
+    decipher.setAutoPadding(cipherNeedsPadding(mode));
+
+    const updateOutput = decipher.update(ciphertext.rawBuffer);
+    const finalOutput = decipher.final();
+    const plaintext = Buffer.concat([updateOutput, finalOutput]);
+
     return Result$Ok(BitArray$BitArray(plaintext));
   } catch {
     return Result$Error(undefined);

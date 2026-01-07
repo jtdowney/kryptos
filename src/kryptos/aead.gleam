@@ -19,7 +19,7 @@
 
 import gleam/bit_array
 import gleam/list
-import kryptos/block.{type BlockCipher, Aes}
+import kryptos/block.{type BlockCipher}
 
 /// AEAD context with its configuration.
 pub type AeadContext {
@@ -253,43 +253,3 @@ fn do_open(
   ciphertext: BitArray,
   aad: BitArray,
 ) -> Result(BitArray, Nil)
-
-@internal
-pub fn aead_cipher_name(ctx: AeadContext) -> String {
-  case ctx {
-    Gcm(cipher:, ..) ->
-      case cipher {
-        Aes(key_size:, ..) ->
-          case key_size {
-            block.Aes128 -> "aes-128-gcm"
-            block.Aes192 -> "aes-192-gcm"
-            block.Aes256 -> "aes-256-gcm"
-          }
-      }
-    Ccm(cipher:, ..) ->
-      case cipher {
-        Aes(key_size:, ..) ->
-          case key_size {
-            block.Aes128 -> "aes-128-ccm"
-            block.Aes192 -> "aes-192-ccm"
-            block.Aes256 -> "aes-256-ccm"
-          }
-      }
-    ChaCha20Poly1305(..) -> "chacha20-poly1305"
-  }
-}
-
-@internal
-pub fn aead_cipher_key(ctx: AeadContext) -> BitArray {
-  case ctx {
-    Gcm(cipher:, ..) ->
-      case cipher {
-        Aes(key:, ..) -> key
-      }
-    Ccm(cipher:, ..) ->
-      case cipher {
-        Aes(key:, ..) -> key
-      }
-    ChaCha20Poly1305(key:) -> key
-  }
-}
