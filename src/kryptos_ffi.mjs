@@ -352,3 +352,146 @@ export function xdhPublicKeyFromBytes(curve, publicBytes) {
     return Result$Error(undefined);
   }
 }
+
+export function rsaGenerateKeyPair(bits) {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
+    modulusLength: bits,
+    publicExponent: 65537,
+  });
+  return [privateKey, publicKey];
+}
+
+function rsaSignPaddingOpts(padding) {
+  const paddingName = padding.constructor.name;
+  if (paddingName === "Pkcs1v15") {
+    return { padding: crypto.constants.RSA_PKCS1_PADDING };
+  } else if (paddingName === "Pss") {
+    const saltLength = rsaPssSaltLength(padding[0]);
+    return {
+      padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+      saltLength: saltLength,
+    };
+  }
+  throw new Error(`Unknown sign padding: ${paddingName}`);
+}
+
+function rsaPssSaltLength(saltLength) {
+  const name = saltLength.constructor.name;
+  switch (name) {
+    case "SaltLengthHashLen":
+      return crypto.constants.RSA_PSS_SALTLEN_DIGEST;
+    case "SaltLengthMax":
+      return crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN;
+    case "SaltLengthExplicit":
+      return saltLength[0];
+    default:
+      throw new Error(`Unknown salt length: ${name}`);
+  }
+}
+
+export function rsaSign(privateKey, message, hash, padding) {
+  const algorithmName = algorithm_name(hash);
+  const opts = rsaSignPaddingOpts(padding);
+  const signature = crypto.sign(algorithmName, message.rawBuffer, {
+    key: privateKey,
+    ...opts,
+  });
+  return BitArray$BitArray(signature);
+}
+
+export function rsaVerify(publicKey, message, signature, hash, padding) {
+  try {
+    const algorithmName = algorithm_name(hash);
+    const opts = rsaSignPaddingOpts(padding);
+    if (opts.saltLength === crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN) {
+      opts.saltLength = crypto.constants.RSA_PSS_SALTLEN_AUTO;
+    }
+    return crypto.verify(
+      algorithmName,
+      message.rawBuffer,
+      { key: publicKey, ...opts },
+      signature.rawBuffer,
+    );
+  } catch {
+    return false;
+  }
+}
+
+function rsaEncryptPaddingOpts(padding) {
+  const paddingName = padding.constructor.name;
+  if (paddingName === "EncryptPkcs1v15") {
+    return { padding: crypto.constants.RSA_PKCS1_PADDING };
+  } else if (paddingName === "Oaep") {
+    const hash = padding.hash;
+    const label = padding.label;
+    const algorithmName = algorithm_name(hash);
+    const opts = {
+      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+      oaepHash: algorithmName,
+    };
+    if (label.byteSize > 0) {
+      opts.oaepLabel = label.rawBuffer;
+    }
+    return opts;
+  }
+  throw new Error(`Unknown encrypt padding: ${paddingName}`);
+}
+
+export function rsaEncrypt(publicKey, plaintext, padding) {
+  try {
+    const opts = rsaEncryptPaddingOpts(padding);
+    const ciphertext = crypto.publicEncrypt(
+      { key: publicKey, ...opts },
+      plaintext.rawBuffer,
+    );
+    return Result$Ok(BitArray$BitArray(ciphertext));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function rsaDecrypt(privateKey, ciphertext, padding) {
+  try {
+    const opts = rsaEncryptPaddingOpts(padding);
+    const plaintext = crypto.privateDecrypt(
+      { key: privateKey, ...opts },
+      ciphertext.rawBuffer,
+    );
+    return Result$Ok(BitArray$BitArray(plaintext));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function rsaPrivateKeyFromPkcs8(derBytes) {
+  try {
+    const privateKey = crypto.createPrivateKey({
+      key: derBytes.rawBuffer,
+      format: "der",
+      type: "pkcs8",
+    });
+    if (privateKey.asymmetricKeyType !== "rsa") {
+      return Result$Error(undefined);
+    }
+    const publicKey = crypto.createPublicKey(privateKey);
+    return Result$Ok([privateKey, publicKey]);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function rsaPublicKeyFromX509(derBytes) {
+  try {
+    const publicKey = crypto.createPublicKey({
+      key: derBytes.rawBuffer,
+      format: "der",
+      type: "spki",
+    });
+    if (publicKey.asymmetricKeyType !== "rsa") {
+      return Result$Error(undefined);
+    }
+    return Result$Ok(publicKey);
+  } catch {
+    return Result$Error(undefined);
+  }
+}

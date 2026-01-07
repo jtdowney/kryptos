@@ -1,5 +1,7 @@
 -module(kryptos_ffi).
 
+-include_lib("public_key/include/public_key.hrl").
+
 -export([
     random_bytes/1,
     constant_time_equal/2,
@@ -17,7 +19,14 @@
     xdh_generate_key_pair/1,
     xdh_compute_shared_secret/2,
     xdh_private_key_from_bytes/2,
-    xdh_public_key_from_bytes/2
+    xdh_public_key_from_bytes/2,
+    rsa_generate_key_pair/1,
+    rsa_sign/4,
+    rsa_verify/5,
+    rsa_encrypt/3,
+    rsa_decrypt/3,
+    rsa_private_key_from_pkcs8/1,
+    rsa_public_key_from_x509/1
 ]).
 
 random_bytes(Length) when Length < 0 ->
@@ -276,5 +285,121 @@ xdh_public_key_from_bytes(Curve, PublicBytes) ->
         ExpectedSize ->
             {ok, {PublicBytes, Curve}};
         _ ->
+            {error, nil}
+    end.
+
+rsa_generate_key_pair(Bits) ->
+    {PubKey, PrivKey} = crypto:generate_key(rsa, {Bits, 65537}),
+    {rsa_build_private_key(PrivKey), rsa_build_public_key(PubKey)}.
+
+bin_to_int(Bin) ->
+    binary:decode_unsigned(Bin).
+
+rsa_build_private_key([E, N, D, P, Q, Dp, Dq, Qi]) ->
+    #'RSAPrivateKey'{
+        version = 'two-prime',
+        modulus = bin_to_int(N),
+        publicExponent = bin_to_int(E),
+        privateExponent = bin_to_int(D),
+        prime1 = bin_to_int(P),
+        prime2 = bin_to_int(Q),
+        exponent1 = bin_to_int(Dp),
+        exponent2 = bin_to_int(Dq),
+        coefficient = bin_to_int(Qi)
+    };
+rsa_build_private_key([E, N, D]) ->
+    #'RSAPrivateKey'{
+        version = 'two-prime',
+        modulus = bin_to_int(N),
+        publicExponent = bin_to_int(E),
+        privateExponent = bin_to_int(D)
+    }.
+
+rsa_build_public_key([E, N | _]) ->
+    #'RSAPublicKey'{modulus = bin_to_int(N), publicExponent = bin_to_int(E)}.
+
+rsa_sign_padding_opts(pkcs1v15, _Hash) ->
+    [];
+rsa_sign_padding_opts({pss, SaltLength}, Hash) ->
+    DigestType = hash_algorithm_name(Hash),
+    Salt = rsa_pss_salt_length(SaltLength),
+    [{rsa_padding, rsa_pkcs1_pss_padding}, {rsa_pss_saltlen, Salt}, {rsa_mgf1_md, DigestType}].
+
+rsa_pss_salt_length(salt_length_hash_len) ->
+    -1;
+rsa_pss_salt_length(salt_length_max) ->
+    -2;
+rsa_pss_salt_length({salt_length_explicit, Length}) ->
+    Length.
+
+rsa_sign(PrivateKey, Message, Hash, Padding) ->
+    DigestType = hash_algorithm_name(Hash),
+    Opts = rsa_sign_padding_opts(Padding, Hash),
+    public_key:sign(Message, DigestType, PrivateKey, Opts).
+
+rsa_verify(PublicKey, Message, Signature, Hash, Padding) ->
+    try
+        DigestType = hash_algorithm_name(Hash),
+        Opts = rsa_sign_padding_opts(Padding, Hash),
+        public_key:verify(Message, DigestType, Signature, PublicKey, Opts)
+    catch
+        _:_ ->
+            false
+    end.
+
+rsa_encrypt_padding_opts(encrypt_pkcs1v15) ->
+    [{rsa_padding, rsa_pkcs1_padding}];
+rsa_encrypt_padding_opts({oaep, Hash, Label}) ->
+    DigestType = hash_algorithm_name(Hash),
+    Opts = [
+        {rsa_padding, rsa_pkcs1_oaep_padding}, {rsa_oaep_md, DigestType}, {rsa_mgf1_md, DigestType}
+    ],
+    case Label of
+        <<>> -> Opts;
+        _ -> [{rsa_oaep_label, Label} | Opts]
+    end.
+
+rsa_encrypt(PublicKey, Plaintext, Padding) ->
+    try
+        Opts = rsa_encrypt_padding_opts(Padding),
+        Ciphertext = public_key:encrypt_public(Plaintext, PublicKey, Opts),
+        {ok, Ciphertext}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+rsa_decrypt(PrivateKey, Ciphertext, Padding) ->
+    try
+        Opts = rsa_encrypt_padding_opts(Padding),
+        Plaintext = public_key:decrypt_private(Ciphertext, PrivateKey, Opts),
+        {ok, Plaintext}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+rsa_private_key_from_pkcs8(DerBytes) ->
+    try
+        RSAPrivKey = public_key:der_decode('PrivateKeyInfo', DerBytes),
+        PubKey = #'RSAPublicKey'{
+            modulus = RSAPrivKey#'RSAPrivateKey'.modulus,
+            publicExponent = RSAPrivKey#'RSAPrivateKey'.publicExponent
+        },
+        {ok, {RSAPrivKey, PubKey}}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+rsa_public_key_from_x509(DerBytes) ->
+    try
+        PubKey = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
+        {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', ?'rsaEncryption', _}, PublicKeyDer} =
+            PubKey,
+        RSAPubKey = public_key:der_decode('RSAPublicKey', PublicKeyDer),
+        {ok, RSAPubKey}
+    catch
+        _:_ ->
             {error, nil}
     end.

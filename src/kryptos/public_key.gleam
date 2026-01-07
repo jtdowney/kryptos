@@ -48,3 +48,10 @@ pub type ECDH
 /// Used as the `key_agreement` type parameter to indicate a key supports XDH
 /// key agreement using Montgomery curves (X25519 or X448).
 pub type XDH
+
+/// Marker type for RSA capability.
+///
+/// Used as the `signing` and/or `encrypting` type parameters to indicate a key
+/// supports RSA operations. RSA keys can be used for both signing (PKCS#1 v1.5,
+/// PSS) and encryption (PKCS#1 v1.5, OAEP).
+pub type RSA
