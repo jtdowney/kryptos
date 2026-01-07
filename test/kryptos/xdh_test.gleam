@@ -119,16 +119,16 @@ pub fn x448_invalid_public_key_length_test() {
 
 pub fn x25519_invalid_private_key_length_test() {
   let short_key = <<0:size(31)-unit(8)>>
-  assert xdh.private_key_from_bytes(X25519, short_key) == Error(Nil)
+  assert xdh.from_bytes(X25519, short_key) == Error(Nil)
 
   let long_key = <<0:size(33)-unit(8)>>
-  assert xdh.private_key_from_bytes(X25519, long_key) == Error(Nil)
+  assert xdh.from_bytes(X25519, long_key) == Error(Nil)
 }
 
 pub fn x448_invalid_private_key_length_test() {
   let short_key = <<0:size(55)-unit(8)>>
-  assert xdh.private_key_from_bytes(X448, short_key) == Error(Nil)
+  assert xdh.from_bytes(X448, short_key) == Error(Nil)
 
   let long_key = <<0:size(57)-unit(8)>>
-  assert xdh.private_key_from_bytes(X448, long_key) == Error(Nil)
+  assert xdh.from_bytes(X448, long_key) == Error(Nil)
 }

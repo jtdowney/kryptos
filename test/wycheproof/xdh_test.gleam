@@ -84,7 +84,7 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
       case public_result, private_result, shared_result {
         Ok(public_bytes), Ok(private_bytes), Ok(expected_shared) -> {
           let pub_key_result = xdh.public_key_from_bytes(curve, public_bytes)
-          let priv_key_result = xdh.private_key_from_bytes(curve, private_bytes)
+          let priv_key_result = xdh.from_bytes(curve, private_bytes)
 
           case tc.result {
             Invalid -> {

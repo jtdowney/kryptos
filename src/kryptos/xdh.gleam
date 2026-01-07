@@ -105,7 +105,7 @@ fn do_compute_shared_secret(
 /// if the bytes are invalid.
 @external(erlang, "kryptos_ffi", "xdh_private_key_from_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "xdhPrivateKeyFromBytes")
-pub fn private_key_from_bytes(
+pub fn from_bytes(
   curve: Curve,
   private_bytes: BitArray,
 ) -> Result(#(PrivateKey(Nil, Nil, XDH), PublicKey(Nil, Nil, XDH)), Nil)

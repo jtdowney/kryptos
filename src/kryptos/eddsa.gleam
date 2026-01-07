@@ -96,7 +96,7 @@ pub fn verify(
 /// if the bytes are invalid.
 @external(erlang, "kryptos_ffi", "eddsa_private_key_from_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaPrivateKeyFromBytes")
-pub fn private_key_from_bytes(
+pub fn from_bytes(
   curve: Curve,
   private_bytes: BitArray,
 ) -> Result(#(PrivateKey(EdDSA, Nil, Nil), PublicKey(EdDSA, Nil, Nil)), Nil)
