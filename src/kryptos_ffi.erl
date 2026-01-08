@@ -3,73 +3,73 @@
 -include_lib("public_key/include/public_key.hrl").
 
 -export([
-    random_bytes/1,
+    aead_open/5,
+    aead_seal/4,
+    cipher_decrypt/2,
+    cipher_encrypt/2,
     constant_time_equal/2,
+    ec_export_private_key_der/1,
+    ec_export_private_key_pem/1,
+    ec_export_public_key_der/1,
+    ec_export_public_key_pem/1,
+    ec_generate_key_pair/1,
+    ec_import_private_key_der/1,
+    ec_import_private_key_pem/1,
+    ec_import_public_key_der/1,
+    ec_import_public_key_pem/1,
+    ec_private_key_from_bytes/2,
+    ec_public_key_from_private/1,
+    ec_public_key_from_raw_point/2,
+    ec_public_key_from_x509/1,
+    ecdh_compute_shared_secret/2,
+    ecdsa_sign/3,
+    ecdsa_verify/4,
+    eddsa_export_private_key_der/1,
+    eddsa_export_private_key_pem/1,
+    eddsa_export_public_key_der/1,
+    eddsa_export_public_key_pem/1,
+    eddsa_generate_key_pair/1,
+    eddsa_import_private_key_der/1,
+    eddsa_import_private_key_pem/1,
+    eddsa_import_public_key_der/1,
+    eddsa_import_public_key_pem/1,
+    eddsa_private_key_from_bytes/2,
+    eddsa_public_key_from_bytes/2,
+    eddsa_public_key_from_private/1,
+    eddsa_sign/2,
+    eddsa_verify/3,
     hash_new/1,
     hmac_new/2,
     pbkdf2_derive/5,
-    aead_seal/4,
-    aead_open/5,
-    cipher_encrypt/2,
-    cipher_decrypt/2,
-    ec_generate_key_pair/1,
-    ec_private_key_from_bytes/2,
-    ec_public_key_from_x509/1,
-    ec_public_key_from_raw_point/2,
-    ec_import_private_key_pem/1,
-    ec_import_private_key_der/1,
-    ec_import_public_key_pem/1,
-    ec_import_public_key_der/1,
-    ec_export_private_key_pem/1,
-    ec_export_private_key_der/1,
-    ec_export_public_key_pem/1,
-    ec_export_public_key_der/1,
-    ec_public_key_from_private/1,
-    ecdsa_sign/3,
-    ecdsa_verify/4,
-    ecdh_compute_shared_secret/2,
-    xdh_generate_key_pair/1,
-    xdh_compute_shared_secret/2,
-    xdh_private_key_from_bytes/2,
-    xdh_public_key_from_bytes/2,
+    random_bytes/1,
+    rsa_decrypt/3,
+    rsa_encrypt/3,
+    rsa_export_private_key_der/2,
+    rsa_export_private_key_pem/2,
+    rsa_export_public_key_der/2,
+    rsa_export_public_key_pem/2,
     rsa_generate_key_pair/1,
+    rsa_import_private_key_der/2,
+    rsa_import_private_key_pem/2,
+    rsa_import_public_key_der/2,
+    rsa_import_public_key_pem/2,
+    rsa_private_key_from_pkcs8/1,
+    rsa_public_key_from_private/1,
+    rsa_public_key_from_x509/1,
     rsa_sign/4,
     rsa_verify/5,
-    rsa_encrypt/3,
-    rsa_decrypt/3,
-    rsa_private_key_from_pkcs8/1,
-    rsa_public_key_from_x509/1,
-    rsa_import_private_key_pem/2,
-    rsa_import_private_key_der/2,
-    rsa_import_public_key_pem/2,
-    rsa_import_public_key_der/2,
-    rsa_export_private_key_pem/2,
-    rsa_export_private_key_der/2,
-    rsa_export_public_key_pem/2,
-    rsa_export_public_key_der/2,
-    rsa_public_key_from_private/1,
-    eddsa_generate_key_pair/1,
-    eddsa_sign/2,
-    eddsa_verify/3,
-    eddsa_private_key_from_bytes/2,
-    eddsa_public_key_from_bytes/2,
-    eddsa_import_private_key_pem/1,
-    eddsa_import_private_key_der/1,
-    eddsa_import_public_key_pem/1,
-    eddsa_import_public_key_der/1,
-    eddsa_export_private_key_pem/1,
-    eddsa_export_private_key_der/1,
-    eddsa_export_public_key_pem/1,
-    eddsa_export_public_key_der/1,
-    eddsa_public_key_from_private/1,
-    xdh_import_private_key_pem/1,
-    xdh_import_private_key_der/1,
-    xdh_import_public_key_pem/1,
-    xdh_import_public_key_der/1,
-    xdh_export_private_key_pem/1,
+    xdh_compute_shared_secret/2,
     xdh_export_private_key_der/1,
-    xdh_export_public_key_pem/1,
+    xdh_export_private_key_pem/1,
     xdh_export_public_key_der/1,
+    xdh_export_public_key_pem/1,
+    xdh_generate_key_pair/1,
+    xdh_import_private_key_der/1,
+    xdh_import_private_key_pem/1,
+    xdh_import_public_key_der/1,
+    xdh_import_public_key_pem/1,
+    xdh_private_key_from_bytes/2,
+    xdh_public_key_from_bytes/2,
     xdh_public_key_from_private/1
 ]).
 
@@ -277,7 +277,7 @@ ec_curve_name(secp256k1) ->
 
 ec_generate_key_pair(Curve) ->
     CurveName = ec_curve_name(Curve),
-    OID = ec_curve_oid(CurveName),
+    OID = curve_to_oid(CurveName),
     {PubPoint, PrivScalar} = crypto:generate_key(ecdh, CurveName),
     PrivKey =
         {'ECPrivateKey', ecPrivkeyVer1, PrivScalar, {namedCurve, OID}, PubPoint, asn1_NOVALUE},
@@ -287,7 +287,7 @@ ec_generate_key_pair(Curve) ->
 ec_private_key_from_bytes(Curve, PrivateScalar) ->
     try
         CurveName = ec_curve_name(Curve),
-        OID = ec_curve_oid(CurveName),
+        OID = curve_to_oid(CurveName),
         % Generate a temporary key to get the public point
         % We need to compute the public key from the private scalar
         {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, PrivateScalar),
@@ -307,7 +307,7 @@ ec_public_key_from_x509(DerBytes) ->
         {'SubjectPublicKeyInfo', AlgId, PublicKeyBits} =
             public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
         {'AlgorithmIdentifier', _, {namedCurve, OID}} = AlgId,
-        CurveName = ec_oid_to_name(OID),
+        CurveName = oid_to_curve(OID),
         % PublicKeyBits is the raw EC point
         {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}}
     catch
@@ -350,15 +350,6 @@ validate_ec_point(CurveName, Point) ->
             {error, nil}
     end.
 
-ec_oid_to_name({1, 2, 840, 10045, 3, 1, 7}) ->
-    secp256r1;
-ec_oid_to_name({1, 3, 132, 0, 34}) ->
-    secp384r1;
-ec_oid_to_name({1, 3, 132, 0, 35}) ->
-    secp521r1;
-ec_oid_to_name({1, 3, 132, 0, 10}) ->
-    secp256k1.
-
 ec_import_private_key_pem(PemData) ->
     try
         case public_key:pem_decode(PemData) of
@@ -384,7 +375,7 @@ ec_import_private_key_from_der(DerBytes) ->
     ECPrivKey = public_key:der_decode('PrivateKeyInfo', DerBytes),
     case ECPrivKey of
         {'ECPrivateKey', _, PrivateScalar, {namedCurve, CurveOID}, PublicPoint, _} ->
-            CurveName = ec_oid_to_name(CurveOID),
+            CurveName = oid_to_curve(CurveOID),
             PrivKey =
                 {'ECPrivateKey', ecPrivkeyVer1, PrivateScalar, {namedCurve, CurveOID}, PublicPoint,
                     asn1_NOVALUE},
@@ -420,7 +411,7 @@ ec_import_public_key_from_der(DerBytes) ->
         public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
     case AlgId of
         {'AlgorithmIdentifier', ?'id-ecPublicKey', {namedCurve, OID}} ->
-            CurveName = ec_oid_to_name(OID),
+            CurveName = oid_to_curve(OID),
             {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
         _ ->
             {error, invalid_key_data}
@@ -470,14 +461,14 @@ ec_export_public_key_der(Key) ->
     end.
 
 ec_public_key_to_der({{'ECPoint', Point}, {namedCurve, CurveName}}) ->
-    CurveOID = ec_curve_oid(CurveName),
+    CurveOID = curve_to_oid(CurveName),
     Key = {{'ECPoint', Point}, {namedCurve, CurveOID}},
     {'SubjectPublicKeyInfo', Der, not_encrypted} =
         public_key:pem_entry_encode('SubjectPublicKeyInfo', Key),
     Der.
 
 ec_public_key_from_private({'ECPrivateKey', _, _, {namedCurve, CurveOID}, PublicPoint, _}) ->
-    CurveName = ec_oid_to_name(CurveOID),
+    CurveName = oid_to_curve(CurveOID),
     {{'ECPoint', PublicPoint}, {namedCurve, CurveName}}.
 
 ecdsa_sign(PrivateKey, Message, HashAlgorithm) ->
@@ -493,20 +484,11 @@ ecdsa_verify(PubKey, Message, Signature, HashAlgorithm) ->
             false
     end.
 
-ec_curve_oid(secp256r1) ->
-    {1, 2, 840, 10045, 3, 1, 7};
-ec_curve_oid(secp384r1) ->
-    {1, 3, 132, 0, 34};
-ec_curve_oid(secp521r1) ->
-    {1, 3, 132, 0, 35};
-ec_curve_oid(secp256k1) ->
-    {1, 3, 132, 0, 10}.
-
 ecdh_compute_shared_secret(PrivateKey, PeerPublicKey) ->
     try
         {{'ECPoint', PeerPoint}, {namedCurve, PeerCurveName}} = PeerPublicKey,
         {namedCurve, PrivateOID} = element(4, PrivateKey),
-        ExpectedOID = ec_curve_oid(PeerCurveName),
+        ExpectedOID = curve_to_oid(PeerCurveName),
         case PrivateOID =:= ExpectedOID of
             false ->
                 {error, nil};
@@ -897,21 +879,19 @@ eddsa_import_private_key_der(DerBytes) ->
     end.
 
 eddsa_import_private_key_from_der(DerBytes) ->
-    {AlgOID, _} = extract_pkcs8_algorithm(DerBytes),
-    case AlgOID of
-        {1, 3, 101, 112} ->
-            eddsa_import_private_from_pkcs8(DerBytes, ed25519);
-        {1, 3, 101, 113} ->
-            eddsa_import_private_from_pkcs8(DerBytes, ed448);
+    case public_key:der_decode('PrivateKeyInfo', DerBytes) of
+        #'ECPrivateKey'{privateKey = PrivateBytes, parameters = {namedCurve, OID}} ->
+            Curve = oid_to_curve(OID),
+            case Curve of
+                _ when Curve =:= ed25519; Curve =:= ed448 ->
+                    {PubKey, PrivKey} = crypto:generate_key(eddsa, Curve, PrivateBytes),
+                    {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
+                _ ->
+                    {error, unsupported_curve}
+            end;
         _ ->
             {error, unsupported_curve}
     end.
-
-eddsa_import_private_from_pkcs8(DerBytes, Curve) ->
-    PrivateKeyDer = extract_pkcs8_private_key(DerBytes),
-    PrivateBytes = decode_octet_string(PrivateKeyDer),
-    {PubKey, PrivKey} = crypto:generate_key(eddsa, Curve, PrivateBytes),
-    {ok, {{PrivKey, Curve}, {PubKey, Curve}}}.
 
 eddsa_import_public_key_pem(PemData) ->
     try
@@ -935,21 +915,31 @@ eddsa_import_public_key_der(DerBytes) ->
     end.
 
 eddsa_import_public_key_from_der(DerBytes) ->
-    {'SubjectPublicKeyInfo', AlgId, PublicKeyBits} =
-        public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-    {'AlgorithmIdentifier', AlgOID, _} = AlgId,
-    case AlgOID of
-        {1, 3, 101, 112} ->
-            {ok, {PublicKeyBits, ed25519}};
-        {1, 3, 101, 113} ->
-            {ok, {PublicKeyBits, ed448}};
+    case public_key:der_decode('SubjectPublicKeyInfo', DerBytes) of
+        #'SubjectPublicKeyInfo'{
+            algorithm = #'AlgorithmIdentifier'{algorithm = OID},
+            subjectPublicKey = PublicKeyBits
+        } ->
+            Curve = oid_to_curve(OID),
+            case Curve of
+                _ when Curve =:= ed25519; Curve =:= ed448 ->
+                    {ok, {PublicKeyBits, Curve}};
+                _ ->
+                    {error, unsupported_curve}
+            end;
         _ ->
             {error, unsupported_curve}
     end.
 
 eddsa_export_private_key_pem({KeyBytes, Curve}) ->
     try
-        Der = eddsa_xdh_private_to_pkcs8(KeyBytes, Curve),
+        ECPrivKey =
+            #'ECPrivateKey'{
+                version = 1,
+                privateKey = KeyBytes,
+                parameters = {namedCurve, curve_to_oid(Curve)}
+            },
+        Der = public_key:der_encode('PrivateKeyInfo', ECPrivKey),
         {ok, public_key:pem_encode([{'PrivateKeyInfo', Der, not_encrypted}])}
     catch
         _:_ ->
@@ -958,7 +948,13 @@ eddsa_export_private_key_pem({KeyBytes, Curve}) ->
 
 eddsa_export_private_key_der({KeyBytes, Curve}) ->
     try
-        {ok, eddsa_xdh_private_to_pkcs8(KeyBytes, Curve)}
+        ECPrivKey =
+            #'ECPrivateKey'{
+                version = 1,
+                privateKey = KeyBytes,
+                parameters = {namedCurve, curve_to_oid(Curve)}
+            },
+        {ok, public_key:der_encode('PrivateKeyInfo', ECPrivKey)}
     catch
         _:_ ->
             {error, nil}
@@ -966,7 +962,13 @@ eddsa_export_private_key_der({KeyBytes, Curve}) ->
 
 eddsa_export_public_key_pem({PubBytes, Curve}) ->
     try
-        Der = eddsa_xdh_public_to_spki(PubBytes, Curve),
+        Spki =
+            #'SubjectPublicKeyInfo'{
+                algorithm =
+                    #'AlgorithmIdentifier'{algorithm = curve_to_oid(Curve)},
+                subjectPublicKey = PubBytes
+            },
+        Der = public_key:der_encode('SubjectPublicKeyInfo', Spki),
         {ok, public_key:pem_encode([{'SubjectPublicKeyInfo', Der, not_encrypted}])}
     catch
         _:_ ->
@@ -975,7 +977,13 @@ eddsa_export_public_key_pem({PubBytes, Curve}) ->
 
 eddsa_export_public_key_der({PubBytes, Curve}) ->
     try
-        {ok, eddsa_xdh_public_to_spki(PubBytes, Curve)}
+        Spki =
+            #'SubjectPublicKeyInfo'{
+                algorithm =
+                    #'AlgorithmIdentifier'{algorithm = curve_to_oid(Curve)},
+                subjectPublicKey = PubBytes
+            },
+        {ok, public_key:der_encode('SubjectPublicKeyInfo', Spki)}
     catch
         _:_ ->
             {error, nil}
@@ -1010,21 +1018,25 @@ xdh_import_private_key_der(DerBytes) ->
     end.
 
 xdh_import_private_key_from_der(DerBytes) ->
-    {AlgOID, _} = extract_pkcs8_algorithm(DerBytes),
-    case AlgOID of
-        {1, 3, 101, 110} ->
-            xdh_import_private_from_pkcs8(DerBytes, x25519);
-        {1, 3, 101, 111} ->
-            xdh_import_private_from_pkcs8(DerBytes, x448);
+    case public_key:der_decode('PrivateKeyInfo', DerBytes) of
+        {'PrivateKeyInfo', _, {'PrivateKeyAlgorithmIdentifier', OID, _}, WrappedKey, _, _} ->
+            Curve = oid_to_curve(OID),
+            case Curve of
+                _ when Curve =:= x25519; Curve =:= x448 ->
+                    KeySize = xdh_key_size(Curve),
+                    case WrappedKey of
+                        <<4, KeySize, PrivateBytes:KeySize/binary>> ->
+                            {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve, PrivateBytes),
+                            {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
+                        _ ->
+                            {error, unsupported_curve}
+                    end;
+                _ ->
+                    {error, unsupported_curve}
+            end;
         _ ->
             {error, unsupported_curve}
     end.
-
-xdh_import_private_from_pkcs8(DerBytes, Curve) ->
-    PrivateKeyDer = extract_pkcs8_private_key(DerBytes),
-    PrivateBytes = decode_octet_string(PrivateKeyDer),
-    {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve, PrivateBytes),
-    {ok, {{PrivKey, Curve}, {PubKey, Curve}}}.
 
 xdh_import_public_key_pem(PemData) ->
     try
@@ -1048,21 +1060,37 @@ xdh_import_public_key_der(DerBytes) ->
     end.
 
 xdh_import_public_key_from_der(DerBytes) ->
-    {'SubjectPublicKeyInfo', AlgId, PublicKeyBits} =
-        public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-    {'AlgorithmIdentifier', AlgOID, _} = AlgId,
-    case AlgOID of
-        {1, 3, 101, 110} ->
-            {ok, {PublicKeyBits, x25519}};
-        {1, 3, 101, 111} ->
-            {ok, {PublicKeyBits, x448}};
+    case public_key:der_decode('SubjectPublicKeyInfo', DerBytes) of
+        #'SubjectPublicKeyInfo'{
+            algorithm = #'AlgorithmIdentifier'{algorithm = OID},
+            subjectPublicKey = PublicKeyBits
+        } ->
+            Curve = oid_to_curve(OID),
+            case Curve of
+                _ when Curve =:= x25519; Curve =:= x448 ->
+                    {ok, {PublicKeyBits, Curve}};
+                _ ->
+                    {error, unsupported_curve}
+            end;
         _ ->
             {error, unsupported_curve}
     end.
 
 xdh_export_private_key_pem({KeyBytes, Curve}) ->
     try
-        Der = eddsa_xdh_private_to_pkcs8(KeyBytes, Curve),
+        KeySize = xdh_key_size(Curve),
+        WrappedKey = <<4, KeySize, KeyBytes/binary>>,
+        PrivKeyInfo =
+            #'PrivateKeyInfo'{
+                version = v1,
+                privateKeyAlgorithm =
+                    #'PrivateKeyInfo_privateKeyAlgorithm'{
+                        algorithm =
+                            curve_to_oid(Curve)
+                    },
+                privateKey = WrappedKey
+            },
+        Der = public_key:der_encode('PrivateKeyInfo', PrivKeyInfo),
         {ok, public_key:pem_encode([{'PrivateKeyInfo', Der, not_encrypted}])}
     catch
         _:_ ->
@@ -1071,7 +1099,19 @@ xdh_export_private_key_pem({KeyBytes, Curve}) ->
 
 xdh_export_private_key_der({KeyBytes, Curve}) ->
     try
-        {ok, eddsa_xdh_private_to_pkcs8(KeyBytes, Curve)}
+        KeySize = xdh_key_size(Curve),
+        WrappedKey = <<4, KeySize, KeyBytes/binary>>,
+        PrivKeyInfo =
+            #'PrivateKeyInfo'{
+                version = v1,
+                privateKeyAlgorithm =
+                    #'PrivateKeyInfo_privateKeyAlgorithm'{
+                        algorithm =
+                            curve_to_oid(Curve)
+                    },
+                privateKey = WrappedKey
+            },
+        {ok, public_key:der_encode('PrivateKeyInfo', PrivKeyInfo)}
     catch
         _:_ ->
             {error, nil}
@@ -1079,7 +1119,13 @@ xdh_export_private_key_der({KeyBytes, Curve}) ->
 
 xdh_export_public_key_pem({PubBytes, Curve}) ->
     try
-        Der = eddsa_xdh_public_to_spki(PubBytes, Curve),
+        Spki =
+            #'SubjectPublicKeyInfo'{
+                algorithm =
+                    #'AlgorithmIdentifier'{algorithm = curve_to_oid(Curve)},
+                subjectPublicKey = PubBytes
+            },
+        Der = public_key:der_encode('SubjectPublicKeyInfo', Spki),
         {ok, public_key:pem_encode([{'SubjectPublicKeyInfo', Der, not_encrypted}])}
     catch
         _:_ ->
@@ -1088,7 +1134,13 @@ xdh_export_public_key_pem({PubBytes, Curve}) ->
 
 xdh_export_public_key_der({PubBytes, Curve}) ->
     try
-        {ok, eddsa_xdh_public_to_spki(PubBytes, Curve)}
+        Spki =
+            #'SubjectPublicKeyInfo'{
+                algorithm =
+                    #'AlgorithmIdentifier'{algorithm = curve_to_oid(Curve)},
+                subjectPublicKey = PubBytes
+            },
+        {ok, public_key:der_encode('SubjectPublicKeyInfo', Spki)}
     catch
         _:_ ->
             {error, nil}
@@ -1098,166 +1150,41 @@ xdh_public_key_from_private({_PrivBytes, Curve} = PrivKey) ->
     {PubKey, _} = crypto:generate_key(ecdh, Curve, element(1, PrivKey)),
     {PubKey, Curve}.
 
-%% EdDSA/XDH ASN.1 encoding helpers
+xdh_key_size(x25519) ->
+    32;
+xdh_key_size(x448) ->
+    56.
 
-eddsa_xdh_curve_oid(ed25519) ->
+curve_to_oid(secp256r1) ->
+    {1, 2, 840, 10045, 3, 1, 7};
+curve_to_oid(secp384r1) ->
+    {1, 3, 132, 0, 34};
+curve_to_oid(secp521r1) ->
+    {1, 3, 132, 0, 35};
+curve_to_oid(secp256k1) ->
+    {1, 3, 132, 0, 10};
+curve_to_oid(ed25519) ->
     {1, 3, 101, 112};
-eddsa_xdh_curve_oid(ed448) ->
+curve_to_oid(ed448) ->
     {1, 3, 101, 113};
-eddsa_xdh_curve_oid(x25519) ->
+curve_to_oid(x25519) ->
     {1, 3, 101, 110};
-eddsa_xdh_curve_oid(x448) ->
+curve_to_oid(x448) ->
     {1, 3, 101, 111}.
 
-%% Manual DER encoding for EdDSA/XDH PKCS#8
-%% Erlang's public_key module doesn't support these key types for der_encode
-eddsa_xdh_private_to_pkcs8(KeyBytes, Curve) ->
-    OID = encode_oid(eddsa_xdh_curve_oid(Curve)),
-    InnerOctet = encode_octet_string(KeyBytes),
-    AlgSeq = encode_sequence([OID]),
-    encode_sequence([encode_integer(0), AlgSeq, encode_octet_string(InnerOctet)]).
-
-%% Manual DER encoding for EdDSA/XDH SPKI
-eddsa_xdh_public_to_spki(PubBytes, Curve) ->
-    OID = encode_oid(eddsa_xdh_curve_oid(Curve)),
-    AlgSeq = encode_sequence([OID]),
-    encode_sequence([AlgSeq, encode_bit_string(PubBytes)]).
-
-%% ASN.1 DER encoding primitives
-
-encode_integer(0) ->
-    <<2, 1, 0>>;
-encode_integer(N) when is_integer(N), N > 0 ->
-    Bytes = binary:encode_unsigned(N),
-    encode_primitive(2, Bytes).
-
-encode_octet_string(Bytes) when is_binary(Bytes) ->
-    encode_primitive(4, Bytes).
-
-encode_bit_string(Bytes) when is_binary(Bytes) ->
-    % Bit string has leading byte for unused bits (0 for whole bytes)
-    encode_primitive(3, <<0, Bytes/binary>>).
-
-encode_oid(OID) ->
-    Bytes = oid_to_der_content(OID),
-    encode_primitive(6, Bytes).
-
-encode_sequence(Items) ->
-    Content = iolist_to_binary(Items),
-    encode_constructed(16#30, Content).
-
-encode_primitive(Tag, Content) ->
-    Length = encode_length(byte_size(Content)),
-    <<Tag, Length/binary, Content/binary>>.
-
-encode_constructed(Tag, Content) ->
-    Length = encode_length(byte_size(Content)),
-    <<Tag, Length/binary, Content/binary>>.
-
-encode_length(Len) when Len < 128 ->
-    <<Len>>;
-encode_length(Len) ->
-    Bytes = binary:encode_unsigned(Len),
-    NumBytes = byte_size(Bytes),
-    <<(128 + NumBytes), Bytes/binary>>.
-
-%% OID encoding - handles variable component count
-oid_to_der_content(OID) when is_tuple(OID), tuple_size(OID) >= 2 ->
-    [A, B | Rest] = tuple_to_list(OID),
-    First = A * 40 + B,
-    RestEncoded = [encode_oid_component(C) || C <- Rest],
-    iolist_to_binary([First | RestEncoded]).
-
-encode_oid_component(N) when N < 128 ->
-    <<N>>;
-encode_oid_component(N) ->
-    encode_oid_component_high(N, <<>>).
-
-encode_oid_component_high(0, Acc) ->
-    Acc;
-encode_oid_component_high(N, <<>>) ->
-    encode_oid_component_high(N bsr 7, <<(N band 127)>>);
-encode_oid_component_high(N, Acc) ->
-    encode_oid_component_high(N bsr 7, <<(N band 127 bor 128), Acc/binary>>).
-
-%% PKCS#8 DER parsing helpers (used by module-specific import functions)
-
-%% Extract algorithm OID from PKCS#8 DER structure
-%% PKCS#8 PrivateKeyInfo ::= SEQUENCE { version INTEGER, algorithm AlgorithmIdentifier, privateKey OCTET STRING }
-extract_pkcs8_algorithm(DerBytes) ->
-    % Decode the outer SEQUENCE
-    <<16#30, Rest1/binary>> = DerBytes,
-    {_, Rest2} = decode_der_length(Rest1),
-    % Skip version INTEGER
-    <<2, VersionLen, _:VersionLen/binary, Rest3/binary>> = Rest2,
-    % Decode AlgorithmIdentifier SEQUENCE
-    <<16#30, Rest4/binary>> = Rest3,
-    {AlgLen, Rest5} = decode_der_length(Rest4),
-    <<AlgContent:AlgLen/binary, _/binary>> = Rest5,
-    % Decode OID
-    <<6, OidLen, OidBytes:OidLen/binary, ParamsRest/binary>> = AlgContent,
-    OID = decode_oid(OidBytes),
-    % Extract parameters if present
-    Params =
-        case ParamsRest of
-            <<>> ->
-                undefined;
-            <<6, ParamOidLen, ParamOidBytes:ParamOidLen/binary, _/binary>> ->
-                {namedCurve, decode_oid(ParamOidBytes)};
-            _ ->
-                undefined
-        end,
-    {OID, Params}.
-
-decode_der_length(<<Len, Rest/binary>>) when Len < 128 ->
-    {Len, Rest};
-decode_der_length(<<16#81, Len, Rest/binary>>) ->
-    {Len, Rest};
-decode_der_length(<<16#82, Len:16, Rest/binary>>) ->
-    {Len, Rest}.
-
-decode_oid(Bytes) ->
-    [First | Rest] = binary_to_list(Bytes),
-    A = First div 40,
-    B = First rem 40,
-    Components = decode_oid_components(Rest, []),
-    list_to_tuple([A, B | Components]).
-
-decode_oid_components([], Acc) ->
-    lists:reverse(Acc);
-decode_oid_components(Bytes, Acc) ->
-    {Value, Rest} = decode_oid_component(Bytes, 0),
-    decode_oid_components(Rest, [Value | Acc]).
-
-decode_oid_component([Byte | Rest], Acc) when Byte < 128 ->
-    {Acc * 128 + Byte, Rest};
-decode_oid_component([Byte | Rest], Acc) ->
-    decode_oid_component(Rest, Acc * 128 + Byte band 127).
-
-%% Extract the privateKey OCTET STRING from PKCS#8 structure
-extract_pkcs8_private_key(DerBytes) ->
-    % Decode the outer SEQUENCE
-    <<16#30, Rest1/binary>> = DerBytes,
-    {_, Rest2} = decode_der_length(Rest1),
-    % Skip version INTEGER
-    <<2, VersionLen, _:VersionLen/binary, Rest3/binary>> = Rest2,
-    % Skip AlgorithmIdentifier SEQUENCE
-    <<16#30, Rest4/binary>> = Rest3,
-    {AlgLen, Rest5} = decode_der_length(Rest4),
-    <<_:AlgLen/binary, Rest6/binary>> = Rest5,
-    % The next element is the privateKey OCTET STRING
-    <<4, Rest7/binary>> = Rest6,
-    {PrivKeyLen, Rest8} = decode_der_length(Rest7),
-    <<PrivateKeyDer:PrivKeyLen/binary, _/binary>> = Rest8,
-    PrivateKeyDer.
-
-%% Decode ASN.1 OCTET STRING
-decode_octet_string(<<4, Len, Rest/binary>>) when Len < 128 ->
-    <<Bytes:Len/binary, _/binary>> = Rest,
-    Bytes;
-decode_octet_string(<<4, 16#81, Len, Rest/binary>>) ->
-    <<Bytes:Len/binary, _/binary>> = Rest,
-    Bytes;
-decode_octet_string(<<4, 16#82, Len:16, Rest/binary>>) ->
-    <<Bytes:Len/binary, _/binary>> = Rest,
-    Bytes.
+oid_to_curve({1, 2, 840, 10045, 3, 1, 7}) ->
+    secp256r1;
+oid_to_curve({1, 3, 132, 0, 34}) ->
+    secp384r1;
+oid_to_curve({1, 3, 132, 0, 35}) ->
+    secp521r1;
+oid_to_curve({1, 3, 132, 0, 10}) ->
+    secp256k1;
+oid_to_curve({1, 3, 101, 112}) ->
+    ed25519;
+oid_to_curve({1, 3, 101, 113}) ->
+    ed448;
+oid_to_curve({1, 3, 101, 110}) ->
+    x25519;
+oid_to_curve({1, 3, 101, 111}) ->
+    x448.
