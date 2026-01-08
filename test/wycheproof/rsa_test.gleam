@@ -416,26 +416,18 @@ fn run_oaep_test(group: OaepTestGroup, tc: OaepTestCase) -> Nil {
       let decrypt_result = rsa.decrypt(private_key, ct, padding)
       case tc.result {
         Valid -> {
-          case decrypt_result {
-            Ok(decrypted) -> {
-              assert decrypted == expected_msg
-                as { "Decryption mismatch: " <> context }
-            }
-            Error(Nil) -> {
-              panic as { "Decryption failed for valid: " <> context }
-            }
-          }
+          let assert Ok(decrypted) = decrypt_result
+          assert decrypted == expected_msg
+            as { "Decryption mismatch: " <> context }
         }
-        Invalid -> {
+        Invalid ->
           case decrypt_result {
             Error(Nil) -> Nil
             Ok(decrypted) -> {
-              // Decryption succeeded but result must not match
               assert decrypted != expected_msg
                 as { "Expected invalid: " <> context }
             }
           }
-        }
         Acceptable -> Nil
       }
     }
@@ -463,17 +455,11 @@ fn run_pkcs1_decrypt_test(
       let decrypt_result = rsa.decrypt(private_key, ct, rsa.EncryptPkcs1v15)
       case tc.result {
         Valid -> {
-          case decrypt_result {
-            Ok(decrypted) -> {
-              assert decrypted == expected_msg
-                as { "Decryption mismatch: " <> context }
-            }
-            Error(Nil) -> {
-              panic as { "Decryption failed for valid: " <> context }
-            }
-          }
+          let assert Ok(decrypted) = decrypt_result
+          assert decrypted == expected_msg
+            as { "Decryption mismatch: " <> context }
         }
-        Invalid -> {
+        Invalid ->
           case decrypt_result {
             Error(Nil) -> Nil
             Ok(decrypted) -> {
@@ -481,7 +467,6 @@ fn run_pkcs1_decrypt_test(
                 as { "Expected invalid: " <> context }
             }
           }
-        }
         Acceptable -> Nil
       }
     }

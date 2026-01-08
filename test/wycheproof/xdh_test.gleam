@@ -1,5 +1,7 @@
 import gleam/bit_array
+import gleam/bool
 import gleam/dynamic/decode
+import gleam/result
 import kryptos/xdh
 import wycheproof/utils
 
@@ -71,63 +73,47 @@ fn curve_from_name(name: String) -> Result(xdh.Curve, Nil) {
 }
 
 fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
-  let context = utils.test_context(tc.tc_id, tc.comment)
-
   let curve_result = curve_from_name(group.curve)
-  case curve_result {
-    Error(Nil) -> Nil
-    Ok(curve) -> {
-      let public_result = bit_array.base16_decode(tc.public)
-      let private_result = bit_array.base16_decode(tc.private)
-      let shared_result = bit_array.base16_decode(tc.shared)
+  use <- bool.guard(result.is_error(curve_result), Nil)
+  let assert Ok(curve) = curve_result
 
-      case public_result, private_result, shared_result {
-        Ok(public_bytes), Ok(private_bytes), Ok(expected_shared) -> {
-          let pub_key_result = xdh.public_key_from_bytes(curve, public_bytes)
-          let priv_key_result = xdh.from_bytes(curve, private_bytes)
+  run_test_for_curve(curve, tc)
+}
 
-          case tc.result {
-            Invalid -> {
-              case pub_key_result, priv_key_result {
-                Ok(peer_pub), Ok(#(priv_key, _)) -> {
-                  let _ = xdh.compute_shared_secret(priv_key, peer_pub)
-                  Nil
-                }
-                _, _ -> Nil
-              }
-            }
-            Valid | Acceptable -> {
-              case pub_key_result, priv_key_result {
-                Ok(peer_pub), Ok(#(priv_key, _)) -> {
-                  case xdh.compute_shared_secret(priv_key, peer_pub) {
-                    Ok(shared) -> {
-                      assert shared == expected_shared as context
-                    }
-                    Error(Nil) -> {
-                      case tc.result {
-                        Acceptable -> Nil
-                        _ ->
-                          panic as { "XDH failed for valid test: " <> context }
-                      }
-                    }
-                  }
-                }
-                _, _ -> {
-                  case tc.result {
-                    Acceptable -> Nil
-                    _ ->
-                      panic as {
-                        "Key import failed for valid test: " <> context
-                      }
-                  }
-                }
-              }
-            }
-          }
+fn run_test_for_curve(curve: xdh.Curve, tc: TestCase) -> Nil {
+  let context = utils.test_context(tc.tc_id, tc.comment)
+  let assert Ok(public_bytes) = bit_array.base16_decode(tc.public)
+  let assert Ok(private_bytes) = bit_array.base16_decode(tc.private)
+  let assert Ok(expected_shared) = bit_array.base16_decode(tc.shared)
+
+  let pub_key_result = xdh.public_key_from_bytes(curve, public_bytes)
+  let priv_key_result = xdh.from_bytes(curve, private_bytes)
+
+  case tc.result, pub_key_result, priv_key_result {
+    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+      case xdh.compute_shared_secret(priv_key, peer_pub) {
+        Error(Nil) -> Nil
+        Ok(shared) -> {
+          assert shared != expected_shared
+            as { "XDH succeeded for invalid test: " <> context }
         }
-        _, _, _ -> Nil
       }
+    Invalid, _, _ -> Nil
+
+    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+      let assert Ok(shared) = xdh.compute_shared_secret(priv_key, peer_pub)
+      assert shared == expected_shared as context
     }
+    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+
+    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+      case xdh.compute_shared_secret(priv_key, peer_pub) {
+        Ok(shared) -> {
+          assert shared == expected_shared as context
+        }
+        Error(Nil) -> Nil
+      }
+    Acceptable, _, _ -> Nil
   }
 }
 
