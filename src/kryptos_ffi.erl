@@ -15,6 +15,7 @@
     ec_generate_key_pair/1,
     ec_private_key_from_bytes/2,
     ec_public_key_from_x509/1,
+    ec_public_key_from_raw_point/2,
     ec_import_private_key_pem/1,
     ec_import_private_key_der/1,
     ec_import_public_key_pem/1,
@@ -289,22 +290,16 @@ ec_private_key_from_bytes(Curve, PrivateScalar) ->
         OID = ec_curve_oid(CurveName),
         % Generate a temporary key to get the public point
         % We need to compute the public key from the private scalar
-        {{'ECPoint', _}, {namedCurve, CurveName}} =
-            TempPub = ec_compute_public_key(CurveName, PrivateScalar),
-        Point = element(2, element(1, TempPub)),
+        {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, PrivateScalar),
         PrivKey =
-            {'ECPrivateKey', ecPrivkeyVer1, PrivateScalar, {namedCurve, OID}, Point, asn1_NOVALUE},
-        PubKey = {{'ECPoint', Point}, {namedCurve, CurveName}},
+            {'ECPrivateKey', ecPrivkeyVer1, PrivateScalar, {namedCurve, OID}, PublicPoint,
+                asn1_NOVALUE},
+        PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
         {ok, {PrivKey, PubKey}}
     catch
         _:_ ->
             {error, nil}
     end.
-
-ec_compute_public_key(CurveName, PrivateScalar) ->
-    % Use crypto to compute the public key point from private scalar
-    {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, PrivateScalar),
-    {{'ECPoint', PublicPoint}, {namedCurve, CurveName}}.
 
 ec_public_key_from_x509(DerBytes) ->
     try
@@ -320,6 +315,41 @@ ec_public_key_from_x509(DerBytes) ->
             {error, nil}
     end.
 
+ec_public_key_from_raw_point(Curve, Point) ->
+    try
+        CurveName = ec_curve_name(Curve),
+        CoordSize = kryptos@ec:coordinate_size(Curve),
+        ExpectedSize = 1 + 2 * CoordSize,
+        case byte_size(Point) of
+            ExpectedSize ->
+                case Point of
+                    <<16#04, _X:CoordSize/binary, _Y:CoordSize/binary>> ->
+                        % Validate point is on curve by attempting ECDH with a test key
+                        validate_ec_point(CurveName, Point);
+                    _ ->
+                        {error, nil}
+                end;
+            _ ->
+                {error, nil}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+validate_ec_point(CurveName, Point) ->
+    try
+        % Generate a temporary key pair to validate the point
+        {_TempPub, TempPriv} = crypto:generate_key(ecdh, CurveName),
+        % Try computing shared secret - this validates the point is on the curve
+        _ = crypto:compute_key(ecdh, Point, TempPriv, CurveName),
+        % Point is valid, construct the public key structure
+        {ok, {{'ECPoint', Point}, {namedCurve, CurveName}}}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
 ec_oid_to_name({1, 2, 840, 10045, 3, 1, 7}) ->
     secp256r1;
 ec_oid_to_name({1, 3, 132, 0, 34}) ->
@@ -328,8 +358,6 @@ ec_oid_to_name({1, 3, 132, 0, 35}) ->
     secp521r1;
 ec_oid_to_name({1, 3, 132, 0, 10}) ->
     secp256k1.
-
-%% EC module-specific import/export functions
 
 ec_import_private_key_pem(PemData) ->
     try
@@ -448,9 +476,7 @@ ec_public_key_to_der({{'ECPoint', Point}, {namedCurve, CurveName}}) ->
         public_key:pem_entry_encode('SubjectPublicKeyInfo', Key),
     Der.
 
-ec_public_key_from_private({'ECPrivateKey', _, _, _, PublicPoint, _} = _PrivKey) ->
-    % Extract curve from private key
-    {namedCurve, CurveOID} = element(4, _PrivKey),
+ec_public_key_from_private({'ECPrivateKey', _, _, {namedCurve, CurveOID}, PublicPoint, _}) ->
     CurveName = ec_oid_to_name(CurveOID),
     {{'ECPoint', PublicPoint}, {namedCurve, CurveName}}.
 

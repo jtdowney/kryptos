@@ -1,6 +1,5 @@
 import gleam/bit_array
 import gleam/dynamic/decode
-import gleam/list
 import kryptos/ec
 import kryptos/ecdh
 import kryptos/internal/ec as internal_ec
@@ -84,11 +83,11 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
 
 fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
   let context = utils.test_context(tc.tc_id, tc.comment)
-  let assert Ok(public_der) = bit_array.base16_decode(tc.public)
+  let assert Ok(public_point) = bit_array.base16_decode(tc.public)
   let assert Ok(private_bytes) = bit_array.base16_decode(tc.private)
   let assert Ok(expected_shared) = bit_array.base16_decode(tc.shared)
 
-  let pub_key_result = ec.public_key_from_der(public_der)
+  let pub_key_result = ec.public_key_from_raw_point(curve, public_point)
   let priv_key_result = internal_ec.private_key_from_bytes(curve, private_bytes)
 
   case tc.result, pub_key_result, priv_key_result {
@@ -119,28 +118,29 @@ fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
   }
 }
 
-pub fn wycheproof_ecdh_secp256r1_test() {
+pub fn wycheproof_ec_ecpoint_secp256r1_test() {
   let assert Ok(test_file) =
-    utils.load_test_file("ecdh_secp256r1_test.json", test_file_decoder())
+    utils.load_test_file(
+      "ecdh_secp256r1_ecpoint_test.json",
+      test_file_decoder(),
+    )
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
 
-pub fn wycheproof_ecdh_secp384r1_test() {
+pub fn wycheproof_ec_ecpoint_secp384r1_test() {
   let assert Ok(test_file) =
-    utils.load_test_file("ecdh_secp384r1_test.json", test_file_decoder())
+    utils.load_test_file(
+      "ecdh_secp384r1_ecpoint_test.json",
+      test_file_decoder(),
+    )
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
 
-pub fn wycheproof_ecdh_secp521r1_test() {
+pub fn wycheproof_ec_ecpoint_secp521r1_test() {
   let assert Ok(test_file) =
-    utils.load_test_file("ecdh_secp521r1_test.json", test_file_decoder())
+    utils.load_test_file(
+      "ecdh_secp521r1_ecpoint_test.json",
+      test_file_decoder(),
+    )
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
-}
-
-pub fn wycheproof_ecdh_secp256k1_test() {
-  let assert Ok(test_file) =
-    utils.load_test_file("ecdh_secp256k1_test.json", test_file_decoder())
-  let groups =
-    list.filter(test_file.test_groups, fn(g) { g.curve == "secp256k1" })
-  utils.run_tests(groups, fn(g) { g.tests }, run_single_test)
 }

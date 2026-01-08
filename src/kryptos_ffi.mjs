@@ -358,6 +358,39 @@ export function ecPublicKeyFromX509(derBytes) {
   }
 }
 
+export function ecPublicKeyFromRawPoint(curve, point) {
+  try {
+    const curveName = ecCurveName(curve);
+    const coordSize = ecCurveCoordSize(curveName);
+    const expectedSize = 1 + 2 * coordSize;
+
+    if (point.byteSize !== expectedSize) {
+      return Result$Error(undefined);
+    }
+
+    const pointBuffer = Buffer.from(point.rawBuffer);
+
+    if (pointBuffer[0] !== 0x04) {
+      return Result$Error(undefined);
+    }
+
+    const x = pointBuffer.subarray(1, 1 + coordSize);
+    const y = pointBuffer.subarray(1 + coordSize);
+
+    const jwk = {
+      kty: "EC",
+      crv: ecCurveToJwkCrv(curveName),
+      x: x.toString("base64url"),
+      y: y.toString("base64url"),
+    };
+
+    const publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
+    return Result$Ok(publicKey);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
 export function ecdsaSign(privateKey, message, hashAlgorithm) {
   const algorithmName = algorithm_name(hashAlgorithm);
   const signature = crypto.sign(algorithmName, message.rawBuffer, {

@@ -43,6 +43,18 @@ pub type Curve {
   Secp256k1
 }
 
+/// Returns the coordinate size in bytes for the given curve.
+///
+/// This is the size of each coordinate (x or y) in an EC point.
+/// An uncompressed point is 1 + 2 * coordinate_size bytes.
+pub fn coordinate_size(curve: Curve) -> Int {
+  case curve {
+    P256 | Secp256k1 -> 32
+    P384 -> 48
+    P521 -> 66
+  }
+}
+
 /// Generates a new elliptic curve key pair.
 ///
 /// The private key should be kept secret and used for signing.
@@ -138,6 +150,25 @@ pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
 @external(erlang, "kryptos_ffi", "ec_import_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPublicKeyDer")
 pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
+
+/// Imports an EC public key from an uncompressed SEC1 point.
+///
+/// The point must be in uncompressed format: `0x04 || x || y`
+/// where x and y are the coordinates padded to the curve's coordinate size.
+///
+/// ## Parameters
+/// - `curve`: The elliptic curve (P256, P384, P521, or Secp256k1)
+/// - `point`: The uncompressed point bytes (1 + 2 * coordinate_size bytes)
+///
+/// ## Returns
+/// `Ok(public_key)` on success, `Error(Nil)` if the format is invalid
+/// or the point is not on the curve.
+@external(erlang, "kryptos_ffi", "ec_public_key_from_raw_point")
+@external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyFromRawPoint")
+pub fn public_key_from_raw_point(
+  curve: Curve,
+  point: BitArray,
+) -> Result(PublicKey, Nil)
 
 /// Exports an EC public key to PEM format.
 ///
