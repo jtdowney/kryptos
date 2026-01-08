@@ -90,6 +90,10 @@ pub type EncryptPadding {
   /// PKCS#1 v1.5 encryption padding.
   ///
   /// **Warning**: Vulnerable to padding oracle attacks. Prefer OAEP for new applications.
+  ///
+  /// **JavaScript target**: Decryption may fail on Node.js 20.x due to CVE-2023-46809
+  /// which disables PKCS#1 v1.5 decryption to prevent the Marvin timing attack. Use
+  /// Node.js 22+ or OAEP padding instead.
   EncryptPkcs1v15
   /// RSA-OAEP (Optimal Asymmetric Encryption Padding).
   ///
