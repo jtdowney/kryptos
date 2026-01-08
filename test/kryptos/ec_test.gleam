@@ -89,7 +89,12 @@ pub fn import_p256_pkcs8_der_test() {
   let assert Ok(der) = simplifile.read_bits("test/fixtures/p256_pkcs8.der")
   let assert Ok(#(private, public)) = ec.from_der(der)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha256,
+  )
 }
 
 pub fn import_p256_spki_pub_pem_test() {
@@ -98,7 +103,12 @@ pub fn import_p256_spki_pub_pem_test() {
   let assert Ok(pub_pem) = simplifile.read("test/fixtures/p256_spki_pub.pem")
   let assert Ok(public) = ec.public_key_from_pem(pub_pem)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha256,
+  )
 }
 
 pub fn import_p256_spki_pub_der_test() {
@@ -108,21 +118,36 @@ pub fn import_p256_spki_pub_der_test() {
     simplifile.read_bits("test/fixtures/p256_spki_pub.der")
   let assert Ok(public) = ec.public_key_from_der(pub_der)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha256,
+  )
 }
 
 pub fn import_p384_pkcs8_pem_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p384_pkcs8.pem")
   let assert Ok(#(private, public)) = ec.from_pem(pem)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha384)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha384)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha384,
+  )
 }
 
 pub fn import_p384_pkcs8_der_test() {
   let assert Ok(der) = simplifile.read_bits("test/fixtures/p384_pkcs8.der")
   let assert Ok(#(private, public)) = ec.from_der(der)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha384)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha384)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha384,
+  )
 }
 
 pub fn import_p384_spki_pub_pem_test() {
@@ -131,7 +156,12 @@ pub fn import_p384_spki_pub_pem_test() {
   let assert Ok(pub_pem) = simplifile.read("test/fixtures/p384_spki_pub.pem")
   let assert Ok(public) = ec.public_key_from_pem(pub_pem)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha384)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha384)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha384,
+  )
 }
 
 pub fn import_p384_spki_pub_der_test() {
@@ -141,21 +171,36 @@ pub fn import_p384_spki_pub_der_test() {
     simplifile.read_bits("test/fixtures/p384_spki_pub.der")
   let assert Ok(public) = ec.public_key_from_der(pub_der)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha384)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha384)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha384,
+  )
 }
 
 pub fn import_p521_pkcs8_pem_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p521_pkcs8.pem")
   let assert Ok(#(private, public)) = ec.from_pem(pem)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha512)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha512)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha512,
+  )
 }
 
 pub fn import_p521_pkcs8_der_test() {
   let assert Ok(der) = simplifile.read_bits("test/fixtures/p521_pkcs8.der")
   let assert Ok(#(private, public)) = ec.from_der(der)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha512)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha512)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha512,
+  )
 }
 
 pub fn import_p521_spki_pub_pem_test() {
@@ -164,7 +209,12 @@ pub fn import_p521_spki_pub_pem_test() {
   let assert Ok(pub_pem) = simplifile.read("test/fixtures/p521_spki_pub.pem")
   let assert Ok(public) = ec.public_key_from_pem(pub_pem)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha512)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha512)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha512,
+  )
 }
 
 pub fn import_p521_spki_pub_der_test() {
@@ -174,21 +224,36 @@ pub fn import_p521_spki_pub_der_test() {
     simplifile.read_bits("test/fixtures/p521_spki_pub.der")
   let assert Ok(public) = ec.public_key_from_der(pub_der)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha512)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha512)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha512,
+  )
 }
 
 pub fn import_secp256k1_pkcs8_pem_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/secp256k1_pkcs8.pem")
   let assert Ok(#(private, public)) = ec.from_pem(pem)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha256,
+  )
 }
 
 pub fn import_secp256k1_pkcs8_der_test() {
   let assert Ok(der) = simplifile.read_bits("test/fixtures/secp256k1_pkcs8.der")
   let assert Ok(#(private, public)) = ec.from_der(der)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha256,
+  )
 }
 
 pub fn import_secp256k1_spki_pub_pem_test() {
@@ -198,7 +263,12 @@ pub fn import_secp256k1_spki_pub_pem_test() {
     simplifile.read("test/fixtures/secp256k1_spki_pub.pem")
   let assert Ok(public) = ec.public_key_from_pem(pub_pem)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha256,
+  )
 }
 
 pub fn import_secp256k1_spki_pub_der_test() {
@@ -208,7 +278,12 @@ pub fn import_secp256k1_spki_pub_der_test() {
     simplifile.read_bits("test/fixtures/secp256k1_spki_pub.der")
   let assert Ok(public) = ec.public_key_from_der(pub_der)
   let signature = ecdsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256)
-  assert ecdsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256)
+  assert ecdsa.verify(
+    public,
+    <<"too many secrets":utf8>>,
+    signature,
+    hash.Sha256,
+  )
 }
 
 pub fn import_p256_ecdh_roundtrip_test() {
