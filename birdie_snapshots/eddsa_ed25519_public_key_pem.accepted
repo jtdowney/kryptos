@@ -5,6 +5,6 @@ file: ./test/kryptos/eddsa_test.gleam
 test_name: ed25519_export_public_key_pem_test
 ---
 -----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=
+MCowBQYDK2VwAyEAgy3rDQZWrjl8cbayJBKtevPlMhFKhS9NhQfx2ExaW9k=
 -----END PUBLIC KEY-----
 

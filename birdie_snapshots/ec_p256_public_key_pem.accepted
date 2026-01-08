@@ -5,7 +5,7 @@ file: ./test/kryptos/ec_test.gleam
 test_name: export_public_key_pem_test
 ---
 -----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEUVw9brnjlrkE0/7Kf1T9zQzB6Ze/
-N13KUVrQpsO0A19FNr46UPMY+/mlR1kCoiFQK+8NV+CMU7LMClbxfZ+TVA==
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAY+/8mfJogJVytimpeKavfGTJOK4
+Ug3KVdaXBVpzf4j/zQoC8PdHEgYHh9oASpcuiAiyZmUEQys8AkQ2t2LcRw==
 -----END PUBLIC KEY-----
 

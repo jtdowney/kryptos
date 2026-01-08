@@ -5,7 +5,7 @@ file: ./test/kryptos/xdh_test.gleam
 test_name: x448_export_private_key_pem_test
 ---
 -----BEGIN PRIVATE KEY-----
-MEYCAQAwBQYDK2VvBDoEOAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8g
-ISIjJCUmJygpKissLS4vMDEyMzQ1Njc4
+MEYCAQAwBQYDK2VvBDoEOLDJsxzwg4rMRDc95yI+B9V421YPPNcN+EDu9bkO+InS
+CyUXrREtgd7wUZicWbg3wUDfP2veE7nd
 -----END PRIVATE KEY-----
 

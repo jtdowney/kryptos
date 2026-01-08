@@ -5,7 +5,7 @@ import kryptos/rsa
 import simplifile
 
 fn load_test_key() -> String {
-  let assert Ok(pem) = simplifile.read("test/fixtures/rsa1024.pem")
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
   pem
 }
 
@@ -302,4 +302,71 @@ pub fn public_key_from_private_key_test() {
     rsa.verify(derived_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
   assert valid1 == True
   assert valid2 == True
+}
+
+pub fn import_rsa2048_pkcs8_pem_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
+  let assert Ok(#(private, public)) = rsa.from_pem(pem, rsa.Pkcs8)
+  let signature = rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256, rsa.Pkcs1v15)
+}
+
+pub fn import_rsa2048_pkcs8_der_test() {
+  let assert Ok(der) = simplifile.read_bits("test/fixtures/rsa2048_pkcs8.der")
+  let assert Ok(#(private, public)) = rsa.from_der(der, rsa.Pkcs8)
+  let signature = rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256, rsa.Pkcs1v15)
+}
+
+pub fn import_rsa2048_pkcs1_pem_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs1.pem")
+  let assert Ok(#(private, public)) = rsa.from_pem(pem, rsa.Pkcs1)
+  let signature = rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256, rsa.Pkcs1v15)
+}
+
+pub fn import_rsa2048_pkcs1_der_test() {
+  let assert Ok(der) = simplifile.read_bits("test/fixtures/rsa2048_pkcs1.der")
+  let assert Ok(#(private, public)) = rsa.from_der(der, rsa.Pkcs1)
+  let signature = rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256, rsa.Pkcs1v15)
+}
+
+pub fn import_rsa2048_spki_pub_pem_test() {
+  let assert Ok(priv_pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
+  let assert Ok(#(private, _)) = rsa.from_pem(priv_pem, rsa.Pkcs8)
+  let assert Ok(pub_pem) = simplifile.read("test/fixtures/rsa2048_spki_pub.pem")
+  let assert Ok(public) = rsa.public_key_from_pem(pub_pem, rsa.Spki)
+  let signature = rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256, rsa.Pkcs1v15)
+}
+
+pub fn import_rsa2048_spki_pub_der_test() {
+  let assert Ok(priv_pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
+  let assert Ok(#(private, _)) = rsa.from_pem(priv_pem, rsa.Pkcs8)
+  let assert Ok(pub_der) =
+    simplifile.read_bits("test/fixtures/rsa2048_spki_pub.der")
+  let assert Ok(public) = rsa.public_key_from_der(pub_der, rsa.Spki)
+  let signature = rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256, rsa.Pkcs1v15)
+}
+
+pub fn import_rsa2048_pkcs1_pub_pem_test() {
+  let assert Ok(priv_pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
+  let assert Ok(#(private, _)) = rsa.from_pem(priv_pem, rsa.Pkcs8)
+  let assert Ok(pub_pem) =
+    simplifile.read("test/fixtures/rsa2048_pkcs1_pub.pem")
+  let assert Ok(public) = rsa.public_key_from_pem(pub_pem, rsa.RsaPublicKey)
+  let signature = rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256, rsa.Pkcs1v15)
+}
+
+pub fn import_rsa2048_pkcs1_pub_der_test() {
+  let assert Ok(priv_pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
+  let assert Ok(#(private, _)) = rsa.from_pem(priv_pem, rsa.Pkcs8)
+  let assert Ok(pub_der) =
+    simplifile.read_bits("test/fixtures/rsa2048_pkcs1_pub.der")
+  let assert Ok(public) = rsa.public_key_from_der(pub_der, rsa.RsaPublicKey)
+  let signature = rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, <<"too many secrets":utf8>>, signature, hash.Sha256, rsa.Pkcs1v15)
 }

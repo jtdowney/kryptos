@@ -5,6 +5,6 @@ file: ./test/kryptos/xdh_test.gleam
 test_name: x25519_export_private_key_pem_test
 ---
 -----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VuBCIEIAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8g
+MC4CAQAwBQYDK2VuBCIEIIgQ/7JBTpAJEKadG5vWPvgzYex/8La5Hu2wV5eL/7JX
 -----END PRIVATE KEY-----
 

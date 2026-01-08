@@ -124,28 +124,18 @@ hash_new(Algorithm) ->
 %% HMAC
 %%------------------------------------------------------------------------------
 
-hmac_new(sha1, Key) ->
-    hmac_new(sha, Key);
-hmac_new(sha512x224, Key) ->
-    hmac_new(sha512_224, Key);
-hmac_new(sha512x256, Key) ->
-    hmac_new(sha512_256, Key);
 hmac_new(Algorithm, Key) ->
-    crypto:mac_init(hmac, Algorithm, Key).
+    Name = hash_algorithm_name(Algorithm),
+    crypto:mac_init(hmac, Name, Key).
 
 %%------------------------------------------------------------------------------
 %% Key Derivation Functions (PBKDF2)
 %%------------------------------------------------------------------------------
 
-pbkdf2_derive(sha1, Password, Salt, Iterations, Length) ->
-    pbkdf2_derive(sha, Password, Salt, Iterations, Length);
-pbkdf2_derive(sha512x224, Password, Salt, Iterations, Length) ->
-    pbkdf2_derive(sha512_224, Password, Salt, Iterations, Length);
-pbkdf2_derive(sha512x256, Password, Salt, Iterations, Length) ->
-    pbkdf2_derive(sha512_256, Password, Salt, Iterations, Length);
 pbkdf2_derive(Algorithm, Password, Salt, Iterations, Length) ->
+    Name = hash_algorithm_name(Algorithm),
     try
-        Key = crypto:pbkdf2_hmac(Algorithm, Password, Salt, Iterations, Length),
+        Key = crypto:pbkdf2_hmac(Name, Password, Salt, Iterations, Length),
         {ok, Key}
     catch
         _:_ ->
@@ -202,21 +192,26 @@ aead_seal(Mode, Nonce, Plaintext, AdditionalData) ->
 aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
     Cipher = aead_cipher_name(Mode),
     Key = aead_cipher_key(Mode),
-    case
-        crypto:crypto_one_time_aead(
-            Cipher,
-            Key,
-            Nonce,
-            Ciphertext,
-            AdditionalData,
-            Tag,
-            false
-        )
-    of
-        error ->
-            {error, nil};
-        Plaintext ->
-            {ok, Plaintext}
+    try
+        case
+            crypto:crypto_one_time_aead(
+                Cipher,
+                Key,
+                Nonce,
+                Ciphertext,
+                AdditionalData,
+                Tag,
+                false
+            )
+        of
+            error ->
+                {error, nil};
+            Plaintext ->
+                {ok, Plaintext}
+        end
+    catch
+        error:_ ->
+            {error, nil}
     end.
 
 %%------------------------------------------------------------------------------
@@ -345,7 +340,12 @@ ec_generate_key_pair(Curve) ->
     OID = curve_to_oid(CurveName),
     {PubPoint, PrivScalar} = crypto:generate_key(ecdh, CurveName),
     PrivKey =
-        {'ECPrivateKey', ecPrivkeyVer1, PrivScalar, {namedCurve, OID}, PubPoint, asn1_NOVALUE},
+        #'ECPrivateKey'{
+            version = ecPrivkeyVer1,
+            privateKey = PrivScalar,
+            parameters = {namedCurve, OID},
+            publicKey = PubPoint
+        },
     PubKey = {{'ECPoint', PubPoint}, {namedCurve, CurveName}},
     {PrivKey, PubKey}.
 
@@ -355,8 +355,12 @@ ec_private_key_from_bytes(Curve, PrivateScalar) ->
         OID = curve_to_oid(CurveName),
         {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, PrivateScalar),
         PrivKey =
-            {'ECPrivateKey', ecPrivkeyVer1, PrivateScalar, {namedCurve, OID}, PublicPoint,
-                asn1_NOVALUE},
+            #'ECPrivateKey'{
+                version = ecPrivkeyVer1,
+                privateKey = PrivateScalar,
+                parameters = {namedCurve, OID},
+                publicKey = PublicPoint
+            },
         PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
         {ok, {PrivKey, PubKey}}
     catch
@@ -366,9 +370,9 @@ ec_private_key_from_bytes(Curve, PrivateScalar) ->
 
 ec_public_key_from_x509(DerBytes) ->
     try
-        {'SubjectPublicKeyInfo', AlgId, PublicKeyBits} =
+        #'SubjectPublicKeyInfo'{algorithm = AlgId, subjectPublicKey = PublicKeyBits} =
             public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-        {'AlgorithmIdentifier', _, {namedCurve, OID}} = AlgId,
+        #'AlgorithmIdentifier'{parameters = {namedCurve, OID}} = AlgId,
         CurveName = oid_to_curve(OID),
         {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}}
     catch
@@ -380,15 +384,9 @@ ec_public_key_from_raw_point(Curve, Point) ->
     try
         CurveName = ec_curve_name(Curve),
         CoordSize = kryptos@ec:coordinate_size(Curve),
-        ExpectedSize = 1 + 2 * CoordSize,
-        case byte_size(Point) of
-            ExpectedSize ->
-                case Point of
-                    <<16#04, _X:CoordSize/binary, _Y:CoordSize/binary>> ->
-                        validate_ec_point(CurveName, Point);
-                    _ ->
-                        {error, nil}
-                end;
+        case Point of
+            <<16#04, _X:CoordSize/binary, _Y:CoordSize/binary>> ->
+                validate_ec_point(CurveName, Point);
             _ ->
                 {error, nil}
         end
@@ -407,7 +405,9 @@ validate_ec_point(CurveName, Point) ->
             {error, nil}
     end.
 
-ec_public_key_from_private({'ECPrivateKey', _, _, {namedCurve, CurveOID}, PublicPoint, _}) ->
+ec_public_key_from_private(#'ECPrivateKey'{
+    parameters = {namedCurve, CurveOID}, publicKey = PublicPoint
+}) ->
     CurveName = oid_to_curve(CurveOID),
     {{'ECPoint', PublicPoint}, {namedCurve, CurveName}}.
 
@@ -427,13 +427,13 @@ ecdsa_verify(PubKey, Message, Signature, HashAlgorithm) ->
 ecdh_compute_shared_secret(PrivateKey, PeerPublicKey) ->
     try
         {{'ECPoint', PeerPoint}, {namedCurve, PeerCurveName}} = PeerPublicKey,
-        {namedCurve, PrivateOID} = element(4, PrivateKey),
+        #'ECPrivateKey'{privateKey = PrivateScalar, parameters = {namedCurve, PrivateOID}} =
+            PrivateKey,
         ExpectedOID = curve_to_oid(PeerCurveName),
         case PrivateOID =:= ExpectedOID of
             false ->
                 {error, nil};
             true ->
-                PrivateScalar = element(3, PrivateKey),
                 SharedSecret = crypto:compute_key(ecdh, PeerPoint, PrivateScalar, PeerCurveName),
                 {ok, SharedSecret}
         end
@@ -468,11 +468,19 @@ ec_import_private_key_der(DerBytes) ->
 ec_import_private_key_from_der(DerBytes) ->
     ECPrivKey = public_key:der_decode('PrivateKeyInfo', DerBytes),
     case ECPrivKey of
-        {'ECPrivateKey', _, PrivateScalar, {namedCurve, CurveOID}, PublicPoint, _} ->
+        #'ECPrivateKey'{
+            privateKey = PrivateScalar,
+            parameters = {namedCurve, CurveOID},
+            publicKey = PublicPoint
+        } ->
             CurveName = oid_to_curve(CurveOID),
             PrivKey =
-                {'ECPrivateKey', ecPrivkeyVer1, PrivateScalar, {namedCurve, CurveOID}, PublicPoint,
-                    asn1_NOVALUE},
+                #'ECPrivateKey'{
+                    version = ecPrivkeyVer1,
+                    privateKey = PrivateScalar,
+                    parameters = {namedCurve, CurveOID},
+                    publicKey = PublicPoint
+                },
             PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
             {ok, {PrivKey, PubKey}};
         _ ->
@@ -501,10 +509,10 @@ ec_import_public_key_der(DerBytes) ->
     end.
 
 ec_import_public_key_from_der(DerBytes) ->
-    {'SubjectPublicKeyInfo', AlgId, PublicKeyBits} =
+    #'SubjectPublicKeyInfo'{algorithm = AlgId, subjectPublicKey = PublicKeyBits} =
         public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
     case AlgId of
-        {'AlgorithmIdentifier', ?'id-ecPublicKey', {namedCurve, OID}} ->
+        #'AlgorithmIdentifier'{algorithm = ?'id-ecPublicKey', parameters = {namedCurve, OID}} ->
             CurveName = oid_to_curve(OID),
             {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
         _ ->
@@ -567,11 +575,6 @@ ec_public_key_to_der({{'ECPoint', Point}, {namedCurve, CurveName}}) ->
 %% X25519/X448 Key Exchange (XDH)
 %%------------------------------------------------------------------------------
 
-xdh_key_size(x25519) ->
-    32;
-xdh_key_size(x448) ->
-    56.
-
 xdh_generate_key_pair(Curve) ->
     {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve),
     {{PrivKey, Curve}, {PubKey, Curve}}.
@@ -600,8 +603,8 @@ xdh_public_key_from_bytes(Curve, PublicBytes) ->
             {error, nil}
     end.
 
-xdh_public_key_from_private({_PrivBytes, Curve} = PrivKey) ->
-    {PubKey, _} = crypto:generate_key(ecdh, Curve, element(1, PrivKey)),
+xdh_public_key_from_private({PrivBytes, Curve}) ->
+    {PubKey, _} = crypto:generate_key(ecdh, Curve, PrivBytes),
     {PubKey, Curve}.
 
 xdh_compute_shared_secret({PrivKey, PrivCurve}, {PeerPubKey, PeerCurve}) ->
@@ -642,12 +645,13 @@ xdh_import_private_key_der(DerBytes) ->
     end.
 
 xdh_import_private_key_from_der(DerBytes) ->
+    %% der_decode returns tuples, not records
     case public_key:der_decode('PrivateKeyInfo', DerBytes) of
         {'PrivateKeyInfo', _, {'PrivateKeyAlgorithmIdentifier', OID, _}, WrappedKey, _, _} ->
             Curve = oid_to_curve(OID),
             case Curve of
                 _ when Curve =:= x25519; Curve =:= x448 ->
-                    KeySize = xdh_key_size(Curve),
+                    KeySize = kryptos@xdh:key_size(Curve),
                     case WrappedKey of
                         <<4, KeySize, PrivateBytes:KeySize/binary>> ->
                             {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve, PrivateBytes),
@@ -704,7 +708,7 @@ xdh_import_public_key_from_der(DerBytes) ->
 
 xdh_export_private_key_pem({KeyBytes, Curve}) ->
     try
-        KeySize = xdh_key_size(Curve),
+        KeySize = kryptos@xdh:key_size(Curve),
         WrappedKey = <<4, KeySize, KeyBytes/binary>>,
         PrivKeyInfo =
             #'PrivateKeyInfo'{
@@ -725,7 +729,7 @@ xdh_export_private_key_pem({KeyBytes, Curve}) ->
 
 xdh_export_private_key_der({KeyBytes, Curve}) ->
     try
-        KeySize = xdh_key_size(Curve),
+        KeySize = kryptos@xdh:key_size(Curve),
         WrappedKey = <<4, KeySize, KeyBytes/binary>>,
         PrivKeyInfo =
             #'PrivateKeyInfo'{
@@ -914,9 +918,10 @@ rsa_private_key_from_pkcs8(DerBytes) ->
 
 rsa_public_key_from_x509(DerBytes) ->
     try
-        PubKey = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-        {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', ?rsaEncryption, _}, PublicKeyDer} =
-            PubKey,
+        #'SubjectPublicKeyInfo'{
+            algorithm = #'AlgorithmIdentifier'{algorithm = ?rsaEncryption},
+            subjectPublicKey = PublicKeyDer
+        } = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
         RSAPubKey = public_key:der_decode('RSAPublicKey', PublicKeyDer),
         {ok, RSAPubKey}
     catch
@@ -979,9 +984,10 @@ rsa_import_public_key_der(DerBytes, Format) ->
     end.
 
 rsa_import_public_key_from_der(DerBytes, spki) ->
-    PubKey = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-    {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', ?rsaEncryption, _}, PublicKeyDer} =
-        PubKey,
+    #'SubjectPublicKeyInfo'{
+        algorithm = #'AlgorithmIdentifier'{algorithm = ?rsaEncryption},
+        subjectPublicKey = PublicKeyDer
+    } = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
     RSAPubKey = public_key:der_decode('RSAPublicKey', PublicKeyDer),
     {ok, RSAPubKey};
 rsa_import_public_key_from_der(DerBytes, rsa_public_key) ->
@@ -1086,8 +1092,8 @@ eddsa_public_key_from_bytes(Curve, PublicBytes) ->
             {error, nil}
     end.
 
-eddsa_public_key_from_private({_PrivBytes, Curve} = PrivKey) ->
-    {PubKey, _} = crypto:generate_key(eddsa, Curve, element(1, PrivKey)),
+eddsa_public_key_from_private({PrivBytes, Curve}) ->
+    {PubKey, _} = crypto:generate_key(eddsa, Curve, PrivBytes),
     {PubKey, Curve}.
 
 eddsa_sign({PrivKey, Curve}, Message) ->

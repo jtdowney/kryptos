@@ -5,8 +5,11 @@ file: ./test/kryptos/rsa_test.gleam
 test_name: export_public_pkcs1_pem_test
 ---
 -----BEGIN RSA PUBLIC KEY-----
-MIGJAoGBALRiMLAhKu8fubBRo8Bger69r9k25ZqL9PQl5qbhZt2p9WXzjJapPmQ3
-trtYzT/lXMdpFQQ0FyeJ5cpTg/xGl4Wz65tDj0EIULBwtHQGlwrLwjA54xL6M7VG
-HptUz4qWi6d6G5JYMgTsT8NxPbb+cQPPr5r3Eq1KLVkQGxFPE5exAgMBAAE=
+MIIBCgKCAQEAlsEaIFZ/OPKKhj7cOkXPEh01DFzri3xbY3yi7P3oUBU9eSPHQgHs
+0KiWGOulHUkTaTgMLaC/OQY2m4zlEzuiPYOjIT0bE6kkbIBp51ekgOpm1pIEY8pI
+Yb0t3zjuCUds3ULOIOMlBMH5XAVSAxvedDoT1g8hI88+wbFIAJIkvClrHKnww2Or
+sBNNvgjbbipuhyEt8cVp5yef5vjyiIRVICde2+5/sjTgGvgyTTIb43Dl7DTh5CFY
+i7V4qpvei/gaW1mPIssjsmeeZh++Ks/Chz8+5YF9c1shjISLJ2YlAx3zpFUbvdG2
+2lYkGmLN1uWxOJfCC6HFdnEC7vSsfjrSJwIDAQAB
 -----END RSA PUBLIC KEY-----
 

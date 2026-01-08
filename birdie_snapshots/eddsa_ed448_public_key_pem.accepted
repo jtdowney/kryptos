@@ -5,7 +5,7 @@ file: ./test/kryptos/eddsa_test.gleam
 test_name: ed448_export_public_key_pem_test
 ---
 -----BEGIN PUBLIC KEY-----
-MEMwBQYDK2VxAzoA2pGLo+V/3KAyb0bH7IQ7qPyw1X+hXyWIpXuunfVYIQNR5+FV
-gbJEWcCnzeHoNVgtcXwGmepy6MkA
+MEMwBQYDK2VxAzoAcX/1UZmSVpGjTW2MuyEAsYO7Yn/HGXy5KCGNt5WFtdOnY04u
+9MbMby3KeOltfdw9VJwD3lIvQm0A
 -----END PUBLIC KEY-----
 
