@@ -7,6 +7,10 @@ import { key_size as eddsa_key_size } from "./kryptos/eddsa.mjs";
 import { algorithm_name } from "./kryptos/hash.mjs";
 import { key_size as xdh_key_size } from "./kryptos/xdh.mjs";
 
+// =============================================================================
+// Utilities & Random
+// =============================================================================
+
 export function randomBytes(length) {
   if (length < 0) {
     length = 0;
@@ -28,6 +32,10 @@ export function constantTimeEqual(a, b) {
   return crypto.timingSafeEqual(a.rawBuffer, b.rawBuffer);
 }
 
+// =============================================================================
+// Hash Functions
+// =============================================================================
+
 export function hashNew(algorithm) {
   const name = algorithm_name(algorithm);
   return crypto.createHash(name);
@@ -42,6 +50,10 @@ export function hashFinal(hasher) {
   const digest = hasher.digest();
   return BitArray$BitArray(digest);
 }
+
+// =============================================================================
+// HMAC
+// =============================================================================
 
 export function hmacNew(algorithm, key) {
   const algorithmName = algorithm_name(algorithm);
@@ -58,6 +70,10 @@ export function hmacFinal(hmac) {
   const digest = hmac.digest();
   return BitArray$BitArray(digest);
 }
+
+// =============================================================================
+// Key Derivation Functions (HKDF, PBKDF2)
+// =============================================================================
 
 export function hkdfDerive(algorithm, ikm, salt, info, length) {
   try {
@@ -92,6 +108,10 @@ export function pbkdf2Derive(algorithm, password, salt, iterations, length) {
   }
 }
 
+// =============================================================================
+// AEAD Ciphers (GCM, CCM, ChaCha20-Poly1305)
+// =============================================================================
+
 function aead_cipher_name(ctx) {
   const name = ctx.constructor.name;
   if (name === "ChaCha20Poly1305") {
@@ -118,7 +138,6 @@ function aead_cipher_key(mode) {
   if (modeName === "ChaCha20Poly1305") {
     return mode.key;
   }
-  // Gcm or Ccm - key is in cipher.key
   return mode.cipher.key;
 }
 
@@ -178,10 +197,12 @@ export function aeadOpen(mode, nonce, tag, ciphertext, aad) {
   }
 }
 
-// Block cipher modes (ECB, CBC, CTR)
+// =============================================================================
+// Block Ciphers (ECB, CBC, CTR)
+// =============================================================================
+
 function cipherNeedsPadding(mode) {
   const modeName = mode.constructor.name;
-  // CTR mode doesn't need padding, ECB and CBC do
   return modeName !== "Ctr";
 }
 
@@ -191,12 +212,9 @@ export function cipherEncrypt(mode, plaintext) {
     const key = cipher_key(mode);
     const iv = cipher_iv(mode);
 
-    // ECB mode doesn't use an IV (pass null)
     const ivBuffer = iv.byteSize === 0 ? null : iv.rawBuffer;
 
     const cipher = crypto.createCipheriv(name, key.rawBuffer, ivBuffer);
-
-    // Set auto-padding: enabled for ECB/CBC, disabled for CTR
     cipher.setAutoPadding(cipherNeedsPadding(mode));
 
     const updateOutput = cipher.update(plaintext.rawBuffer);
@@ -215,12 +233,9 @@ export function cipherDecrypt(mode, ciphertext) {
     const key = cipher_key(mode);
     const iv = cipher_iv(mode);
 
-    // ECB mode doesn't use an IV (pass null)
     const ivBuffer = iv.byteSize === 0 ? null : iv.rawBuffer;
 
     const decipher = crypto.createDecipheriv(name, key.rawBuffer, ivBuffer);
-
-    // Set auto-padding: enabled for ECB/CBC, disabled for CTR
     decipher.setAutoPadding(cipherNeedsPadding(mode));
 
     const updateOutput = decipher.update(ciphertext.rawBuffer);
@@ -232,6 +247,10 @@ export function cipherDecrypt(mode, ciphertext) {
     return Result$Error(undefined);
   }
 }
+
+// =============================================================================
+// Curve Helpers (shared by EC, EdDSA, XDH)
+// =============================================================================
 
 function ecCurveName(curve) {
   switch (curve.constructor.name) {
@@ -246,15 +265,6 @@ function ecCurveName(curve) {
     default:
       throw new Error(`Unsupported curve: ${curve.constructor.name}`);
   }
-}
-
-export function ecGenerateKeyPair(curve) {
-  const curveName = ecCurveName(curve);
-  const { privateKey, publicKey } = crypto.generateKeyPairSync("ec", {
-    namedCurve: curveName,
-  });
-
-  return [privateKey, publicKey];
 }
 
 function ecCurveToJwkCrv(curveName) {
@@ -286,41 +296,6 @@ function ecCurveCoordSize(curveName) {
   }
 }
 
-export function ecPrivateKeyFromBytes(curve, privateScalar) {
-  try {
-    const curveName = ecCurveName(curve);
-    const coordSize = ecCurveCoordSize(curveName);
-
-    // Use ECDH to compute the public point from the private scalar
-    const ecdh = crypto.createECDH(curveName);
-    const privBuffer = Buffer.from(privateScalar.rawBuffer);
-    ecdh.setPrivateKey(privBuffer);
-    const publicPoint = ecdh.getPublicKey();
-
-    // Public point is in uncompressed format: 0x04 || x || y
-    const x = publicPoint.subarray(1, 1 + coordSize);
-    const y = publicPoint.subarray(1 + coordSize);
-
-    // Create JWK with all required fields
-    // Must use Buffer for base64url encoding
-    const jwk = {
-      kty: "EC",
-      crv: ecCurveToJwkCrv(curveName),
-      x: Buffer.from(x).toString("base64url"),
-      y: Buffer.from(y).toString("base64url"),
-      d: privBuffer.toString("base64url"),
-    };
-
-    const privateKey = crypto.createPrivateKey({ key: jwk, format: "jwk" });
-    const publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
-
-    return Result$Ok([privateKey, publicKey]);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-// OID for ecPublicKey (1.2.840.10045.2.1)
 const EC_PUBLIC_KEY_OID = Buffer.from([
   0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
 ]);
@@ -339,6 +314,49 @@ function validateSpkiUsesNamedCurve(derBytes) {
 
   const paramTag = buf[paramTagIndex];
   return paramTag === 0x06;
+}
+
+// =============================================================================
+// Elliptic Curve (EC/ECDSA/ECDH)
+// =============================================================================
+
+export function ecGenerateKeyPair(curve) {
+  const curveName = ecCurveName(curve);
+  const { privateKey, publicKey } = crypto.generateKeyPairSync("ec", {
+    namedCurve: curveName,
+  });
+
+  return [privateKey, publicKey];
+}
+
+export function ecPrivateKeyFromBytes(curve, privateScalar) {
+  try {
+    const curveName = ecCurveName(curve);
+    const coordSize = ecCurveCoordSize(curveName);
+
+    const ecdh = crypto.createECDH(curveName);
+    const privBuffer = Buffer.from(privateScalar.rawBuffer);
+    ecdh.setPrivateKey(privBuffer);
+    const publicPoint = ecdh.getPublicKey();
+
+    const x = publicPoint.subarray(1, 1 + coordSize);
+    const y = publicPoint.subarray(1 + coordSize);
+
+    const jwk = {
+      kty: "EC",
+      crv: ecCurveToJwkCrv(curveName),
+      x: Buffer.from(x).toString("base64url"),
+      y: Buffer.from(y).toString("base64url"),
+      d: privBuffer.toString("base64url"),
+    };
+
+    const privateKey = crypto.createPrivateKey({ key: jwk, format: "jwk" });
+    const publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
+
+    return Result$Ok([privateKey, publicKey]);
+  } catch {
+    return Result$Error(undefined);
+  }
 }
 
 export function ecPublicKeyFromX509(derBytes) {
@@ -391,6 +409,10 @@ export function ecPublicKeyFromRawPoint(curve, point) {
   }
 }
 
+export function ecPublicKeyFromPrivate(privateKey) {
+  return crypto.createPublicKey(privateKey);
+}
+
 export function ecdsaSign(privateKey, message, hashAlgorithm) {
   const algorithmName = algorithm_name(hashAlgorithm);
   const signature = crypto.sign(algorithmName, message.rawBuffer, {
@@ -428,6 +450,8 @@ export function ecdhComputeSharedSecret(privateKey, peerPublicKey) {
     return Result$Error(undefined);
   }
 }
+
+// EC Import/Export Helpers
 
 function importPrivateKeyPem(pem, type, allowedTypes) {
   try {
@@ -507,6 +531,8 @@ function importPublicKeyDer(der, type, allowedTypes, validate) {
   }
 }
 
+// EC Import Functions
+
 export function ecImportPrivateKeyPem(pem) {
   return importPrivateKeyPem(pem, "pkcs8", ["ec"]);
 }
@@ -522,6 +548,8 @@ export function ecImportPublicKeyPem(pem) {
 export function ecImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["ec"], validateSpkiUsesNamedCurve);
 }
+
+// EC Export Functions
 
 export function ecExportPrivateKeyPem(key) {
   try {
@@ -559,27 +587,9 @@ export function ecExportPublicKeyDer(key) {
   }
 }
 
-export function ecPublicKeyFromPrivate(privateKey) {
-  return crypto.createPublicKey(privateKey);
-}
-
-export function xdhGenerateKeyPair(curve) {
-  const curveName = curve.constructor.name.toLowerCase();
-  const { privateKey, publicKey } = crypto.generateKeyPairSync(curveName);
-  return [privateKey, publicKey];
-}
-
-export function xdhComputeSharedSecret(privateKey, peerPublicKey) {
-  try {
-    const sharedSecret = crypto.diffieHellman({
-      privateKey: privateKey,
-      publicKey: peerPublicKey,
-    });
-    return Result$Ok(BitArray$BitArray(sharedSecret));
-  } catch {
-    return Result$Error(undefined);
-  }
-}
+// =============================================================================
+// X25519/X448 Key Exchange (XDH)
+// =============================================================================
 
 const XDH_PRIVATE_DER_PREFIX = {
   x25519: Buffer.from("302e020100300506032b656e04220420", "hex"),
@@ -590,6 +600,12 @@ const XDH_PUBLIC_DER_PREFIX = {
   x25519: Buffer.from("302a300506032b656e032100", "hex"),
   x448: Buffer.from("3042300506032b656f033900", "hex"),
 };
+
+export function xdhGenerateKeyPair(curve) {
+  const curveName = curve.constructor.name.toLowerCase();
+  const { privateKey, publicKey } = crypto.generateKeyPairSync(curveName);
+  return [privateKey, publicKey];
+}
 
 export function xdhPrivateKeyFromBytes(curve, privateBytes) {
   try {
@@ -632,12 +648,108 @@ export function xdhPublicKeyFromBytes(curve, publicBytes) {
   }
 }
 
+export function xdhPublicKeyFromPrivate(privateKey) {
+  return crypto.createPublicKey(privateKey);
+}
+
+export function xdhComputeSharedSecret(privateKey, peerPublicKey) {
+  try {
+    const sharedSecret = crypto.diffieHellman({
+      privateKey: privateKey,
+      publicKey: peerPublicKey,
+    });
+    return Result$Ok(BitArray$BitArray(sharedSecret));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+// XDH Import Functions
+
+export function xdhImportPrivateKeyPem(pem) {
+  return importPrivateKeyPem(pem, "pkcs8", ["x25519", "x448"]);
+}
+
+export function xdhImportPrivateKeyDer(der) {
+  return importPrivateKeyDer(der, "pkcs8", ["x25519", "x448"]);
+}
+
+export function xdhImportPublicKeyPem(pem) {
+  return importPublicKeyPem(pem, "spki", ["x25519", "x448"]);
+}
+
+export function xdhImportPublicKeyDer(der) {
+  return importPublicKeyDer(der, "spki", ["x25519", "x448"]);
+}
+
+// XDH Export Functions
+
+export function xdhExportPrivateKeyPem(key) {
+  try {
+    const exported = key.export({ format: "pem", type: "pkcs8" });
+    return Result$Ok(exported);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function xdhExportPrivateKeyDer(key) {
+  try {
+    const exported = key.export({ format: "der", type: "pkcs8" });
+    return Result$Ok(BitArray$BitArray(exported));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function xdhExportPublicKeyPem(key) {
+  try {
+    const exported = key.export({ format: "pem", type: "spki" });
+    return Result$Ok(exported);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function xdhExportPublicKeyDer(key) {
+  try {
+    const exported = key.export({ format: "der", type: "spki" });
+    return Result$Ok(BitArray$BitArray(exported));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+// =============================================================================
+// RSA
+// =============================================================================
+
 export function rsaGenerateKeyPair(bits) {
   const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
     modulusLength: bits,
     publicExponent: 65537,
   });
   return [privateKey, publicKey];
+}
+
+export function rsaPublicKeyFromPrivate(privateKey) {
+  return crypto.createPublicKey(privateKey);
+}
+
+// RSA Signing
+
+function rsaPssSaltLength(saltLength) {
+  const name = saltLength.constructor.name;
+  switch (name) {
+    case "SaltLengthHashLen":
+      return crypto.constants.RSA_PSS_SALTLEN_DIGEST;
+    case "SaltLengthMax":
+      return crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN;
+    case "SaltLengthExplicit":
+      return saltLength[0];
+    default:
+      throw new Error(`Unknown salt length: ${name}`);
+  }
 }
 
 function rsaSignPaddingOpts(padding) {
@@ -652,20 +764,6 @@ function rsaSignPaddingOpts(padding) {
     };
   }
   throw new Error(`Unknown sign padding: ${paddingName}`);
-}
-
-function rsaPssSaltLength(saltLength) {
-  const name = saltLength.constructor.name;
-  switch (name) {
-    case "SaltLengthHashLen":
-      return crypto.constants.RSA_PSS_SALTLEN_DIGEST;
-    case "SaltLengthMax":
-      return crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN;
-    case "SaltLengthExplicit":
-      return saltLength[0];
-    default:
-      throw new Error(`Unknown salt length: ${name}`);
-  }
 }
 
 export function rsaSign(privateKey, message, hash, padding) {
@@ -695,6 +793,8 @@ export function rsaVerify(publicKey, message, signature, hash, padding) {
     return false;
   }
 }
+
+// RSA Encryption
 
 function rsaEncryptPaddingOpts(padding) {
   const paddingName = padding.constructor.name;
@@ -742,6 +842,17 @@ export function rsaDecrypt(privateKey, ciphertext, padding) {
   }
 }
 
+// RSA Import Functions
+
+function rsaFormatToType(format, isPrivate) {
+  const formatName = format.constructor.name;
+  if (isPrivate) {
+    return formatName === "Pkcs1" ? "pkcs1" : "pkcs8";
+  } else {
+    return formatName === "RsaPublicKey" ? "pkcs1" : "spki";
+  }
+}
+
 export function rsaPrivateKeyFromPkcs8(derBytes) {
   try {
     const privateKey = crypto.createPrivateKey({
@@ -775,15 +886,6 @@ export function rsaPublicKeyFromX509(derBytes) {
   }
 }
 
-function rsaFormatToType(format, isPrivate) {
-  const formatName = format.constructor.name;
-  if (isPrivate) {
-    return formatName === "Pkcs1" ? "pkcs1" : "pkcs8";
-  } else {
-    return formatName === "RsaPublicKey" ? "pkcs1" : "spki";
-  }
-}
-
 export function rsaImportPrivateKeyPem(pem, format) {
   const type = rsaFormatToType(format, true);
   return importPrivateKeyPem(pem, type, ["rsa"]);
@@ -803,6 +905,8 @@ export function rsaImportPublicKeyDer(der, format) {
   const type = rsaFormatToType(format, false);
   return importPublicKeyDer(der, type, ["rsa"]);
 }
+
+// RSA Export Functions
 
 export function rsaExportPrivateKeyPem(key, format) {
   try {
@@ -844,33 +948,9 @@ export function rsaExportPublicKeyDer(key, format) {
   }
 }
 
-export function rsaPublicKeyFromPrivate(privateKey) {
-  return crypto.createPublicKey(privateKey);
-}
-
-export function eddsaGenerateKeyPair(curve) {
-  const curveName = curve.constructor.name.toLowerCase();
-  const { privateKey, publicKey } = crypto.generateKeyPairSync(curveName);
-  return [privateKey, publicKey];
-}
-
-export function eddsaSign(privateKey, message) {
-  const signature = crypto.sign(null, message.rawBuffer, privateKey);
-  return BitArray$BitArray(signature);
-}
-
-export function eddsaVerify(publicKey, message, signature) {
-  try {
-    return crypto.verify(
-      null,
-      message.rawBuffer,
-      publicKey,
-      signature.rawBuffer,
-    );
-  } catch {
-    return false;
-  }
-}
+// =============================================================================
+// EdDSA (Ed25519/Ed448)
+// =============================================================================
 
 const EDDSA_PRIVATE_DER_PREFIX = {
   ed25519: Buffer.from("302e020100300506032b657004220420", "hex"),
@@ -881,6 +961,12 @@ const EDDSA_PUBLIC_DER_PREFIX = {
   ed25519: Buffer.from("302a300506032b6570032100", "hex"),
   ed448: Buffer.from("3043300506032b6571033a00", "hex"),
 };
+
+export function eddsaGenerateKeyPair(curve) {
+  const curveName = curve.constructor.name.toLowerCase();
+  const { privateKey, publicKey } = crypto.generateKeyPairSync(curveName);
+  return [privateKey, publicKey];
+}
 
 export function eddsaPrivateKeyFromBytes(curve, privateBytes) {
   try {
@@ -923,6 +1009,30 @@ export function eddsaPublicKeyFromBytes(curve, publicBytes) {
   }
 }
 
+export function eddsaPublicKeyFromPrivate(privateKey) {
+  return crypto.createPublicKey(privateKey);
+}
+
+export function eddsaSign(privateKey, message) {
+  const signature = crypto.sign(null, message.rawBuffer, privateKey);
+  return BitArray$BitArray(signature);
+}
+
+export function eddsaVerify(publicKey, message, signature) {
+  try {
+    return crypto.verify(
+      null,
+      message.rawBuffer,
+      publicKey,
+      signature.rawBuffer,
+    );
+  } catch {
+    return false;
+  }
+}
+
+// EdDSA Import Functions
+
 export function eddsaImportPrivateKeyPem(pem) {
   return importPrivateKeyPem(pem, "pkcs8", ["ed25519", "ed448"]);
 }
@@ -938,6 +1048,8 @@ export function eddsaImportPublicKeyPem(pem) {
 export function eddsaImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["ed25519", "ed448"]);
 }
+
+// EdDSA Export Functions
 
 export function eddsaExportPrivateKeyPem(key) {
   try {
@@ -973,66 +1085,4 @@ export function eddsaExportPublicKeyDer(key) {
   } catch {
     return Result$Error(undefined);
   }
-}
-
-export function eddsaPublicKeyFromPrivate(privateKey) {
-  return crypto.createPublicKey(privateKey);
-}
-
-// XDH module-specific functions
-
-export function xdhImportPrivateKeyPem(pem) {
-  return importPrivateKeyPem(pem, "pkcs8", ["x25519", "x448"]);
-}
-
-export function xdhImportPrivateKeyDer(der) {
-  return importPrivateKeyDer(der, "pkcs8", ["x25519", "x448"]);
-}
-
-export function xdhImportPublicKeyPem(pem) {
-  return importPublicKeyPem(pem, "spki", ["x25519", "x448"]);
-}
-
-export function xdhImportPublicKeyDer(der) {
-  return importPublicKeyDer(der, "spki", ["x25519", "x448"]);
-}
-
-export function xdhExportPrivateKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "pkcs8" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPrivateKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "pkcs8" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPublicKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "spki" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPublicKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "spki" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhPublicKeyFromPrivate(privateKey) {
-  return crypto.createPublicKey(privateKey);
 }
