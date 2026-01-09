@@ -329,10 +329,10 @@ fn run_signature_test(group: SignatureTestGroup, tc: SignatureTestCase) -> Nil {
       let valid = rsa.verify(public_key, msg, sig, hash_alg, rsa.Pkcs1v15)
       case tc.result {
         Valid -> {
-          assert valid == True as { "Expected valid: " <> context }
+          assert valid as { "Expected valid: " <> context }
         }
         Invalid -> {
-          assert valid == False as { "Expected invalid: " <> context }
+          assert !valid as { "Expected invalid: " <> context }
         }
         Acceptable -> Nil
       }
@@ -373,10 +373,10 @@ fn run_pss_test(group: PssTestGroup, tc: PssTestCase) -> Nil {
       let valid = rsa.verify(public_key, msg, sig, hash_alg, padding)
       case tc.result {
         Valid -> {
-          assert valid == True as { "Expected valid: " <> context }
+          assert valid as { "Expected valid: " <> context }
         }
         Invalid -> {
-          assert valid == False as { "Expected invalid: " <> context }
+          assert !valid as { "Expected invalid: " <> context }
         }
         Acceptable -> Nil
       }

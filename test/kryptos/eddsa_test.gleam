@@ -224,7 +224,7 @@ pub fn ed25519_import_private_key_pem_roundtrip_test() {
   let message = <<"ed25519 roundtrip test":utf8>>
   let signature = eddsa.sign(imported_private, message)
   let valid = eddsa.verify(original_public, message, signature)
-  assert valid == True
+  assert valid
 }
 
 pub fn ed448_import_private_key_pem_roundtrip_test() {
@@ -236,7 +236,7 @@ pub fn ed448_import_private_key_pem_roundtrip_test() {
   let message = <<"ed448 roundtrip test":utf8>>
   let signature = eddsa.sign(imported_private, message)
   let valid = eddsa.verify(original_public, message, signature)
-  assert valid == True
+  assert valid
 }
 
 pub fn ed25519_import_public_key_pem_roundtrip_test() {
@@ -254,8 +254,8 @@ pub fn public_key_from_private_key_test() {
   let signature = eddsa.sign(private_key, message)
   let valid1 = eddsa.verify(public_key, message, signature)
   let valid2 = eddsa.verify(derived_public, message, signature)
-  assert valid1 == True
-  assert valid2 == True
+  assert valid1
+  assert valid2
 }
 
 pub fn import_ed25519_pkcs8_der_test() {

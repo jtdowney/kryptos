@@ -23,7 +23,7 @@ pub fn sign_verify_pkcs1v15_sha256_test() {
   let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
   let valid =
     rsa.verify(public_key, message, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert valid == True
+  assert valid
 }
 
 pub fn sign_verify_pkcs1v15_sha384_test() {
@@ -32,7 +32,7 @@ pub fn sign_verify_pkcs1v15_sha384_test() {
   let signature = rsa.sign(private_key, message, hash.Sha384, rsa.Pkcs1v15)
   let valid =
     rsa.verify(public_key, message, signature, hash.Sha384, rsa.Pkcs1v15)
-  assert valid == True
+  assert valid
 }
 
 pub fn sign_verify_pkcs1v15_sha512_test() {
@@ -41,7 +41,7 @@ pub fn sign_verify_pkcs1v15_sha512_test() {
   let signature = rsa.sign(private_key, message, hash.Sha512, rsa.Pkcs1v15)
   let valid =
     rsa.verify(public_key, message, signature, hash.Sha512, rsa.Pkcs1v15)
-  assert valid == True
+  assert valid
 }
 
 pub fn sign_verify_pss_hash_len_test() {
@@ -50,7 +50,7 @@ pub fn sign_verify_pss_hash_len_test() {
   let padding = rsa.Pss(rsa.SaltLengthHashLen)
   let signature = rsa.sign(private_key, message, hash.Sha256, padding)
   let valid = rsa.verify(public_key, message, signature, hash.Sha256, padding)
-  assert valid == True
+  assert valid
 }
 
 pub fn sign_verify_pss_max_test() {
@@ -59,7 +59,7 @@ pub fn sign_verify_pss_max_test() {
   let padding = rsa.Pss(rsa.SaltLengthMax)
   let signature = rsa.sign(private_key, message, hash.Sha256, padding)
   let valid = rsa.verify(public_key, message, signature, hash.Sha256, padding)
-  assert valid == True
+  assert valid
 }
 
 pub fn sign_verify_pss_explicit_test() {
@@ -68,7 +68,7 @@ pub fn sign_verify_pss_explicit_test() {
   let padding = rsa.Pss(rsa.SaltLengthExplicit(20))
   let signature = rsa.sign(private_key, message, hash.Sha256, padding)
   let valid = rsa.verify(public_key, message, signature, hash.Sha256, padding)
-  assert valid == True
+  assert valid
 }
 
 pub fn verify_wrong_key_test() {
@@ -78,7 +78,7 @@ pub fn verify_wrong_key_test() {
   let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
   let valid =
     rsa.verify(other_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert valid == False
+  assert !valid
 }
 
 pub fn verify_tampered_message_test() {
@@ -88,7 +88,7 @@ pub fn verify_tampered_message_test() {
   let tampered = <<"goodbye world":utf8>>
   let valid =
     rsa.verify(public_key, tampered, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert valid == False
+  assert !valid
 }
 
 pub fn verify_tampered_signature_test() {
@@ -98,7 +98,7 @@ pub fn verify_tampered_signature_test() {
   let tampered = <<0, signature:bits>>
   let valid =
     rsa.verify(public_key, message, tampered, hash.Sha256, rsa.Pkcs1v15)
-  assert valid == False
+  assert !valid
 }
 
 pub fn encrypt_decrypt_pkcs1v15_test() {
@@ -161,7 +161,7 @@ pub fn decrypt_wrong_key_test() {
     Error(Nil) -> True
     Ok(decrypted) -> decrypted != plaintext
   }
-  assert is_different == True
+  assert is_different
 }
 
 pub fn decrypt_wrong_label_test() {
@@ -248,7 +248,7 @@ pub fn roundtrip_pkcs8_pem_test() {
   let signature = rsa.sign(imported_private, message, hash.Sha256, rsa.Pkcs1v15)
   let valid =
     rsa.verify(original_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert valid == True
+  assert valid
 }
 
 pub fn roundtrip_pkcs1_pem_test() {
@@ -261,7 +261,7 @@ pub fn roundtrip_pkcs1_pem_test() {
   let signature = rsa.sign(imported_private, message, hash.Sha256, rsa.Pkcs1v15)
   let valid =
     rsa.verify(original_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert valid == True
+  assert valid
 }
 
 pub fn roundtrip_pkcs8_der_test() {
@@ -274,7 +274,7 @@ pub fn roundtrip_pkcs8_der_test() {
   let signature = rsa.sign(imported_private, message, hash.Sha256, rsa.Pkcs1v15)
   let valid =
     rsa.verify(original_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert valid == True
+  assert valid
 }
 
 pub fn import_public_key_pem_test() {
@@ -300,8 +300,8 @@ pub fn public_key_from_private_key_test() {
     rsa.verify(public_key, message, signature, hash.Sha256, rsa.Pkcs1v15)
   let valid2 =
     rsa.verify(derived_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert valid1 == True
-  assert valid2 == True
+  assert valid1
+  assert valid2
 }
 
 pub fn import_rsa2048_pkcs8_pem_test() {
