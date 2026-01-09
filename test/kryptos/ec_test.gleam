@@ -47,7 +47,7 @@ pub fn import_private_key_pem_roundtrip_test() {
   let message = <<"ec roundtrip test":utf8>>
   let signature = ecdsa.sign(imported_private, message, hash.Sha256)
   let valid = ecdsa.verify(original_public, message, signature, hash.Sha256)
-  assert valid == True
+  assert valid
 }
 
 pub fn import_public_key_pem_roundtrip_test() {
@@ -64,7 +64,7 @@ pub fn import_private_key_der_roundtrip_test() {
   let message = <<"ec der roundtrip test":utf8>>
   let signature = ecdsa.sign(imported_private, message, hash.Sha256)
   let valid = ecdsa.verify(original_public, message, signature, hash.Sha256)
-  assert valid == True
+  assert valid
 }
 
 pub fn import_public_key_der_roundtrip_test() {
@@ -81,8 +81,8 @@ pub fn public_key_from_private_key_test() {
   let signature = ecdsa.sign(private_key, message, hash.Sha256)
   let valid1 = ecdsa.verify(public_key, message, signature, hash.Sha256)
   let valid2 = ecdsa.verify(derived_public, message, signature, hash.Sha256)
-  assert valid1 == True
-  assert valid2 == True
+  assert valid1
+  assert valid2
 }
 
 pub fn import_p256_pkcs8_der_test() {
@@ -297,7 +297,7 @@ pub fn import_p256_ecdh_roundtrip_test() {
 
 pub fn public_key_to_raw_point_p256_test() {
   let #(_private, public_key) = ec.generate_key_pair(ec.P256)
-  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+  let raw_point = ec.public_key_to_raw_point(public_key)
 
   assert bit_array.byte_size(raw_point) == 65
   let assert <<first_byte:8, _rest:bits>> = raw_point
@@ -311,7 +311,7 @@ pub fn public_key_to_raw_point_p256_test() {
 
 pub fn public_key_to_raw_point_p384_test() {
   let #(_private, public_key) = ec.generate_key_pair(ec.P384)
-  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+  let raw_point = ec.public_key_to_raw_point(public_key)
 
   assert bit_array.byte_size(raw_point) == 97
   let assert <<first_byte:8, _rest:bits>> = raw_point
@@ -325,7 +325,7 @@ pub fn public_key_to_raw_point_p384_test() {
 
 pub fn public_key_to_raw_point_p521_test() {
   let #(_private, public_key) = ec.generate_key_pair(ec.P521)
-  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+  let raw_point = ec.public_key_to_raw_point(public_key)
 
   assert bit_array.byte_size(raw_point) == 133
   let assert <<first_byte:8, _rest:bits>> = raw_point
@@ -339,7 +339,7 @@ pub fn public_key_to_raw_point_p521_test() {
 
 pub fn public_key_to_raw_point_secp256k1_test() {
   let #(_private, public_key) = ec.generate_key_pair(ec.Secp256k1)
-  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+  let raw_point = ec.public_key_to_raw_point(public_key)
 
   assert bit_array.byte_size(raw_point) == 65
   let assert <<first_byte:8, _rest:bits>> = raw_point
@@ -352,27 +352,71 @@ pub fn public_key_to_raw_point_secp256k1_test() {
   assert original_der == reimported_der
 }
 
-@target(erlang)
-/// On Erlang, compressed points are rejected since decompression isn't supported.
-/// On JavaScript, crypto.createPublicKey automatically decompresses, so it works.
-pub fn public_key_to_raw_point_rejects_compressed_test() {
+pub fn public_key_to_raw_point_decompresses_p256_test() {
   let assert Ok(pem) =
     simplifile.read("test/fixtures/p256_compressed_pkcs8.pem")
-  let assert Ok(#(_private, public_key)) = ec.from_pem(pem)
+  let assert Ok(#(private_key, public_key)) = ec.from_pem(pem)
+  let raw_point = ec.public_key_to_raw_point(public_key)
 
-  assert ec.public_key_to_raw_point(public_key) == Error(Nil)
-}
-
-@target(javascript)
-/// On JavaScript, compressed points are automatically decompressed during import.
-pub fn public_key_to_raw_point_decompresses_on_js_test() {
-  let assert Ok(pem) =
-    simplifile.read("test/fixtures/p256_compressed_pkcs8.pem")
-  let assert Ok(#(_private, public_key)) = ec.from_pem(pem)
-  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
-
-  // Should be uncompressed (65 bytes for P-256)
   assert bit_array.byte_size(raw_point) == 65
   let assert <<first_byte:8, _rest:bits>> = raw_point
   assert first_byte == 0x04
+
+  let assert Ok(reimported) = ec.public_key_from_raw_point(ec.P256, raw_point)
+  let message = <<"test message":utf8>>
+  let signature = ecdsa.sign(private_key, message, hash.Sha256)
+  assert ecdsa.verify(public_key, message, signature, hash.Sha256)
+  assert ecdsa.verify(reimported, message, signature, hash.Sha256)
+}
+
+pub fn public_key_to_raw_point_decompresses_p384_test() {
+  let assert Ok(pem) =
+    simplifile.read("test/fixtures/p384_compressed_pkcs8.pem")
+  let assert Ok(#(private_key, public_key)) = ec.from_pem(pem)
+  let raw_point = ec.public_key_to_raw_point(public_key)
+
+  assert bit_array.byte_size(raw_point) == 97
+  let assert <<first_byte:8, _rest:bits>> = raw_point
+  assert first_byte == 0x04
+
+  let assert Ok(reimported) = ec.public_key_from_raw_point(ec.P384, raw_point)
+  let message = <<"test message":utf8>>
+  let signature = ecdsa.sign(private_key, message, hash.Sha384)
+  assert ecdsa.verify(public_key, message, signature, hash.Sha384)
+  assert ecdsa.verify(reimported, message, signature, hash.Sha384)
+}
+
+pub fn public_key_to_raw_point_decompresses_p521_test() {
+  let assert Ok(pem) =
+    simplifile.read("test/fixtures/p521_compressed_pkcs8.pem")
+  let assert Ok(#(private_key, public_key)) = ec.from_pem(pem)
+  let raw_point = ec.public_key_to_raw_point(public_key)
+
+  assert bit_array.byte_size(raw_point) == 133
+  let assert <<first_byte:8, _rest:bits>> = raw_point
+  assert first_byte == 0x04
+
+  let assert Ok(reimported) = ec.public_key_from_raw_point(ec.P521, raw_point)
+  let message = <<"test message":utf8>>
+  let signature = ecdsa.sign(private_key, message, hash.Sha512)
+  assert ecdsa.verify(public_key, message, signature, hash.Sha512)
+  assert ecdsa.verify(reimported, message, signature, hash.Sha512)
+}
+
+pub fn public_key_to_raw_point_decompresses_secp256k1_test() {
+  let assert Ok(pem) =
+    simplifile.read("test/fixtures/secp256k1_compressed_pkcs8.pem")
+  let assert Ok(#(private_key, public_key)) = ec.from_pem(pem)
+  let raw_point = ec.public_key_to_raw_point(public_key)
+
+  assert bit_array.byte_size(raw_point) == 65
+  let assert <<first_byte:8, _rest:bits>> = raw_point
+  assert first_byte == 0x04
+
+  let assert Ok(reimported) =
+    ec.public_key_from_raw_point(ec.Secp256k1, raw_point)
+  let message = <<"test message":utf8>>
+  let signature = ecdsa.sign(private_key, message, hash.Sha256)
+  assert ecdsa.verify(public_key, message, signature, hash.Sha256)
+  assert ecdsa.verify(reimported, message, signature, hash.Sha256)
 }

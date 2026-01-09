@@ -407,12 +407,47 @@ validate_ec_point(CurveName, Point) ->
     end.
 
 ec_public_key_to_raw_point({{'ECPoint', <<4, _/binary>> = Point}, {namedCurve, _CurveName}}) ->
-    {ok, Point};
-ec_public_key_to_raw_point(_) ->
-    {error, nil}.
+    Point;
+ec_public_key_to_raw_point({{'ECPoint', <<Prefix, _/binary>> = Point}, {namedCurve, CurveName}}) when
+    Prefix == 2; Prefix == 3
+->
+    ec_decompress_point(Point, CurveName).
+
+ec_decompress_point(<<Prefix, XBin/binary>>, CurveName) ->
+    {{prime_field, PBin}, {ABin, BBin, _}, _, _, _} = crypto:ec_curve(CurveName),
+    X = binary:decode_unsigned(XBin),
+    P = binary:decode_unsigned(PBin),
+    A = binary:decode_unsigned(ABin),
+    B = binary:decode_unsigned(BBin),
+    X3 = binary:decode_unsigned(
+        crypto:mod_pow(X, 3, P)
+    ),
+    % y² = x³ + ax + b (mod p)
+    Y2 = (X3 + A * X + B) rem P,
+    % For p ≡ 3 (mod 4), sqrt(a) = a^((p+1)/4) mod p
+    Y = binary:decode_unsigned(
+        crypto:mod_pow(Y2, (P + 1) div 4, P)
+    ),
+    YFinal =
+        case (Y rem 2 == 0) == (Prefix == 2) of
+            true ->
+                Y;
+            false ->
+                P - Y
+        end,
+    CoordSize = byte_size(XBin),
+    YBin = pad_to_size(binary:encode_unsigned(YFinal), CoordSize),
+    <<4, XBin/binary, YBin/binary>>.
+
+pad_to_size(Bin, Size) when byte_size(Bin) >= Size ->
+    Bin;
+pad_to_size(Bin, Size) ->
+    PadSize = Size - byte_size(Bin),
+    <<0:(PadSize * 8), Bin/binary>>.
 
 ec_public_key_from_private(#'ECPrivateKey'{
-    parameters = {namedCurve, CurveOID}, publicKey = PublicPoint
+    parameters = {namedCurve, CurveOID},
+    publicKey = PublicPoint
 }) ->
     CurveName = oid_to_curve(CurveOID),
     {{'ECPoint', PublicPoint}, {namedCurve, CurveName}}.
@@ -927,7 +962,8 @@ rsa_public_key_from_x509(DerBytes) ->
         #'SubjectPublicKeyInfo'{
             algorithm = #'AlgorithmIdentifier'{algorithm = ?rsaEncryption},
             subjectPublicKey = PublicKeyDer
-        } = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
+        } =
+            public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
         RSAPubKey = public_key:der_decode('RSAPublicKey', PublicKeyDer),
         {ok, RSAPubKey}
     catch
@@ -993,7 +1029,8 @@ rsa_import_public_key_from_der(DerBytes, spki) ->
     #'SubjectPublicKeyInfo'{
         algorithm = #'AlgorithmIdentifier'{algorithm = ?rsaEncryption},
         subjectPublicKey = PublicKeyDer
-    } = public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
+    } =
+        public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
     RSAPubKey = public_key:der_decode('RSAPublicKey', PublicKeyDer),
     {ok, RSAPubKey};
 rsa_import_public_key_from_der(DerBytes, rsa_public_key) ->

@@ -431,26 +431,17 @@ function padStart(buffer, length) {
 }
 
 export function ecPublicKeyToRawPoint(key) {
-  try {
-    const jwk = key.export({ format: "jwk" });
-    const x = Buffer.from(jwk.x, "base64url");
-    const y = Buffer.from(jwk.y, "base64url");
+  const jwk = key.export({ format: "jwk" });
+  const x = Buffer.from(jwk.x, "base64url");
+  const y = Buffer.from(jwk.y, "base64url");
 
-    const coordSize = ecCurveCoordSize(jwkCrvToEcCurveName(jwk.crv));
-    const xPadded = padStart(x, coordSize);
-    const yPadded = padStart(y, coordSize);
+  const coordSize = ecCurveCoordSize(jwkCrvToEcCurveName(jwk.crv));
+  const xPadded = padStart(x, coordSize);
+  const yPadded = padStart(y, coordSize);
 
-    // Validate coordinate sizes
-    if (xPadded.length !== coordSize || yPadded.length !== coordSize) {
-      return Result$Error(undefined);
-    }
-
-    return Result$Ok(
-      BitArray$BitArray(Buffer.concat([Buffer.from([0x04]), xPadded, yPadded])),
-    );
-  } catch {
-    return Result$Error(undefined);
-  }
+  return BitArray$BitArray(
+    Buffer.concat([Buffer.from([0x04]), xPadded, yPadded]),
+  );
 }
 
 export function ecPublicKeyFromPrivate(privateKey) {

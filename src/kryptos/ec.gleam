@@ -176,14 +176,13 @@ pub fn public_key_from_raw_point(
 /// the coordinates of the public key point, each padded to the curve's
 /// coordinate size.
 ///
-/// On Erlang, returns `Error(Nil)` if the key was imported with a compressed
-/// point format since decompression is not supported. On JavaScript, compressed
-/// points are automatically decompressed during import, so this always succeeds.
+/// If the key was imported with a compressed point format, it will be
+/// automatically decompressed.
 ///
 /// This is the inverse of `public_key_from_raw_point`.
 @external(erlang, "kryptos_ffi", "ec_public_key_to_raw_point")
 @external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyToRawPoint")
-pub fn public_key_to_raw_point(key: PublicKey) -> Result(BitArray, Nil)
+pub fn public_key_to_raw_point(key: PublicKey) -> BitArray
 
 /// Exports an EC public key to PEM format.
 ///
