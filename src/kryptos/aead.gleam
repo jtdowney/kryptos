@@ -22,7 +22,15 @@ import gleam/list
 import kryptos/block.{type BlockCipher}
 
 /// AEAD context with its configuration.
-pub opaque type AeadContext {
+///
+/// **Note:** While the variants are public for pattern matching, direct
+/// construction is not recommended. Use the provided constructor functions
+/// which validate parameters:
+///
+/// - `gcm()` / `gcm_with_nonce_size()` for AES-GCM
+/// - `ccm()` / `ccm_with_options()` for AES-CCM
+/// - `chacha20_poly1305()` for ChaCha20-Poly1305
+pub type AeadContext {
   /// AES-GCM with the specified cipher and nonce size.
   Gcm(cipher: BlockCipher, nonce_size: Int)
   /// AES-CCM with configurable nonce and tag sizes (RFC 3610).

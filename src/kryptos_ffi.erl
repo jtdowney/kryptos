@@ -5,8 +5,8 @@
 -export([
     aead_open/5,
     aead_seal/4,
-    cipher_decrypt/2,
-    cipher_encrypt/2,
+    block_cipher_decrypt/2,
+    block_cipher_encrypt/2,
     constant_time_equal/2,
     ec_export_private_key_der/1,
     ec_export_private_key_pem/1,
@@ -219,37 +219,37 @@ aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
 %% Block Ciphers (ECB, CBC, CTR)
 %%------------------------------------------------------------------------------
 
-cipher_name({ecb, {aes, 128, _}}) ->
+block_cipher_name({ecb, {aes, 128, _}}) ->
     aes_128_ecb;
-cipher_name({ecb, {aes, 192, _}}) ->
+block_cipher_name({ecb, {aes, 192, _}}) ->
     aes_192_ecb;
-cipher_name({ecb, {aes, 256, _}}) ->
+block_cipher_name({ecb, {aes, 256, _}}) ->
     aes_256_ecb;
-cipher_name({cbc, {aes, 128, _}, _}) ->
+block_cipher_name({cbc, {aes, 128, _}, _}) ->
     aes_128_cbc;
-cipher_name({cbc, {aes, 192, _}, _}) ->
+block_cipher_name({cbc, {aes, 192, _}, _}) ->
     aes_192_cbc;
-cipher_name({cbc, {aes, 256, _}, _}) ->
+block_cipher_name({cbc, {aes, 256, _}, _}) ->
     aes_256_cbc;
-cipher_name({ctr, {aes, 128, _}, _}) ->
+block_cipher_name({ctr, {aes, 128, _}, _}) ->
     aes_128_ctr;
-cipher_name({ctr, {aes, 192, _}, _}) ->
+block_cipher_name({ctr, {aes, 192, _}, _}) ->
     aes_192_ctr;
-cipher_name({ctr, {aes, 256, _}, _}) ->
+block_cipher_name({ctr, {aes, 256, _}, _}) ->
     aes_256_ctr.
 
-cipher_padding({ecb, _}) ->
+block_cipher_padding({ecb, _}) ->
     pkcs_padding;
-cipher_padding({cbc, _, _}) ->
+block_cipher_padding({cbc, _, _}) ->
     pkcs_padding;
-cipher_padding({ctr, _, _}) ->
+block_cipher_padding({ctr, _, _}) ->
     none.
 
-cipher_encrypt(Mode, Plaintext) ->
-    Cipher = cipher_name(Mode),
+block_cipher_encrypt(Mode, Plaintext) ->
+    Cipher = block_cipher_name(Mode),
     Key = kryptos@block:cipher_key(Mode),
     Iv = kryptos@block:cipher_iv(Mode),
-    Padding = cipher_padding(Mode),
+    Padding = block_cipher_padding(Mode),
     try
         Ciphertext =
             crypto:crypto_one_time(
@@ -265,11 +265,11 @@ cipher_encrypt(Mode, Plaintext) ->
             {error, nil}
     end.
 
-cipher_decrypt(Mode, Ciphertext) ->
-    Cipher = cipher_name(Mode),
+block_cipher_decrypt(Mode, Ciphertext) ->
+    Cipher = block_cipher_name(Mode),
     Key = kryptos@block:cipher_key(Mode),
     Iv = kryptos@block:cipher_iv(Mode),
-    Padding = cipher_padding(Mode),
+    Padding = block_cipher_padding(Mode),
     try
         Plaintext =
             crypto:crypto_one_time(

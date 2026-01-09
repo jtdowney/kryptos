@@ -41,13 +41,21 @@ import gleam/bit_array
 import gleam/int
 
 /// A block cipher with its associated key material.
-pub opaque type BlockCipher {
+pub type BlockCipher {
   /// AES block cipher with the specified key size and key.
   Aes(key_size: Int, key: BitArray)
 }
 
 /// Context for block cipher modes of operation.
-pub opaque type CipherContext {
+///
+/// **Note:** While the variants are public for pattern matching, direct
+/// construction is not recommended. Use the provided constructor functions
+/// which validate parameters:
+///
+/// - `ecb()` for ECB mode
+/// - `cbc()` for CBC mode
+/// - `ctr()` for CTR mode
+pub type CipherContext {
   /// Electronic Codebook mode.
   Ecb(cipher: BlockCipher)
 
@@ -211,8 +219,8 @@ fn validate_iv(ctx: CipherContext) -> Bool {
   }
 }
 
-@external(erlang, "kryptos_ffi", "cipher_encrypt")
-@external(javascript, "../kryptos_ffi.mjs", "cipherEncrypt")
+@external(erlang, "kryptos_ffi", "block_cipher_encrypt")
+@external(javascript, "../kryptos_ffi.mjs", "blockCipherEncrypt")
 fn do_encrypt(ctx: CipherContext, plaintext: BitArray) -> Result(BitArray, Nil)
 
 /// Decrypts ciphertext using the cipher mode.
@@ -239,8 +247,8 @@ pub fn decrypt(
   }
 }
 
-@external(erlang, "kryptos_ffi", "cipher_decrypt")
-@external(javascript, "../kryptos_ffi.mjs", "cipherDecrypt")
+@external(erlang, "kryptos_ffi", "block_cipher_decrypt")
+@external(javascript, "../kryptos_ffi.mjs", "blockCipherDecrypt")
 fn do_decrypt(ctx: CipherContext, ciphertext: BitArray) -> Result(BitArray, Nil)
 
 @internal
