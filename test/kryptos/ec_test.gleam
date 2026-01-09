@@ -294,3 +294,68 @@ pub fn import_p256_ecdh_roundtrip_test() {
   let assert Ok(shared2) = ecdh.compute_shared_secret(other_private, public)
   assert shared1 == shared2
 }
+
+pub fn public_key_to_raw_point_p256_test() {
+  let #(_private, public_key) = ec.generate_key_pair(ec.P256)
+  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+
+  assert bit_array.byte_size(raw_point) == 65
+  let assert <<first_byte:8, _rest:bits>> = raw_point
+  assert first_byte == 0x04
+
+  let assert Ok(reimported) = ec.public_key_from_raw_point(ec.P256, raw_point)
+  let assert Ok(original_der) = ec.public_key_to_der(public_key)
+  let assert Ok(reimported_der) = ec.public_key_to_der(reimported)
+  assert original_der == reimported_der
+}
+
+pub fn public_key_to_raw_point_p384_test() {
+  let #(_private, public_key) = ec.generate_key_pair(ec.P384)
+  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+
+  assert bit_array.byte_size(raw_point) == 97
+  let assert <<first_byte:8, _rest:bits>> = raw_point
+  assert first_byte == 0x04
+
+  let assert Ok(reimported) = ec.public_key_from_raw_point(ec.P384, raw_point)
+  let assert Ok(original_der) = ec.public_key_to_der(public_key)
+  let assert Ok(reimported_der) = ec.public_key_to_der(reimported)
+  assert original_der == reimported_der
+}
+
+pub fn public_key_to_raw_point_p521_test() {
+  let #(_private, public_key) = ec.generate_key_pair(ec.P521)
+  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+
+  assert bit_array.byte_size(raw_point) == 133
+  let assert <<first_byte:8, _rest:bits>> = raw_point
+  assert first_byte == 0x04
+
+  let assert Ok(reimported) = ec.public_key_from_raw_point(ec.P521, raw_point)
+  let assert Ok(original_der) = ec.public_key_to_der(public_key)
+  let assert Ok(reimported_der) = ec.public_key_to_der(reimported)
+  assert original_der == reimported_der
+}
+
+pub fn public_key_to_raw_point_secp256k1_test() {
+  let #(_private, public_key) = ec.generate_key_pair(ec.Secp256k1)
+  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+
+  assert bit_array.byte_size(raw_point) == 65
+  let assert <<first_byte:8, _rest:bits>> = raw_point
+  assert first_byte == 0x04
+
+  let assert Ok(reimported) =
+    ec.public_key_from_raw_point(ec.Secp256k1, raw_point)
+  let assert Ok(original_der) = ec.public_key_to_der(public_key)
+  let assert Ok(reimported_der) = ec.public_key_to_der(reimported)
+  assert original_der == reimported_der
+}
+
+pub fn public_key_to_raw_point_rejects_compressed_test() {
+  let assert Ok(pem) =
+    simplifile.read("test/fixtures/p256_compressed_pkcs8.pem")
+  let assert Ok(#(_private, public_key)) = ec.from_pem(pem)
+
+  assert ec.public_key_to_raw_point(public_key) == Error(Nil)
+}

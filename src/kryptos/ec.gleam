@@ -170,6 +170,20 @@ pub fn public_key_from_raw_point(
   point: BitArray,
 ) -> Result(PublicKey, Nil)
 
+/// Exports a public key to uncompressed SEC1 point format.
+///
+/// Returns a BitArray in the format: `0x04 || X || Y` where X and Y are
+/// the coordinates of the public key point, each padded to the curve's
+/// coordinate size.
+///
+/// Returns `Error(Nil)` if the key was imported with a compressed point
+/// format. Only uncompressed points are supported.
+///
+/// This is the inverse of `public_key_from_raw_point`.
+@external(erlang, "kryptos_ffi", "ec_public_key_to_raw_point")
+@external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyToRawPoint")
+pub fn public_key_to_raw_point(key: PublicKey) -> Result(BitArray, Nil)
+
 /// Exports an EC public key to PEM format.
 ///
 /// The key is exported in SPKI format.

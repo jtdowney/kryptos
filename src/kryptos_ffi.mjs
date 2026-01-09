@@ -409,6 +409,50 @@ export function ecPublicKeyFromRawPoint(curve, point) {
   }
 }
 
+function jwkCrvToEcCurveName(crv) {
+  switch (crv) {
+    case "P-256":
+      return "prime256v1";
+    case "P-384":
+      return "secp384r1";
+    case "P-521":
+      return "secp521r1";
+    case "secp256k1":
+      return "secp256k1";
+    default:
+      throw new Error(`Unknown curve: ${crv}`);
+  }
+}
+
+function padStart(buffer, length) {
+  if (buffer.length >= length) return buffer;
+  const padding = Buffer.alloc(length - buffer.length, 0);
+  return Buffer.concat([padding, buffer]);
+}
+
+export function ecPublicKeyToRawPoint(key) {
+  try {
+    const jwk = key.export({ format: "jwk" });
+    const x = Buffer.from(jwk.x, "base64url");
+    const y = Buffer.from(jwk.y, "base64url");
+
+    const coordSize = ecCurveCoordSize(jwkCrvToEcCurveName(jwk.crv));
+    const xPadded = padStart(x, coordSize);
+    const yPadded = padStart(y, coordSize);
+
+    // Validate coordinate sizes
+    if (xPadded.length !== coordSize || yPadded.length !== coordSize) {
+      return Result$Error(undefined);
+    }
+
+    return Result$Ok(
+      BitArray$BitArray(Buffer.concat([Buffer.from([0x04]), xPadded, yPadded])),
+    );
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
 export function ecPublicKeyFromPrivate(privateKey) {
   return crypto.createPublicKey(privateKey);
 }

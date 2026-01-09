@@ -20,6 +20,7 @@
     ec_private_key_from_bytes/2,
     ec_public_key_from_private/1,
     ec_public_key_from_raw_point/2,
+    ec_public_key_to_raw_point/1,
     ec_public_key_from_x509/1,
     ecdh_compute_shared_secret/2,
     ecdsa_sign/3,
@@ -404,6 +405,11 @@ validate_ec_point(CurveName, Point) ->
         _:_ ->
             {error, nil}
     end.
+
+ec_public_key_to_raw_point({{'ECPoint', <<4, _/binary>> = Point}, {namedCurve, _CurveName}}) ->
+    {ok, Point};
+ec_public_key_to_raw_point(_) ->
+    {error, nil}.
 
 ec_public_key_from_private(#'ECPrivateKey'{
     parameters = {namedCurve, CurveOID}, publicKey = PublicPoint
