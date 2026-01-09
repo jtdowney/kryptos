@@ -352,10 +352,27 @@ pub fn public_key_to_raw_point_secp256k1_test() {
   assert original_der == reimported_der
 }
 
+@target(erlang)
+/// On Erlang, compressed points are rejected since decompression isn't supported.
+/// On JavaScript, crypto.createPublicKey automatically decompresses, so it works.
 pub fn public_key_to_raw_point_rejects_compressed_test() {
   let assert Ok(pem) =
     simplifile.read("test/fixtures/p256_compressed_pkcs8.pem")
   let assert Ok(#(_private, public_key)) = ec.from_pem(pem)
 
   assert ec.public_key_to_raw_point(public_key) == Error(Nil)
+}
+
+@target(javascript)
+/// On JavaScript, compressed points are automatically decompressed during import.
+pub fn public_key_to_raw_point_decompresses_on_js_test() {
+  let assert Ok(pem) =
+    simplifile.read("test/fixtures/p256_compressed_pkcs8.pem")
+  let assert Ok(#(_private, public_key)) = ec.from_pem(pem)
+  let assert Ok(raw_point) = ec.public_key_to_raw_point(public_key)
+
+  // Should be uncompressed (65 bytes for P-256)
+  assert bit_array.byte_size(raw_point) == 65
+  let assert <<first_byte:8, _rest:bits>> = raw_point
+  assert first_byte == 0x04
 }

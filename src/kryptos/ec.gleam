@@ -176,8 +176,9 @@ pub fn public_key_from_raw_point(
 /// the coordinates of the public key point, each padded to the curve's
 /// coordinate size.
 ///
-/// Returns `Error(Nil)` if the key was imported with a compressed point
-/// format. Only uncompressed points are supported.
+/// On Erlang, returns `Error(Nil)` if the key was imported with a compressed
+/// point format since decompression is not supported. On JavaScript, compressed
+/// points are automatically decompressed during import, so this always succeeds.
 ///
 /// This is the inverse of `public_key_from_raw_point`.
 @external(erlang, "kryptos_ffi", "ec_public_key_to_raw_point")
