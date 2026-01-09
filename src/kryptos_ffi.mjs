@@ -78,8 +78,12 @@ export function constantTimeEqual(a, b) {
 // =============================================================================
 
 export function hashNew(algorithm) {
-  const name = hashAlgorithmName(algorithm);
-  return crypto.createHash(name);
+  try {
+    const name = hashAlgorithmName(algorithm);
+    return Result$Ok(crypto.createHash(name));
+  } catch {
+    return Result$Error(undefined);
+  }
 }
 
 export function hashUpdate(hasher, input) {
@@ -97,9 +101,12 @@ export function hashFinal(hasher) {
 // =============================================================================
 
 export function hmacNew(algorithm, key) {
-  const algorithmName = hashAlgorithmName(algorithm);
-  const hmac = crypto.createHmac(algorithmName, key.rawBuffer);
-  return hmac;
+  try {
+    const algorithmName = hashAlgorithmName(algorithm);
+    return Result$Ok(crypto.createHmac(algorithmName, key.rawBuffer));
+  } catch {
+    return Result$Error(undefined);
+  }
 }
 
 export function hmacUpdate(hmac, data) {
@@ -468,6 +475,14 @@ export function ecPublicKeyFromRawPoint(curve, point) {
     };
 
     const publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
+
+    // Validate point is on the curve by attempting ECDH computation.
+    // This mirrors Erlang's validate_ec_point which uses crypto:compute_key.
+    const curveName = ecCurveToOpensslName(curve);
+    const ecdh = crypto.createECDH(curveName);
+    ecdh.generateKeys();
+    ecdh.computeSecret(pointBuffer);
+
     return Result$Ok(publicKey);
   } catch {
     return Result$Error(undefined);
@@ -890,6 +905,9 @@ export function rsaVerify(publicKey, message, signature, hash, padding) {
   try {
     const algorithmName = hashAlgorithmName(hash);
     const opts = rsaSignPaddingOpts(padding);
+    // Node.js requires RSA_PSS_SALTLEN_AUTO for verification because
+    // RSA_PSS_SALTLEN_MAX_SIGN (-2) is only valid during signing.
+    // AUTO allows verification to detect the salt length from the signature.
     if (opts.saltLength === crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN) {
       opts.saltLength = crypto.constants.RSA_PSS_SALTLEN_AUTO;
     }

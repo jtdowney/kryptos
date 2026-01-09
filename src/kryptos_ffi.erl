@@ -118,16 +118,26 @@ hash_algorithm_name(Name) ->
     Name.
 
 hash_new(Algorithm) ->
-    Name = hash_algorithm_name(Algorithm),
-    crypto:hash_init(Name).
+    try
+        Name = hash_algorithm_name(Algorithm),
+        {ok, crypto:hash_init(Name)}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
 
 %%------------------------------------------------------------------------------
 %% HMAC
 %%------------------------------------------------------------------------------
 
 hmac_new(Algorithm, Key) ->
-    Name = hash_algorithm_name(Algorithm),
-    crypto:mac_init(hmac, Name, Key).
+    try
+        Name = hash_algorithm_name(Algorithm),
+        {ok, crypto:mac_init(hmac, Name, Key)}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
 
 %%------------------------------------------------------------------------------
 %% Key Derivation Functions (PBKDF2)
@@ -491,11 +501,11 @@ ec_import_private_key_pem(PemData) ->
             [{'PrivateKeyInfo', DerBytes, not_encrypted}] ->
                 ec_import_private_key_from_der(DerBytes);
             _ ->
-                {error, invalid_key_data}
+                {error, nil}
         end
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 ec_import_private_key_der(DerBytes) ->
@@ -503,7 +513,7 @@ ec_import_private_key_der(DerBytes) ->
         ec_import_private_key_from_der(DerBytes)
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 ec_import_private_key_from_der(DerBytes) ->
@@ -525,7 +535,7 @@ ec_import_private_key_from_der(DerBytes) ->
             PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
             {ok, {PrivKey, PubKey}};
         _ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 ec_import_public_key_pem(PemData) ->
@@ -534,11 +544,11 @@ ec_import_public_key_pem(PemData) ->
             [{'SubjectPublicKeyInfo', DerBytes, not_encrypted}] ->
                 ec_import_public_key_from_der(DerBytes);
             _ ->
-                {error, invalid_key_data}
+                {error, nil}
         end
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 ec_import_public_key_der(DerBytes) ->
@@ -546,7 +556,7 @@ ec_import_public_key_der(DerBytes) ->
         ec_import_public_key_from_der(DerBytes)
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 ec_import_public_key_from_der(DerBytes) ->
@@ -557,7 +567,7 @@ ec_import_public_key_from_der(DerBytes) ->
             CurveName = oid_to_curve(OID),
             {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
         _ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 %% EC Export Functions
@@ -670,11 +680,11 @@ xdh_import_private_key_pem(PemData) ->
             [{'PrivateKeyInfo', DerBytes, not_encrypted}] ->
                 xdh_import_private_key_from_der(DerBytes);
             _ ->
-                {error, invalid_key_data}
+                {error, nil}
         end
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 xdh_import_private_key_der(DerBytes) ->
@@ -682,7 +692,7 @@ xdh_import_private_key_der(DerBytes) ->
         xdh_import_private_key_from_der(DerBytes)
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 xdh_import_private_key_from_der(DerBytes) ->
@@ -698,13 +708,13 @@ xdh_import_private_key_from_der(DerBytes) ->
                             {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve, PrivateBytes),
                             {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
                         _ ->
-                            {error, unsupported_curve}
+                            {error, nil}
                     end;
                 _ ->
-                    {error, unsupported_curve}
+                    {error, nil}
             end;
         _ ->
-            {error, unsupported_curve}
+            {error, nil}
     end.
 
 xdh_import_public_key_pem(PemData) ->
@@ -713,11 +723,11 @@ xdh_import_public_key_pem(PemData) ->
             [{'SubjectPublicKeyInfo', DerBytes, not_encrypted}] ->
                 xdh_import_public_key_from_der(DerBytes);
             _ ->
-                {error, invalid_key_data}
+                {error, nil}
         end
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 xdh_import_public_key_der(DerBytes) ->
@@ -725,7 +735,7 @@ xdh_import_public_key_der(DerBytes) ->
         xdh_import_public_key_from_der(DerBytes)
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 xdh_import_public_key_from_der(DerBytes) ->
@@ -739,10 +749,10 @@ xdh_import_public_key_from_der(DerBytes) ->
                 _ when Curve =:= x25519; Curve =:= x448 ->
                     {ok, {PublicKeyBits, Curve}};
                 _ ->
-                    {error, unsupported_curve}
+                    {error, nil}
             end;
         _ ->
-            {error, unsupported_curve}
+            {error, nil}
     end.
 
 %% XDH Export Functions
@@ -978,11 +988,11 @@ rsa_import_private_key_pem(PemData, Format) ->
             [{PemType, DerBytes, not_encrypted}] ->
                 rsa_import_private_key_from_der(DerBytes, DerType);
             _ ->
-                {error, invalid_key_data}
+                {error, nil}
         end
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 rsa_import_private_key_der(DerBytes, Format) ->
@@ -991,7 +1001,7 @@ rsa_import_private_key_der(DerBytes, Format) ->
         rsa_import_private_key_from_der(DerBytes, DerType)
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 rsa_import_private_key_from_der(DerBytes, DerType) ->
@@ -1010,11 +1020,11 @@ rsa_import_public_key_pem(PemData, Format) ->
             [{PemType, DerBytes, not_encrypted}] ->
                 rsa_import_public_key_from_der(DerBytes, Format);
             _ ->
-                {error, invalid_key_data}
+                {error, nil}
         end
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 rsa_import_public_key_der(DerBytes, Format) ->
@@ -1022,7 +1032,7 @@ rsa_import_public_key_der(DerBytes, Format) ->
         rsa_import_public_key_from_der(DerBytes, Format)
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 rsa_import_public_key_from_der(DerBytes, spki) ->
@@ -1158,11 +1168,11 @@ eddsa_import_private_key_pem(PemData) ->
             [{'PrivateKeyInfo', DerBytes, not_encrypted}] ->
                 eddsa_import_private_key_from_der(DerBytes);
             _ ->
-                {error, invalid_key_data}
+                {error, nil}
         end
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 eddsa_import_private_key_der(DerBytes) ->
@@ -1170,7 +1180,7 @@ eddsa_import_private_key_der(DerBytes) ->
         eddsa_import_private_key_from_der(DerBytes)
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 eddsa_import_private_key_from_der(DerBytes) ->
@@ -1182,10 +1192,10 @@ eddsa_import_private_key_from_der(DerBytes) ->
                     {PubKey, PrivKey} = crypto:generate_key(eddsa, Curve, PrivateBytes),
                     {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
                 _ ->
-                    {error, unsupported_curve}
+                    {error, nil}
             end;
         _ ->
-            {error, unsupported_curve}
+            {error, nil}
     end.
 
 eddsa_import_public_key_pem(PemData) ->
@@ -1194,11 +1204,11 @@ eddsa_import_public_key_pem(PemData) ->
             [{'SubjectPublicKeyInfo', DerBytes, not_encrypted}] ->
                 eddsa_import_public_key_from_der(DerBytes);
             _ ->
-                {error, invalid_key_data}
+                {error, nil}
         end
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 eddsa_import_public_key_der(DerBytes) ->
@@ -1206,7 +1216,7 @@ eddsa_import_public_key_der(DerBytes) ->
         eddsa_import_public_key_from_der(DerBytes)
     catch
         _:_ ->
-            {error, invalid_key_data}
+            {error, nil}
     end.
 
 eddsa_import_public_key_from_der(DerBytes) ->
@@ -1220,10 +1230,10 @@ eddsa_import_public_key_from_der(DerBytes) ->
                 _ when Curve =:= ed25519; Curve =:= ed448 ->
                     {ok, {PublicKeyBits, Curve}};
                 _ ->
-                    {error, unsupported_curve}
+                    {error, nil}
             end;
         _ ->
-            {error, unsupported_curve}
+            {error, nil}
     end.
 
 %% EdDSA Export Functions

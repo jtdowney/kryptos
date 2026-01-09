@@ -57,14 +57,14 @@ pub type Hmac
 /// - `Error(Nil)` - If the hash algorithm is not supported
 pub fn new(algorithm: HashAlgorithm, key: BitArray) -> Result(Hmac, Nil) {
   case supported_hash(algorithm) {
-    True -> Ok(do_new(algorithm, key))
+    True -> do_new(algorithm, key)
     False -> Error(Nil)
   }
 }
 
 @external(erlang, "kryptos_ffi", "hmac_new")
 @external(javascript, "../kryptos_ffi.mjs", "hmacNew")
-fn do_new(algorithm: HashAlgorithm, key: BitArray) -> Hmac
+fn do_new(algorithm: HashAlgorithm, key: BitArray) -> Result(Hmac, Nil)
 
 /// Adds data to an in-progress HMAC computation.
 ///

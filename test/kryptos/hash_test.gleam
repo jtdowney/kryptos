@@ -1,5 +1,6 @@
 import gleam/bit_array
 import gleam/dict
+import gleam/result
 import kryptos/crypto
 import kryptos/hash
 
@@ -52,17 +53,19 @@ pub fn digest_table_test() {
     ),
   ])
   |> dict.each(fn(algorithm, expected) {
-    let output = crypto.hash(algorithm, input) |> bit_array.base16_encode
+    let assert Ok(output) =
+      crypto.hash(algorithm, input) |> result.map(bit_array.base16_encode)
     assert output == expected as hash.algorithm_name(algorithm)
   })
 }
 
 pub fn incremental_hash_test() {
   let input = <<"too many secrets":utf8>>
-  let expected = crypto.hash(hash.Sha256, input)
+  let assert Ok(expected) = crypto.hash(hash.Sha256, input)
 
+  let assert Ok(hasher) = hash.new(hash.Sha256)
   let result =
-    hash.new(hash.Sha256)
+    hasher
     |> hash.update(bit_array.from_string("too many "))
     |> hash.update(bit_array.from_string("secrets"))
     |> hash.final()
@@ -72,10 +75,11 @@ pub fn incremental_hash_test() {
 
 pub fn empty_input_test() {
   let empty = <<>>
-  let expected = crypto.hash(hash.Sha256, empty)
+  let assert Ok(expected) = crypto.hash(hash.Sha256, empty)
 
+  let assert Ok(hasher) = hash.new(hash.Sha256)
   let result =
-    hash.new(hash.Sha256)
+    hasher
     |> hash.final()
 
   assert result == expected
@@ -83,10 +87,11 @@ pub fn empty_input_test() {
 
 pub fn single_byte_chunks_test() {
   let input = <<"abc":utf8>>
-  let expected = crypto.hash(hash.Sha256, input)
+  let assert Ok(expected) = crypto.hash(hash.Sha256, input)
 
+  let assert Ok(hasher) = hash.new(hash.Sha256)
   let result =
-    hash.new(hash.Sha256)
+    hasher
     |> hash.update(<<"a":utf8>>)
     |> hash.update(<<"b":utf8>>)
     |> hash.update(<<"c":utf8>>)

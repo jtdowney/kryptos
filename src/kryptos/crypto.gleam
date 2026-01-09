@@ -28,11 +28,14 @@ import kryptos/internal/subtle
 /// - `data`: The data to hash
 ///
 /// ## Returns
-/// A `BitArray` containing the computed hash digest.
-pub fn hash(algorithm: HashAlgorithm, data: BitArray) -> BitArray {
-  hash.new(algorithm)
+/// - `Ok(BitArray)` - The computed hash digest
+/// - `Error(Nil)` - If the hash algorithm is not supported by the runtime
+pub fn hash(algorithm: HashAlgorithm, data: BitArray) -> Result(BitArray, Nil) {
+  use hasher <- result.try(hash.new(algorithm))
+  hasher
   |> hash.update(data)
   |> hash.final()
+  |> Ok
 }
 
 /// Computes the HMAC of input data in one call.
