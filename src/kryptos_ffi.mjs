@@ -666,13 +666,50 @@ export function ecExportPublicKeyDer(key) {
 // X25519/X448 Key Exchange (XDH)
 // =============================================================================
 
+// DER prefixes for wrapping raw key bytes into PKCS#8/SPKI format (RFC 8410).
+// These are stable, standardized encodings that prepend ASN.1 structure to raw keys.
+//
+// PKCS#8 PrivateKeyInfo structure (RFC 5958):
+//   SEQUENCE {
+//     INTEGER 0 (version)
+//     SEQUENCE { OBJECT IDENTIFIER (algorithm OID) }
+//     OCTET STRING { OCTET STRING (raw private key) }
+//   }
+//
+// X25519 OID: 1.3.101.110 (06 03 2b 65 6e)
+// X448 OID:   1.3.101.111 (06 03 2b 65 6f)
 const XDH_PRIVATE_DER_PREFIX = {
+  // 30 2e        SEQUENCE (46 bytes total)
+  //   02 01 00   INTEGER 0 (version)
+  //   30 05      SEQUENCE (5 bytes)
+  //     06 03 2b 65 6e  OID 1.3.101.110 (X25519)
+  //   04 22      OCTET STRING (34 bytes)
+  //     04 20    OCTET STRING (32 bytes) - the raw key follows
   x25519: Buffer.from("302e020100300506032b656e04220420", "hex"),
+  // 30 46        SEQUENCE (70 bytes total)
+  //   02 01 00   INTEGER 0 (version)
+  //   30 05      SEQUENCE (5 bytes)
+  //     06 03 2b 65 6f  OID 1.3.101.111 (X448)
+  //   04 3a      OCTET STRING (58 bytes)
+  //     04 38    OCTET STRING (56 bytes) - the raw key follows
   x448: Buffer.from("3046020100300506032b656f043a0438", "hex"),
 };
 
+// SPKI SubjectPublicKeyInfo structure (RFC 5280):
+//   SEQUENCE {
+//     SEQUENCE { OBJECT IDENTIFIER (algorithm OID) }
+//     BIT STRING (raw public key)
+//   }
 const XDH_PUBLIC_DER_PREFIX = {
+  // 30 2a        SEQUENCE (42 bytes total)
+  //   30 05      SEQUENCE (5 bytes)
+  //     06 03 2b 65 6e  OID 1.3.101.110 (X25519)
+  //   03 21 00   BIT STRING (33 bytes, 0 unused bits) - 32-byte key follows
   x25519: Buffer.from("302a300506032b656e032100", "hex"),
+  // 30 42        SEQUENCE (66 bytes total)
+  //   30 05      SEQUENCE (5 bytes)
+  //     06 03 2b 65 6f  OID 1.3.101.111 (X448)
+  //   03 39 00   BIT STRING (57 bytes, 0 unused bits) - 56-byte key follows
   x448: Buffer.from("3042300506032b656f033900", "hex"),
 };
 
@@ -1025,13 +1062,38 @@ export function rsaExportPublicKeyDer(key, format) {
 // EdDSA (Ed25519/Ed448)
 // =============================================================================
 
+// DER prefixes for wrapping raw key bytes into PKCS#8/SPKI format (RFC 8410).
+// These are stable, standardized encodings that prepend ASN.1 structure to raw keys.
+//
+// Ed25519 OID: 1.3.101.112 (06 03 2b 65 70)
+// Ed448 OID:   1.3.101.113 (06 03 2b 65 71)
 const EDDSA_PRIVATE_DER_PREFIX = {
+  // 30 2e        SEQUENCE (46 bytes total)
+  //   02 01 00   INTEGER 0 (version)
+  //   30 05      SEQUENCE (5 bytes)
+  //     06 03 2b 65 70  OID 1.3.101.112 (Ed25519)
+  //   04 22      OCTET STRING (34 bytes)
+  //     04 20    OCTET STRING (32 bytes) - the raw key follows
   ed25519: Buffer.from("302e020100300506032b657004220420", "hex"),
+  // 30 47        SEQUENCE (71 bytes total)
+  //   02 01 00   INTEGER 0 (version)
+  //   30 05      SEQUENCE (5 bytes)
+  //     06 03 2b 65 71  OID 1.3.101.113 (Ed448)
+  //   04 3b      OCTET STRING (59 bytes)
+  //     04 39    OCTET STRING (57 bytes) - the raw key follows
   ed448: Buffer.from("3047020100300506032b6571043b0439", "hex"),
 };
 
 const EDDSA_PUBLIC_DER_PREFIX = {
+  // 30 2a        SEQUENCE (42 bytes total)
+  //   30 05      SEQUENCE (5 bytes)
+  //     06 03 2b 65 70  OID 1.3.101.112 (Ed25519)
+  //   03 21 00   BIT STRING (33 bytes, 0 unused bits) - 32-byte key follows
   ed25519: Buffer.from("302a300506032b6570032100", "hex"),
+  // 30 43        SEQUENCE (67 bytes total)
+  //   30 05      SEQUENCE (5 bytes)
+  //     06 03 2b 65 71  OID 1.3.101.113 (Ed448)
+  //   03 3a 00   BIT STRING (58 bytes, 0 unused bits) - 57-byte key follows
   ed448: Buffer.from("3043300506032b6571033a00", "hex"),
 };
 
