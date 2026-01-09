@@ -1,3 +1,19 @@
+//// Hash-based Message Authentication Code (HMAC).
+////
+//// HMAC provides message authentication using a cryptographic hash function
+//// combined with a secret key. Use it to verify both data integrity and
+//// authenticity.
+////
+//// ## Example
+////
+//// ```gleam
+//// import kryptos/hmac
+//// import kryptos/hash
+////
+//// let assert Ok(h) = hmac.new(hash.Sha256, <<"secret key":utf8>>)
+//// let mac = h |> hmac.update(<<"hello":utf8>>) |> hmac.final()
+//// ```
+
 import gleam/result
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/subtle
@@ -94,9 +110,9 @@ pub fn final(hmac: Hmac) -> BitArray
 /// - `Error(Nil)` - If the hash algorithm is not supported
 pub fn verify(
   algorithm: HashAlgorithm,
-  key: BitArray,
-  data: BitArray,
-  expected: BitArray,
+  key key: BitArray,
+  data data: BitArray,
+  expected expected: BitArray,
 ) -> Result(Bool, Nil) {
   use hmac_state <- result.try(new(algorithm, key))
 

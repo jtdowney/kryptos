@@ -128,23 +128,41 @@ pub fn public_key_from_bytes(
   public_bytes: BitArray,
 ) -> Result(PublicKey, Nil)
 
-/// Imports a private key from PEM-encoded data.
+/// Imports an XDH private key from PEM-encoded data.
 ///
-/// Expects a PKCS#8 encoded XDH private key.
-/// Returns the private key and derived public key, or an error if invalid.
+/// The key must be in PKCS#8 format.
+///
+/// ## Parameters
+/// - `pem`: PEM-encoded key string
+///
+/// ## Returns
+/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "xdh_import_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "xdhImportPrivateKeyPem")
 pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), Nil)
 
-/// Imports a private key from DER-encoded data.
+/// Imports an XDH private key from DER-encoded data.
 ///
-/// Expects a PKCS#8 encoded XDH private key.
-/// Returns the private key and derived public key, or an error if invalid.
+/// The key must be in PKCS#8 format.
+///
+/// ## Parameters
+/// - `der`: DER-encoded key data
+///
+/// ## Returns
+/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "xdh_import_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "xdhImportPrivateKeyDer")
 pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), Nil)
 
-/// Exports a private key to PEM format (PKCS#8).
+/// Exports an XDH private key to PEM format.
+///
+/// The key is exported in PKCS#8 format.
+///
+/// ## Parameters
+/// - `key`: The private key to export
+///
+/// ## Returns
+/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
 pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
   do_to_pem(key) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
 }
@@ -153,26 +171,54 @@ pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
 @external(javascript, "../kryptos_ffi.mjs", "xdhExportPrivateKeyPem")
 fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 
-/// Exports a private key to DER format (PKCS#8).
+/// Exports an XDH private key to DER format.
+///
+/// The key is exported in PKCS#8 format.
+///
+/// ## Parameters
+/// - `key`: The private key to export
+///
+/// ## Returns
+/// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "xdh_export_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "xdhExportPrivateKeyDer")
 pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 
-/// Imports a public key from PEM-encoded data.
+/// Imports an XDH public key from PEM-encoded data.
 ///
-/// Expects an SPKI encoded XDH public key.
+/// The key must be in SPKI format.
+///
+/// ## Parameters
+/// - `pem`: PEM-encoded key string
+///
+/// ## Returns
+/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "xdh_import_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "xdhImportPublicKeyPem")
 pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
 
-/// Imports a public key from DER-encoded data.
+/// Imports an XDH public key from DER-encoded data.
 ///
-/// Expects an SPKI encoded XDH public key.
+/// The key must be in SPKI format.
+///
+/// ## Parameters
+/// - `der`: DER-encoded key data
+///
+/// ## Returns
+/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "xdh_import_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "xdhImportPublicKeyDer")
 pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
 
-/// Exports a public key to PEM format (SPKI).
+/// Exports an XDH public key to PEM format.
+///
+/// The key is exported in SPKI format.
+///
+/// ## Parameters
+/// - `key`: The public key to export
+///
+/// ## Returns
+/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
 pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
   do_public_key_to_pem(key)
   |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
@@ -182,12 +228,26 @@ pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
 @external(javascript, "../kryptos_ffi.mjs", "xdhExportPublicKeyPem")
 fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 
-/// Exports a public key to DER format (SPKI).
+/// Exports an XDH public key to DER format.
+///
+/// The key is exported in SPKI format.
+///
+/// ## Parameters
+/// - `key`: The public key to export
+///
+/// ## Returns
+/// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "xdh_export_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "xdhExportPublicKeyDer")
 pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 
-/// Derives the public key from a private key.
+/// Derives the public key from an XDH private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The corresponding public key.
 @external(erlang, "kryptos_ffi", "xdh_public_key_from_private")
 @external(javascript, "../kryptos_ffi.mjs", "xdhPublicKeyFromPrivate")
 pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey

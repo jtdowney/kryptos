@@ -46,7 +46,6 @@ pub type Curve {
 /// Returns the coordinate size in bytes for the given curve.
 ///
 /// This is the size of each coordinate (x or y) in an EC point.
-/// An uncompressed point is 1 + 2 * coordinate_size bytes.
 pub fn coordinate_size(curve: Curve) -> Int {
   case curve {
     P256 | Secp256k1 -> 32
@@ -57,8 +56,8 @@ pub fn coordinate_size(curve: Curve) -> Int {
 
 /// Generates a new elliptic curve key pair.
 ///
-/// The private key should be kept secret and used for signing.
-/// The public key can be shared and is used for signature verification.
+/// The private key should be kept secret and used for signing or ECDH key agreement.
+/// The public key can be shared and is used for signature verification or ECDH key agreement.
 ///
 /// ## Parameters
 /// - `curve`: The elliptic curve to use for key generation

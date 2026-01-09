@@ -168,10 +168,10 @@ pub fn sign(
 @external(javascript, "../kryptos_ffi.mjs", "rsaVerify")
 pub fn verify(
   public_key: PublicKey,
-  message: BitArray,
-  signature: BitArray,
-  hash: HashAlgorithm,
-  padding: SignPadding,
+  message message: BitArray,
+  signature signature: BitArray,
+  hash hash: HashAlgorithm,
+  padding padding: SignPadding,
 ) -> Bool
 
 /// Encrypts data using RSA with the specified padding scheme.

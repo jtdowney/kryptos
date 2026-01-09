@@ -47,8 +47,8 @@ pub fn hash(algorithm: HashAlgorithm, data: BitArray) -> BitArray {
 /// - `Error(Nil)` - If the hash algorithm is not supported
 pub fn hmac(
   algorithm: HashAlgorithm,
-  key: BitArray,
-  data: BitArray,
+  key key: BitArray,
+  data data: BitArray,
 ) -> Result(BitArray, Nil) {
   use hmac <- result.try(hmac.new(algorithm, key))
 
@@ -126,8 +126,7 @@ pub fn pbkdf2(
 /// Generates cryptographically secure random bytes using the platform's
 /// cryptographically secure random number generator.
 ///
-/// ## Arguments
-///
+/// ## Parameters
 /// - `length`: The number of random bytes to generate. If negative, returns
 ///   an empty `BitArray`.
 ///
@@ -166,10 +165,9 @@ pub fn random_uuid() -> String {
 /// Use this function when comparing secrets like MACs, password hashes,
 /// API tokens, or any other security-sensitive data.
 ///
-/// ## Arguments
-///
-/// - `a`: The first bit array to compare.
-/// - `b`: The second bit array to compare.
+/// ## Parameters
+/// - `a`: The first bit array to compare
+/// - `b`: The second bit array to compare
 ///
 /// ## Returns
 /// `True` if `a` and `b` are equal, `False` otherwise. The comparison
