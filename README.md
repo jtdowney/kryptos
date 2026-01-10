@@ -7,7 +7,7 @@ A cryptography library for Gleam targeting both Erlang and JavaScript runtimes.
 
 ## Why kryptos?
 
-<img src="assets/kryptos.png" alt="kryptos logo" width="200" align="right">
+<img src="https://github.com/jtdowney/kryptos/blob/main/assets/kryptos.png?raw=true" alt="kryptos logo" width="200" align="right">
 
 - **Dual-runtime support** — Works on both Erlang and JavaScript (Node.js),
   wrapping each platform's native crypto APIs for consistent behavior.
