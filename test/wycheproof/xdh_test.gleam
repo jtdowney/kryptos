@@ -128,3 +128,105 @@ pub fn wycheproof_x448_test() {
     utils.load_test_file("x448_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
+
+fn run_asn_test(group: TestGroup, tc: TestCase) -> Nil {
+  let curve_result = curve_from_name(group.curve)
+  use <- bool.guard(result.is_error(curve_result), Nil)
+
+  let context = utils.test_context(tc.tc_id, tc.comment)
+  let assert Ok(public_der) = bit_array.base16_decode(tc.public)
+  let assert Ok(private_der) = bit_array.base16_decode(tc.private)
+  let assert Ok(expected_shared) = bit_array.base16_decode(tc.shared)
+
+  let pub_key_result = xdh.public_key_from_der(public_der)
+  let priv_key_result = xdh.from_der(private_der)
+
+  case tc.result, pub_key_result, priv_key_result {
+    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+      case xdh.compute_shared_secret(priv_key, peer_pub) {
+        Error(Nil) -> Nil
+        Ok(shared) -> {
+          assert shared != expected_shared
+            as { "XDH succeeded for invalid test: " <> context }
+        }
+      }
+    Invalid, _, _ -> Nil
+
+    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+      let assert Ok(shared) = xdh.compute_shared_secret(priv_key, peer_pub)
+      assert shared == expected_shared as context
+    }
+    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+
+    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+      case xdh.compute_shared_secret(priv_key, peer_pub) {
+        Ok(shared) -> {
+          assert shared == expected_shared as context
+        }
+        Error(Nil) -> Nil
+      }
+    Acceptable, _, _ -> Nil
+  }
+}
+
+pub fn wycheproof_x25519_asn_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("x25519_asn_test.json", test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_asn_test)
+}
+
+pub fn wycheproof_x448_asn_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("x448_asn_test.json", test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_asn_test)
+}
+
+fn run_pem_test(group: TestGroup, tc: TestCase) -> Nil {
+  let curve_result = curve_from_name(group.curve)
+  use <- bool.guard(result.is_error(curve_result), Nil)
+
+  let context = utils.test_context(tc.tc_id, tc.comment)
+  let assert Ok(expected_shared) = bit_array.base16_decode(tc.shared)
+
+  let pub_key_result = xdh.public_key_from_pem(tc.public)
+  let priv_key_result = xdh.from_pem(tc.private)
+
+  case tc.result, pub_key_result, priv_key_result {
+    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+      case xdh.compute_shared_secret(priv_key, peer_pub) {
+        Error(Nil) -> Nil
+        Ok(shared) -> {
+          assert shared != expected_shared
+            as { "XDH succeeded for invalid test: " <> context }
+        }
+      }
+    Invalid, _, _ -> Nil
+
+    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+      let assert Ok(shared) = xdh.compute_shared_secret(priv_key, peer_pub)
+      assert shared == expected_shared as context
+    }
+    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+
+    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+      case xdh.compute_shared_secret(priv_key, peer_pub) {
+        Ok(shared) -> {
+          assert shared == expected_shared as context
+        }
+        Error(Nil) -> Nil
+      }
+    Acceptable, _, _ -> Nil
+  }
+}
+
+pub fn wycheproof_x25519_pem_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("x25519_pem_test.json", test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)
+}
+
+pub fn wycheproof_x448_pem_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("x448_pem_test.json", test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)
+}

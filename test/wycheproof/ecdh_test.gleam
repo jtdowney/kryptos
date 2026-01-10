@@ -144,3 +144,63 @@ pub fn wycheproof_ecdh_secp256k1_test() {
     list.filter(test_file.test_groups, fn(g) { g.curve == "secp256k1" })
   utils.run_tests(groups, fn(g) { g.tests }, run_single_test)
 }
+
+fn run_pem_test(group: TestGroup, tc: TestCase) -> Nil {
+  case curve_from_name(group.curve) {
+    Error(Nil) -> Nil
+    Ok(_curve) -> run_pem_test_for_supported_curve(tc)
+  }
+}
+
+fn run_pem_test_for_supported_curve(tc: TestCase) -> Nil {
+  let context = utils.test_context(tc.tc_id, tc.comment)
+  let assert Ok(expected_shared) = bit_array.base16_decode(tc.shared)
+
+  let pub_key_result = ec.public_key_from_pem(tc.public)
+  let priv_key_result = ec.from_pem(tc.private)
+
+  case tc.result, pub_key_result, priv_key_result {
+    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+      case ecdh.compute_shared_secret(priv_key, peer_pub) {
+        Error(Nil) -> Nil
+        Ok(shared) -> {
+          assert shared != expected_shared
+            as { "ECDH succeeded for invalid test: " <> context }
+        }
+      }
+    Invalid, _, _ -> Nil
+
+    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+      let assert Ok(shared) = ecdh.compute_shared_secret(priv_key, peer_pub)
+      assert shared == expected_shared as context
+    }
+    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+
+    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+      case ecdh.compute_shared_secret(priv_key, peer_pub) {
+        Ok(shared) -> {
+          assert shared == expected_shared as context
+        }
+        Error(Nil) -> Nil
+      }
+    Acceptable, _, _ -> Nil
+  }
+}
+
+pub fn wycheproof_ecdh_secp256r1_pem_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("ecdh_secp256r1_pem_test.json", test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)
+}
+
+pub fn wycheproof_ecdh_secp384r1_pem_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("ecdh_secp384r1_pem_test.json", test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)
+}
+
+pub fn wycheproof_ecdh_secp521r1_pem_test() {
+  let assert Ok(test_file) =
+    utils.load_test_file("ecdh_secp521r1_pem_test.json", test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)
+}
