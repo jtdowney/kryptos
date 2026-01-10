@@ -3,6 +3,10 @@
 [![Package Version](https://img.shields.io/hexpm/v/kryptos)](https://hex.pm/packages/kryptos)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/kryptos/)
 
+<p align="right">
+  <img src="assets/kryptos.png" alt="kryptos logo" width="200">
+</p>
+
 A cryptography library for Gleam targeting both Erlang and JavaScript runtimes.
 
 ## Why kryptos?
