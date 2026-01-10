@@ -370,6 +370,16 @@ const EC_PUBLIC_KEY_OID = Buffer.from([
   0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
 ]);
 
+// Extracts DER bytes from a PEM-encoded string.
+function pemToDer(pem) {
+  const lines = pem.split("\n");
+  const base64Lines = lines.filter(
+    (line) => !line.startsWith("-----") && line.trim() !== "",
+  );
+  const base64 = base64Lines.join("");
+  return Buffer.from(base64, "base64");
+}
+
 // Validates that an EC SPKI DER uses a named curve OID (not explicit parameters).
 // This mirrors Erlang's behavior which only accepts {namedCurve, OID} format.
 function validateSpkiUsesNamedCurve(derBytes) {
@@ -632,7 +642,17 @@ export function ecImportPrivateKeyDer(der) {
 }
 
 export function ecImportPublicKeyPem(pem) {
-  return importPublicKeyPem(pem, "spki", ["ec"]);
+  try {
+    // Extract DER from PEM and validate it uses named curves
+    const derBytes = pemToDer(pem);
+    if (!validateSpkiUsesNamedCurve(derBytes)) {
+      return Result$Error(undefined);
+    }
+
+    return importPublicKeyPem(pem, "spki", ["ec"]);
+  } catch {
+    return Result$Error(undefined);
+  }
 }
 
 export function ecImportPublicKeyDer(der) {
