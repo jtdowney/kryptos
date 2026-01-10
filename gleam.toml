@@ -1,5 +1,5 @@
 name = "kryptos"
-version = "0.0.1"
+version = "1.0.0"
 description = "Cryptography library for Gleam targeting Erlang and JavaScript"
 licences = ["Apache-2.0"]
 repository = { type = "github", user = "jtdowney", repo = "kryptos" }
