@@ -1,5 +1,5 @@
 import gleam/bit_array
-import gleam/dict
+import gleam/list
 import gleam/result
 import kryptos/crypto
 import kryptos/hash
@@ -7,7 +7,7 @@ import kryptos/hash
 pub fn digest_table_test() {
   let input = <<"too many secrets":utf8>>
 
-  dict.from_list([
+  [
     #(
       hash.Blake2b,
       "6D0CD2A033C2C265A0343B1288892CE6DBABF2A4D183AD1AB421B0B8C399FDE8A91FF1CFE1F5DF36545D371869333F2BAD5508584C130CDFF3F16B6307141051",
@@ -51,8 +51,9 @@ pub fn digest_table_test() {
       hash.Sha3x512,
       "4C33F4D13255A63B30E242B785CDDEDD11E581E99C78C7C7DA18C5118AFEC348E37BBF9BC928A2C82C8F726719633F0FB2CD428868323BD319830A9B800E18D1",
     ),
-  ])
-  |> dict.each(fn(algorithm, expected) {
+  ]
+  |> list.each(fn(pair) {
+    let #(algorithm, expected) = pair
     let assert Ok(output) =
       crypto.hash(algorithm, input) |> result.map(bit_array.base16_encode)
     assert output == expected as hash.algorithm_name(algorithm)

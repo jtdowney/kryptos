@@ -1,5 +1,5 @@
 import gleam/bit_array
-import gleam/dict
+import gleam/list
 import kryptos/crypto
 import kryptos/hash
 import kryptos/hmac
@@ -83,7 +83,7 @@ pub fn hmac_algorithms_table_test() {
   let key = <<"secret key":utf8>>
   let data = <<"too many secrets":utf8>>
 
-  dict.from_list([
+  [
     #(hash.Md5, "D227C4587CDA0681B779EBEFE5443DD7"),
     #(hash.Sha1, "CB69ED7FFDA35AFECB0FB134A0E6BAA22E6F4B44"),
     #(
@@ -106,8 +106,9 @@ pub fn hmac_algorithms_table_test() {
       hash.Sha512x256,
       "16CCF3457238D495235D582DA8EE594E841EDC3D25F076B37E566AFA87DBB58A",
     ),
-  ])
-  |> dict.each(fn(algorithm, expected) {
+  ]
+  |> list.each(fn(pair) {
+    let #(algorithm, expected) = pair
     let assert Ok(output) = crypto.hmac(algorithm, key, data)
     assert bit_array.base16_encode(output) == expected
       as hash.algorithm_name(algorithm)
