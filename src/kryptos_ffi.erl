@@ -1,5 +1,13 @@
 -module(kryptos_ffi).
 
+-include_lib("kryptos/include/kryptos@aead_Ccm.hrl").
+-include_lib("kryptos/include/kryptos@aead_ChaCha20Poly1305.hrl").
+-include_lib("kryptos/include/kryptos@aead_Gcm.hrl").
+-include_lib("kryptos/include/kryptos@block_Aes.hrl").
+-include_lib("kryptos/include/kryptos@block_Cbc.hrl").
+-include_lib("kryptos/include/kryptos@block_Ctr.hrl").
+-include_lib("kryptos/include/kryptos@block_Ecb.hrl").
+-include_lib("kryptos/include/kryptos@rsa_Oaep.hrl").
 -include_lib("public_key/include/public_key.hrl").
 
 -export([
@@ -161,26 +169,26 @@ pbkdf2_derive(Algorithm, Password, Salt, Iterations, Length) ->
 %% AEAD Ciphers (GCM, CCM, ChaCha20-Poly1305)
 %%------------------------------------------------------------------------------
 
-aead_cipher_name({gcm, {aes, 128, _}, _}) ->
+aead_cipher_name(#gcm{cipher = #aes{key_size = 128}}) ->
     aes_128_gcm;
-aead_cipher_name({gcm, {aes, 192, _}, _}) ->
+aead_cipher_name(#gcm{cipher = #aes{key_size = 192}}) ->
     aes_192_gcm;
-aead_cipher_name({gcm, {aes, 256, _}, _}) ->
+aead_cipher_name(#gcm{cipher = #aes{key_size = 256}}) ->
     aes_256_gcm;
-aead_cipher_name({ccm, {aes, 128, _}, _, _}) ->
+aead_cipher_name(#ccm{cipher = #aes{key_size = 128}}) ->
     aes_128_ccm;
-aead_cipher_name({ccm, {aes, 192, _}, _, _}) ->
+aead_cipher_name(#ccm{cipher = #aes{key_size = 192}}) ->
     aes_192_ccm;
-aead_cipher_name({ccm, {aes, 256, _}, _, _}) ->
+aead_cipher_name(#ccm{cipher = #aes{key_size = 256}}) ->
     aes_256_ccm;
-aead_cipher_name({cha_cha20_poly1305, _}) ->
+aead_cipher_name(#cha_cha20_poly1305{}) ->
     chacha20_poly1305.
 
-aead_cipher_key({gcm, {aes, _, Key}, _}) ->
+aead_cipher_key(#gcm{cipher = #aes{key = Key}}) ->
     Key;
-aead_cipher_key({ccm, {aes, _, Key}, _, _}) ->
+aead_cipher_key(#ccm{cipher = #aes{key = Key}}) ->
     Key;
-aead_cipher_key({cha_cha20_poly1305, Key}) ->
+aead_cipher_key(#cha_cha20_poly1305{key = Key}) ->
     Key.
 
 aead_seal(Mode, Nonce, Plaintext, AdditionalData) ->
@@ -233,30 +241,30 @@ aead_open(Mode, Nonce, Tag, Ciphertext, AdditionalData) ->
 %% Block Ciphers (ECB, CBC, CTR)
 %%------------------------------------------------------------------------------
 
-block_cipher_name({ecb, {aes, 128, _}}) ->
+block_cipher_name(#ecb{cipher = #aes{key_size = 128}}) ->
     aes_128_ecb;
-block_cipher_name({ecb, {aes, 192, _}}) ->
+block_cipher_name(#ecb{cipher = #aes{key_size = 192}}) ->
     aes_192_ecb;
-block_cipher_name({ecb, {aes, 256, _}}) ->
+block_cipher_name(#ecb{cipher = #aes{key_size = 256}}) ->
     aes_256_ecb;
-block_cipher_name({cbc, {aes, 128, _}, _}) ->
+block_cipher_name(#cbc{cipher = #aes{key_size = 128}}) ->
     aes_128_cbc;
-block_cipher_name({cbc, {aes, 192, _}, _}) ->
+block_cipher_name(#cbc{cipher = #aes{key_size = 192}}) ->
     aes_192_cbc;
-block_cipher_name({cbc, {aes, 256, _}, _}) ->
+block_cipher_name(#cbc{cipher = #aes{key_size = 256}}) ->
     aes_256_cbc;
-block_cipher_name({ctr, {aes, 128, _}, _}) ->
+block_cipher_name(#ctr{cipher = #aes{key_size = 128}}) ->
     aes_128_ctr;
-block_cipher_name({ctr, {aes, 192, _}, _}) ->
+block_cipher_name(#ctr{cipher = #aes{key_size = 192}}) ->
     aes_192_ctr;
-block_cipher_name({ctr, {aes, 256, _}, _}) ->
+block_cipher_name(#ctr{cipher = #aes{key_size = 256}}) ->
     aes_256_ctr.
 
-block_cipher_padding({ecb, _}) ->
+block_cipher_padding(#ecb{}) ->
     pkcs_padding;
-block_cipher_padding({cbc, _, _}) ->
+block_cipher_padding(#cbc{}) ->
     pkcs_padding;
-block_cipher_padding({ctr, _, _}) ->
+block_cipher_padding(#ctr{}) ->
     none.
 
 block_cipher_encrypt(Mode, Plaintext) ->
@@ -916,7 +924,7 @@ rsa_verify(PublicKey, Message, Signature, Hash, Padding) ->
 
 rsa_encrypt_padding_opts(encrypt_pkcs1v15) ->
     [{rsa_padding, rsa_pkcs1_padding}];
-rsa_encrypt_padding_opts({oaep, Hash, Label}) ->
+rsa_encrypt_padding_opts(#oaep{hash = Hash, label = Label}) ->
     DigestType = hash_algorithm_name(Hash),
     Opts =
         [
