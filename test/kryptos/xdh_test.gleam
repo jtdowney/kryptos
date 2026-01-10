@@ -155,6 +155,20 @@ pub fn x25519_from_bytes_test() {
   assert shared1 == shared2
 }
 
+pub fn x25519_to_bytes_roundtrip_test() {
+  let assert Ok(priv_bytes) =
+    simplifile.read_bits("test/fixtures/x25519_raw_priv.bin")
+  let assert Ok(#(private, public)) = xdh.from_bytes(X25519, priv_bytes)
+
+  let exported_priv = xdh.to_bytes(private)
+  assert exported_priv == priv_bytes
+
+  let assert Ok(pub_bytes) =
+    simplifile.read_bits("test/fixtures/x25519_raw_pub.bin")
+  let exported_pub = xdh.public_key_to_bytes(public)
+  assert exported_pub == pub_bytes
+}
+
 pub fn x25519_public_key_from_bytes_test() {
   let assert Ok(pub_bytes) =
     simplifile.read_bits("test/fixtures/x25519_raw_pub.bin")
@@ -171,6 +185,20 @@ pub fn x448_from_bytes_test() {
   let assert Ok(shared1) = xdh.compute_shared_secret(private, other_public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 == shared2
+}
+
+pub fn x448_to_bytes_roundtrip_test() {
+  let assert Ok(priv_bytes) =
+    simplifile.read_bits("test/fixtures/x448_raw_priv.bin")
+  let assert Ok(#(private, public)) = xdh.from_bytes(X448, priv_bytes)
+
+  let exported_priv = xdh.to_bytes(private)
+  assert exported_priv == priv_bytes
+
+  let assert Ok(pub_bytes) =
+    simplifile.read_bits("test/fixtures/x448_raw_pub.bin")
+  let exported_pub = xdh.public_key_to_bytes(public)
+  assert exported_pub == pub_bytes
 }
 
 pub fn x448_public_key_from_bytes_test() {

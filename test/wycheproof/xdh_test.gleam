@@ -100,9 +100,24 @@ fn run_test_for_curve(curve: xdh.Curve, tc: TestCase) -> Nil {
       }
     Invalid, _, _ -> Nil
 
-    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+    Valid, Ok(peer_pub), Ok(#(priv_key, my_pub)) -> {
       let assert Ok(shared) = xdh.compute_shared_secret(priv_key, peer_pub)
       assert shared == expected_shared as context
+
+      let exported_priv = xdh.to_bytes(priv_key)
+      assert exported_priv == private_bytes
+        as { "Private key roundtrip failed: " <> context }
+
+      let exported_peer_pub = xdh.public_key_to_bytes(peer_pub)
+      assert exported_peer_pub == public_bytes
+        as { "Peer public key roundtrip failed: " <> context }
+
+      let exported_my_pub = xdh.public_key_to_bytes(my_pub)
+      let assert Ok(reimported_pub) =
+        xdh.public_key_from_bytes(curve, exported_my_pub)
+      let exported_again = xdh.public_key_to_bytes(reimported_pub)
+      assert exported_my_pub == exported_again
+        as { "Own public key roundtrip failed: " <> context }
     }
     Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
 

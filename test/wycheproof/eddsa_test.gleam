@@ -101,6 +101,10 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
         as { "Public key import failed: " <> context }
       assert eddsa.verify(pub_key, msg_bytes, sig_bytes)
         as { "EdDSA verification failed for valid test: " <> context }
+
+      let exported_pk = eddsa.public_key_to_bytes(pub_key)
+      assert exported_pk == pk_bytes
+        as { "Public key roundtrip failed: " <> context }
     }
     Acceptable -> {
       case eddsa.public_key_from_bytes(curve, pk_bytes) {

@@ -35,8 +35,10 @@
     eddsa_import_public_key_der/1,
     eddsa_import_public_key_pem/1,
     eddsa_private_key_from_bytes/2,
+    eddsa_private_key_to_bytes/1,
     eddsa_public_key_from_bytes/2,
     eddsa_public_key_from_private/1,
+    eddsa_public_key_to_bytes/1,
     eddsa_sign/2,
     eddsa_verify/3,
     hash_new/1,
@@ -70,8 +72,10 @@
     xdh_import_public_key_der/1,
     xdh_import_public_key_pem/1,
     xdh_private_key_from_bytes/2,
+    xdh_private_key_to_bytes/1,
     xdh_public_key_from_bytes/2,
-    xdh_public_key_from_private/1
+    xdh_public_key_from_private/1,
+    xdh_public_key_to_bytes/1
 ]).
 
 %%------------------------------------------------------------------------------
@@ -654,6 +658,12 @@ xdh_public_key_from_bytes(Curve, PublicBytes) ->
             {error, nil}
     end.
 
+xdh_private_key_to_bytes({PrivBytes, _Curve}) ->
+    PrivBytes.
+
+xdh_public_key_to_bytes({PubBytes, _Curve}) ->
+    PubBytes.
+
 xdh_public_key_from_private({PrivBytes, Curve}) ->
     {PubKey, _} = crypto:generate_key(ecdh, Curve, PrivBytes),
     {PubKey, Curve}.
@@ -1144,6 +1154,12 @@ eddsa_public_key_from_bytes(Curve, PublicBytes) ->
         _ ->
             {error, nil}
     end.
+
+eddsa_private_key_to_bytes({PrivBytes, _Curve}) ->
+    PrivBytes.
+
+eddsa_public_key_to_bytes({PubBytes, _Curve}) ->
+    PubBytes.
 
 eddsa_public_key_from_private({PrivBytes, Curve}) ->
     {PubKey, _} = crypto:generate_key(eddsa, Curve, PrivBytes),

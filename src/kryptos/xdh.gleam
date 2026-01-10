@@ -114,6 +114,15 @@ pub fn from_bytes(
   private_bytes: BitArray,
 ) -> Result(#(PrivateKey, PublicKey), Nil)
 
+/// Exports a private key to raw bytes.
+///
+/// Returns the raw private key scalar:
+/// - X25519: 32 bytes
+/// - X448: 56 bytes
+@external(erlang, "kryptos_ffi", "xdh_private_key_to_bytes")
+@external(javascript, "../kryptos_ffi.mjs", "xdhPrivateKeyToBytes")
+pub fn to_bytes(key: PrivateKey) -> BitArray
+
 /// Imports a public key from raw bytes.
 ///
 /// The bytes should be the raw public key point:
@@ -127,6 +136,15 @@ pub fn public_key_from_bytes(
   curve: Curve,
   public_bytes: BitArray,
 ) -> Result(PublicKey, Nil)
+
+/// Exports a public key to raw bytes.
+///
+/// Returns the raw public key point:
+/// - X25519: 32 bytes
+/// - X448: 56 bytes
+@external(erlang, "kryptos_ffi", "xdh_public_key_to_bytes")
+@external(javascript, "../kryptos_ffi.mjs", "xdhPublicKeyToBytes")
+pub fn public_key_to_bytes(key: PublicKey) -> BitArray
 
 /// Imports an XDH private key from PEM-encoded data.
 ///

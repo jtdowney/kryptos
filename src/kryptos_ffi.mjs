@@ -801,6 +801,20 @@ export function xdhPublicKeyFromBytes(curve, publicBytes) {
   }
 }
 
+export function xdhPrivateKeyToBytes(privateKey) {
+  const der = privateKey.export({ format: "der", type: "pkcs8" });
+  const curveName = privateKey.asymmetricKeyType;
+  const prefixLen = XDH_PRIVATE_DER_PREFIX[curveName].length;
+  return BitArray$BitArray(der.subarray(prefixLen));
+}
+
+export function xdhPublicKeyToBytes(publicKey) {
+  const der = publicKey.export({ format: "der", type: "spki" });
+  const curveName = publicKey.asymmetricKeyType;
+  const prefixLen = XDH_PUBLIC_DER_PREFIX[curveName].length;
+  return BitArray$BitArray(der.subarray(prefixLen));
+}
+
 export function xdhComputeSharedSecret(privateKey, peerPublicKey) {
   try {
     const sharedSecret = crypto.diffieHellman({
@@ -1186,6 +1200,20 @@ export function eddsaPublicKeyFromBytes(curve, publicBytes) {
   } catch {
     return Result$Error(undefined);
   }
+}
+
+export function eddsaPrivateKeyToBytes(privateKey) {
+  const der = privateKey.export({ format: "der", type: "pkcs8" });
+  const curveName = privateKey.asymmetricKeyType;
+  const prefixLen = EDDSA_PRIVATE_DER_PREFIX[curveName].length;
+  return BitArray$BitArray(der.subarray(prefixLen));
+}
+
+export function eddsaPublicKeyToBytes(publicKey) {
+  const der = publicKey.export({ format: "der", type: "spki" });
+  const curveName = publicKey.asymmetricKeyType;
+  const prefixLen = EDDSA_PUBLIC_DER_PREFIX[curveName].length;
+  return BitArray$BitArray(der.subarray(prefixLen));
 }
 
 export function eddsaSign(privateKey, message) {

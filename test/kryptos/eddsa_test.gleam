@@ -115,6 +115,20 @@ pub fn ed25519_from_bytes_test() {
   assert eddsa.verify(public, message, signature)
 }
 
+pub fn ed25519_to_bytes_roundtrip_test() {
+  let assert Ok(priv_bytes) =
+    simplifile.read_bits("test/fixtures/ed25519_raw_priv.bin")
+  let assert Ok(#(private, public)) = eddsa.from_bytes(Ed25519, priv_bytes)
+
+  let exported_priv = eddsa.to_bytes(private)
+  assert exported_priv == priv_bytes
+
+  let assert Ok(pub_bytes) =
+    simplifile.read_bits("test/fixtures/ed25519_raw_pub.bin")
+  let exported_pub = eddsa.public_key_to_bytes(public)
+  assert exported_pub == pub_bytes
+}
+
 pub fn ed25519_public_key_from_bytes_test() {
   let assert Ok(pub_bytes) =
     simplifile.read_bits("test/fixtures/ed25519_raw_pub.bin")
@@ -133,6 +147,20 @@ pub fn ed448_from_bytes_test() {
   let message = <<"ed448 from_bytes test":utf8>>
   let signature = eddsa.sign(private, message)
   assert eddsa.verify(public, message, signature)
+}
+
+pub fn ed448_to_bytes_roundtrip_test() {
+  let assert Ok(priv_bytes) =
+    simplifile.read_bits("test/fixtures/ed448_raw_priv.bin")
+  let assert Ok(#(private, public)) = eddsa.from_bytes(Ed448, priv_bytes)
+
+  let exported_priv = eddsa.to_bytes(private)
+  assert exported_priv == priv_bytes
+
+  let assert Ok(pub_bytes) =
+    simplifile.read_bits("test/fixtures/ed448_raw_pub.bin")
+  let exported_pub = eddsa.public_key_to_bytes(public)
+  assert exported_pub == pub_bytes
 }
 
 pub fn ed448_public_key_from_bytes_test() {
