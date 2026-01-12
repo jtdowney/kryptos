@@ -1,5 +1,5 @@
-import gleeunit
+import unitest
 
 pub fn main() -> Nil {
-  gleeunit.main()
+  unitest.main()
 }
