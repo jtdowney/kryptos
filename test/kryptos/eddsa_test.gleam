@@ -337,3 +337,27 @@ pub fn import_ed448_spki_pub_der_test() {
   let signature = eddsa.sign(private, <<"too many secrets":utf8>>)
   assert eddsa.verify(public, <<"too many secrets":utf8>>, signature)
 }
+
+pub fn private_key_curve_ed25519_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/ed25519_pkcs8.pem")
+  let assert Ok(#(private, _)) = eddsa.from_pem(pem)
+  assert eddsa.curve(private) == eddsa.Ed25519
+}
+
+pub fn public_key_curve_ed25519_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/ed25519_spki_pub.pem")
+  let assert Ok(public) = eddsa.public_key_from_pem(pem)
+  assert eddsa.public_key_curve(public) == eddsa.Ed25519
+}
+
+pub fn private_key_curve_ed448_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/ed448_pkcs8.pem")
+  let assert Ok(#(private, _)) = eddsa.from_pem(pem)
+  assert eddsa.curve(private) == eddsa.Ed448
+}
+
+pub fn public_key_curve_ed448_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/ed448_spki_pub.pem")
+  let assert Ok(public) = eddsa.public_key_from_pem(pem)
+  assert eddsa.public_key_curve(public) == eddsa.Ed448
+}

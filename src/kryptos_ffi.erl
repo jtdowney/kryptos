@@ -30,6 +30,8 @@
     ec_public_key_from_raw_point/2,
     ec_public_key_to_raw_point/1,
     ec_public_key_from_x509/1,
+    ec_private_key_curve/1,
+    ec_public_key_curve/1,
     ecdh_compute_shared_secret/2,
     ecdsa_sign/3,
     ecdsa_verify/4,
@@ -47,6 +49,8 @@
     eddsa_public_key_from_bytes/2,
     eddsa_public_key_from_private/1,
     eddsa_public_key_to_bytes/1,
+    eddsa_private_key_curve/1,
+    eddsa_public_key_curve/1,
     eddsa_sign/2,
     eddsa_verify/3,
     hash_new/1,
@@ -67,6 +71,10 @@
     rsa_private_key_from_pkcs8/1,
     rsa_public_key_from_private/1,
     rsa_public_key_from_x509/1,
+    rsa_private_key_modulus_bits/1,
+    rsa_public_key_modulus_bits/1,
+    rsa_private_key_public_exponent/1,
+    rsa_public_key_public_exponent/1,
     rsa_sign/4,
     rsa_verify/5,
     xdh_compute_shared_secret/2,
@@ -83,7 +91,9 @@
     xdh_private_key_to_bytes/1,
     xdh_public_key_from_bytes/2,
     xdh_public_key_from_private/1,
-    xdh_public_key_to_bytes/1
+    xdh_public_key_to_bytes/1,
+    xdh_private_key_curve/1,
+    xdh_public_key_curve/1
 ]).
 
 %%------------------------------------------------------------------------------
@@ -474,6 +484,17 @@ ec_public_key_from_private(#'ECPrivateKey'{
     CurveName = oid_to_curve(CurveOID),
     {{'ECPoint', PublicPoint}, {namedCurve, CurveName}}.
 
+ec_private_key_curve(#'ECPrivateKey'{parameters = {namedCurve, CurveOID}}) ->
+    erlang_ec_curve_to_gleam(oid_to_curve(CurveOID)).
+
+ec_public_key_curve({{'ECPoint', _}, {namedCurve, CurveName}}) ->
+    erlang_ec_curve_to_gleam(CurveName).
+
+erlang_ec_curve_to_gleam(secp256r1) -> p256;
+erlang_ec_curve_to_gleam(secp384r1) -> p384;
+erlang_ec_curve_to_gleam(secp521r1) -> p521;
+erlang_ec_curve_to_gleam(secp256k1) -> secp256k1.
+
 ecdsa_sign(PrivateKey, Message, HashAlgorithm) ->
     DigestType = hash_algorithm_name(HashAlgorithm),
     public_key:sign(Message, DigestType, PrivateKey).
@@ -675,6 +696,12 @@ xdh_public_key_to_bytes({PubBytes, _Curve}) ->
 xdh_public_key_from_private({PrivBytes, Curve}) ->
     {PubKey, _} = crypto:generate_key(ecdh, Curve, PrivBytes),
     {PubKey, Curve}.
+
+xdh_private_key_curve({_PrivBytes, Curve}) ->
+    Curve.
+
+xdh_public_key_curve({_PubBytes, Curve}) ->
+    Curve.
 
 xdh_compute_shared_secret({PrivKey, PrivCurve}, {PeerPubKey, PeerCurve}) ->
     try
@@ -884,6 +911,18 @@ rsa_public_key_from_private(PrivKey) ->
         modulus = PrivKey#'RSAPrivateKey'.modulus,
         publicExponent = PrivKey#'RSAPrivateKey'.publicExponent
     }.
+
+rsa_private_key_modulus_bits(#'RSAPrivateKey'{modulus = N}) ->
+    bit_size(binary:encode_unsigned(N)).
+
+rsa_public_key_modulus_bits(#'RSAPublicKey'{modulus = N}) ->
+    bit_size(binary:encode_unsigned(N)).
+
+rsa_private_key_public_exponent(#'RSAPrivateKey'{publicExponent = E}) ->
+    E.
+
+rsa_public_key_public_exponent(#'RSAPublicKey'{publicExponent = E}) ->
+    E.
 
 %% RSA Signing
 
@@ -1172,6 +1211,12 @@ eddsa_public_key_to_bytes({PubBytes, _Curve}) ->
 eddsa_public_key_from_private({PrivBytes, Curve}) ->
     {PubKey, _} = crypto:generate_key(eddsa, Curve, PrivBytes),
     {PubKey, Curve}.
+
+eddsa_private_key_curve({_PrivBytes, Curve}) ->
+    Curve.
+
+eddsa_public_key_curve({_PubBytes, Curve}) ->
+    Curve.
 
 eddsa_sign({PrivKey, Curve}, Message) ->
     crypto:sign(eddsa, none, Message, [PrivKey, Curve]).

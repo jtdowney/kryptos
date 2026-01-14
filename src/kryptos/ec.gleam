@@ -224,3 +224,25 @@ pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 @external(erlang, "kryptos_ffi", "ec_public_key_from_private")
 @external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyFromPrivate")
 pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey
+
+/// Returns the curve for an EC private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The curve used by this key.
+@external(erlang, "kryptos_ffi", "ec_private_key_curve")
+@external(javascript, "../kryptos_ffi.mjs", "ecPrivateKeyCurve")
+pub fn curve(key: PrivateKey) -> Curve
+
+/// Returns the curve for an EC public key.
+///
+/// ## Parameters
+/// - `key`: The public key
+///
+/// ## Returns
+/// The curve used by this key.
+@external(erlang, "kryptos_ffi", "ec_public_key_curve")
+@external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyCurve")
+pub fn public_key_curve(key: PublicKey) -> Curve

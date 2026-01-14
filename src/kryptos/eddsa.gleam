@@ -258,3 +258,25 @@ pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 @external(erlang, "kryptos_ffi", "eddsa_public_key_from_private")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaPublicKeyFromPrivate")
 pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey
+
+/// Returns the curve for an EdDSA private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The curve used by this key.
+@external(erlang, "kryptos_ffi", "eddsa_private_key_curve")
+@external(javascript, "../kryptos_ffi.mjs", "eddsaPrivateKeyCurve")
+pub fn curve(key: PrivateKey) -> Curve
+
+/// Returns the curve for an EdDSA public key.
+///
+/// ## Parameters
+/// - `key`: The public key
+///
+/// ## Returns
+/// The curve used by this key.
+@external(erlang, "kryptos_ffi", "eddsa_public_key_curve")
+@external(javascript, "../kryptos_ffi.mjs", "eddsaPublicKeyCurve")
+pub fn public_key_curve(key: PublicKey) -> Curve

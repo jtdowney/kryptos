@@ -351,3 +351,47 @@ pub fn public_key_to_der(
 @external(erlang, "kryptos_ffi", "rsa_public_key_from_private")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyFromPrivate")
 pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey
+
+/// Returns the modulus size in bits for an RSA private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The size of the modulus in bits (e.g., 2048, 4096).
+@external(erlang, "kryptos_ffi", "rsa_private_key_modulus_bits")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyModulusBits")
+pub fn modulus_bits(key: PrivateKey) -> Int
+
+/// Returns the modulus size in bits for an RSA public key.
+///
+/// ## Parameters
+/// - `key`: The public key
+///
+/// ## Returns
+/// The size of the modulus in bits (e.g., 2048, 4096).
+@external(erlang, "kryptos_ffi", "rsa_public_key_modulus_bits")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyModulusBits")
+pub fn public_key_modulus_bits(key: PublicKey) -> Int
+
+/// Returns the public exponent for an RSA private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The public exponent (commonly 65537).
+@external(erlang, "kryptos_ffi", "rsa_private_key_public_exponent")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPublicExponent")
+pub fn public_exponent(key: PrivateKey) -> Int
+
+/// Returns the public exponent for an RSA public key.
+///
+/// ## Parameters
+/// - `key`: The public key
+///
+/// ## Returns
+/// The public exponent (commonly 65537).
+@external(erlang, "kryptos_ffi", "rsa_public_key_public_exponent")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyPublicExponent")
+pub fn public_key_exponent(key: PublicKey) -> Int

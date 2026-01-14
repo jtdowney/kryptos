@@ -27,6 +27,8 @@ import {
 import {
   Curve$isEd25519,
   Curve$isEd448,
+  Curve$Ed25519,
+  Curve$Ed448,
   key_size as eddsaKeySize,
 } from "./kryptos/eddsa.mjs";
 import { algorithm_name as hashAlgorithmName } from "./kryptos/hash.mjs";
@@ -48,6 +50,8 @@ import {
 import {
   Curve$isX25519,
   Curve$isX448,
+  Curve$X25519,
+  Curve$X448,
   key_size as xdhKeySize,
 } from "./kryptos/xdh.mjs";
 
@@ -340,12 +344,41 @@ export function ecPublicKeyFromPrivate(privateKey) {
   return crypto.createPublicKey(privateKey);
 }
 
+export function ecPrivateKeyCurve(key) {
+  const jwk = key.export({ format: "jwk" });
+  return jwkCrvToCurve(jwk.crv);
+}
+
+export function ecPublicKeyCurve(key) {
+  const jwk = key.export({ format: "jwk" });
+  return jwkCrvToCurve(jwk.crv);
+}
+
 export function eddsaPublicKeyFromPrivate(privateKey) {
   const keyType = privateKey.asymmetricKeyType;
   if (keyType !== "ed25519" && keyType !== "ed448") {
     throw new Error(`Expected EdDSA private key, got ${keyType}`);
   }
   return crypto.createPublicKey(privateKey);
+}
+
+function keyTypeToEddsaCurve(keyType) {
+  switch (keyType) {
+    case "ed25519":
+      return Curve$Ed25519();
+    case "ed448":
+      return Curve$Ed448();
+    default:
+      throw new Error(`Unsupported EdDSA key type: ${keyType}`);
+  }
+}
+
+export function eddsaPrivateKeyCurve(key) {
+  return keyTypeToEddsaCurve(key.asymmetricKeyType);
+}
+
+export function eddsaPublicKeyCurve(key) {
+  return keyTypeToEddsaCurve(key.asymmetricKeyType);
 }
 
 export function rsaPublicKeyFromPrivate(privateKey) {
@@ -357,12 +390,58 @@ export function rsaPublicKeyFromPrivate(privateKey) {
   return crypto.createPublicKey(privateKey);
 }
 
+export function rsaPrivateKeyModulusBits(key) {
+  return key.asymmetricKeyDetails.modulusLength;
+}
+
+export function rsaPublicKeyModulusBits(key) {
+  return key.asymmetricKeyDetails.modulusLength;
+}
+
+function base64UrlToInt(base64url) {
+  const buffer = Buffer.from(base64url, "base64url");
+  let result = 0n;
+  for (const byte of buffer) {
+    result = (result << 8n) | BigInt(byte);
+  }
+  return Number(result);
+}
+
+export function rsaPrivateKeyPublicExponent(key) {
+  const jwk = key.export({ format: "jwk" });
+  return base64UrlToInt(jwk.e);
+}
+
+export function rsaPublicKeyPublicExponent(key) {
+  const jwk = key.export({ format: "jwk" });
+  return base64UrlToInt(jwk.e);
+}
+
 export function xdhPublicKeyFromPrivate(privateKey) {
   const keyType = privateKey.asymmetricKeyType;
   if (keyType !== "x25519" && keyType !== "x448") {
     throw new Error(`Expected XDH private key, got ${keyType}`);
   }
   return crypto.createPublicKey(privateKey);
+}
+
+function keyTypeToXdhCurve(keyType) {
+  switch (keyType) {
+    case "x25519":
+      return Curve$X25519();
+    case "x448":
+      return Curve$X448();
+    default:
+      throw new Error(`Unsupported XDH key type: ${keyType}`);
+  }
+}
+
+export function xdhPrivateKeyCurve(key) {
+  return keyTypeToXdhCurve(key.asymmetricKeyType);
+}
+
+export function xdhPublicKeyCurve(key) {
+  return keyTypeToXdhCurve(key.asymmetricKeyType);
 }
 
 // OID 1.2.840.10045.2.1 (id-ecPublicKey)

@@ -269,3 +269,25 @@ pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 @external(erlang, "kryptos_ffi", "xdh_public_key_from_private")
 @external(javascript, "../kryptos_ffi.mjs", "xdhPublicKeyFromPrivate")
 pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey
+
+/// Returns the curve for an XDH private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The curve used by this key.
+@external(erlang, "kryptos_ffi", "xdh_private_key_curve")
+@external(javascript, "../kryptos_ffi.mjs", "xdhPrivateKeyCurve")
+pub fn curve(key: PrivateKey) -> Curve
+
+/// Returns the curve for an XDH public key.
+///
+/// ## Parameters
+/// - `key`: The public key
+///
+/// ## Returns
+/// The curve used by this key.
+@external(erlang, "kryptos_ffi", "xdh_public_key_curve")
+@external(javascript, "../kryptos_ffi.mjs", "xdhPublicKeyCurve")
+pub fn public_key_curve(key: PublicKey) -> Curve

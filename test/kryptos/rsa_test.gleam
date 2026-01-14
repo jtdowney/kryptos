@@ -426,3 +426,51 @@ pub fn import_rsa2048_pkcs1_pub_der_test() {
     rsa.Pkcs1v15,
   )
 }
+
+pub fn private_key_modulus_bits_2048_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
+  let assert Ok(#(private, _)) = rsa.from_pem(pem, rsa.Pkcs8)
+  assert rsa.modulus_bits(private) == 2048
+}
+
+pub fn public_key_modulus_bits_2048_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_spki_pub.pem")
+  let assert Ok(public) = rsa.public_key_from_pem(pem, rsa.Spki)
+  assert rsa.public_key_modulus_bits(public) == 2048
+}
+
+pub fn private_key_exponent_65537_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
+  let assert Ok(#(private, _)) = rsa.from_pem(pem, rsa.Pkcs8)
+  assert rsa.public_exponent(private) == 65_537
+}
+
+pub fn public_key_exponent_65537_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_spki_pub.pem")
+  let assert Ok(public) = rsa.public_key_from_pem(pem, rsa.Spki)
+  assert rsa.public_key_exponent(public) == 65_537
+}
+
+pub fn private_key_modulus_bits_1024_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa1024_e3_pkcs8.pem")
+  let assert Ok(#(private, _)) = rsa.from_pem(pem, rsa.Pkcs8)
+  assert rsa.modulus_bits(private) == 1024
+}
+
+pub fn public_key_modulus_bits_1024_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa1024_e3_spki_pub.pem")
+  let assert Ok(public) = rsa.public_key_from_pem(pem, rsa.Spki)
+  assert rsa.public_key_modulus_bits(public) == 1024
+}
+
+pub fn private_key_exponent_3_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa1024_e3_pkcs8.pem")
+  let assert Ok(#(private, _)) = rsa.from_pem(pem, rsa.Pkcs8)
+  assert rsa.public_exponent(private) == 3
+}
+
+pub fn public_key_exponent_3_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/rsa1024_e3_spki_pub.pem")
+  let assert Ok(public) = rsa.public_key_from_pem(pem, rsa.Spki)
+  assert rsa.public_key_exponent(public) == 3
+}

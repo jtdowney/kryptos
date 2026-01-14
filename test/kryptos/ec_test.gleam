@@ -420,3 +420,51 @@ pub fn public_key_to_raw_point_decompresses_secp256k1_test() {
   assert ecdsa.verify(public_key, message, signature, hash.Sha256)
   assert ecdsa.verify(reimported, message, signature, hash.Sha256)
 }
+
+pub fn private_key_curve_p256_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/p256_pkcs8.pem")
+  let assert Ok(#(private, _)) = ec.from_pem(pem)
+  assert ec.curve(private) == ec.P256
+}
+
+pub fn public_key_curve_p256_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/p256_spki_pub.pem")
+  let assert Ok(public) = ec.public_key_from_pem(pem)
+  assert ec.public_key_curve(public) == ec.P256
+}
+
+pub fn private_key_curve_p384_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/p384_pkcs8.pem")
+  let assert Ok(#(private, _)) = ec.from_pem(pem)
+  assert ec.curve(private) == ec.P384
+}
+
+pub fn public_key_curve_p384_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/p384_spki_pub.pem")
+  let assert Ok(public) = ec.public_key_from_pem(pem)
+  assert ec.public_key_curve(public) == ec.P384
+}
+
+pub fn private_key_curve_p521_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/p521_pkcs8.pem")
+  let assert Ok(#(private, _)) = ec.from_pem(pem)
+  assert ec.curve(private) == ec.P521
+}
+
+pub fn public_key_curve_p521_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/p521_spki_pub.pem")
+  let assert Ok(public) = ec.public_key_from_pem(pem)
+  assert ec.public_key_curve(public) == ec.P521
+}
+
+pub fn private_key_curve_secp256k1_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/secp256k1_pkcs8.pem")
+  let assert Ok(#(private, _)) = ec.from_pem(pem)
+  assert ec.curve(private) == ec.Secp256k1
+}
+
+pub fn public_key_curve_secp256k1_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/secp256k1_spki_pub.pem")
+  let assert Ok(public) = ec.public_key_from_pem(pem)
+  assert ec.public_key_curve(public) == ec.Secp256k1
+}

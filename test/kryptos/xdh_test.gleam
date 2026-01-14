@@ -373,3 +373,27 @@ pub fn import_x448_spki_pub_der_test() {
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 != shared2
 }
+
+pub fn private_key_curve_x25519_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/x25519_pkcs8.pem")
+  let assert Ok(#(private, _)) = xdh.from_pem(pem)
+  assert xdh.curve(private) == xdh.X25519
+}
+
+pub fn public_key_curve_x25519_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/x25519_spki_pub.pem")
+  let assert Ok(public) = xdh.public_key_from_pem(pem)
+  assert xdh.public_key_curve(public) == xdh.X25519
+}
+
+pub fn private_key_curve_x448_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/x448_pkcs8.pem")
+  let assert Ok(#(private, _)) = xdh.from_pem(pem)
+  assert xdh.curve(private) == xdh.X448
+}
+
+pub fn public_key_curve_x448_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/x448_spki_pub.pem")
+  let assert Ok(public) = xdh.public_key_from_pem(pem)
+  assert xdh.public_key_curve(public) == xdh.X448
+}
