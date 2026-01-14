@@ -3,7 +3,7 @@ import gleam/dynamic/decode
 import gleam/option.{None, Some}
 import kryptos/crypto
 import kryptos/hash
-import wycheproof/utils.{Invalid, Valid}
+import wycheproof/utils.{Acceptable, Invalid, Valid}
 
 type TestCase {
   TestCase(
@@ -85,7 +85,7 @@ fn run_single_test(algorithm: hash.HashAlgorithm, tc: TestCase) -> Nil {
   let context = utils.test_context(tc.tc_id, tc.comment)
 
   case tc.result {
-    Valid -> {
+    Valid | Acceptable -> {
       let assert Ok(computed) = result as context
       assert computed == expected_okm as context
     }

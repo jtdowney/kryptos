@@ -7,6 +7,7 @@ import simplifile
 pub type TestResult {
   Valid
   Invalid
+  Acceptable
 }
 
 pub fn test_result_decoder() -> decode.Decoder(TestResult) {
@@ -14,6 +15,7 @@ pub fn test_result_decoder() -> decode.Decoder(TestResult) {
   case value {
     "valid" -> decode.success(Valid)
     "invalid" -> decode.success(Invalid)
+    "acceptable" -> decode.success(Acceptable)
     _ -> decode.failure(Valid, "TestResult")
   }
 }

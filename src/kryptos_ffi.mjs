@@ -295,6 +295,65 @@ export function blockCipherDecrypt(mode, ciphertext) {
 }
 
 // =============================================================================
+// Key Wrapping (AES-KW, RFC 3394)
+// =============================================================================
+
+// RFC 3394 default IV
+const KEYWRAP_DEFAULT_IV = Buffer.from([
+  0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6,
+]);
+
+function keywrapCipherName(cipher) {
+  const keySize = cipher.key_size;
+  switch (keySize) {
+    case 128:
+      return "aes128-wrap";
+    case 192:
+      return "aes192-wrap";
+    case 256:
+      return "aes256-wrap";
+    default:
+      throw new Error(`Unknown key size: ${keySize}`);
+  }
+}
+
+export function blockCipherWrap(cipher, plaintext) {
+  try {
+    const algorithm = keywrapCipherName(cipher);
+    const key = cipher.key.rawBuffer;
+
+    const cipherObj = crypto.createCipheriv(algorithm, key, KEYWRAP_DEFAULT_IV);
+    const updateOutput = cipherObj.update(plaintext.rawBuffer);
+    const finalOutput = cipherObj.final();
+    const ciphertext = Buffer.concat([updateOutput, finalOutput]);
+
+    return Result$Ok(BitArray$BitArray(ciphertext));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function blockCipherUnwrap(cipher, ciphertext) {
+  try {
+    const algorithm = keywrapCipherName(cipher);
+    const key = cipher.key.rawBuffer;
+
+    const decipherObj = crypto.createDecipheriv(
+      algorithm,
+      key,
+      KEYWRAP_DEFAULT_IV,
+    );
+    const updateOutput = decipherObj.update(ciphertext.rawBuffer);
+    const finalOutput = decipherObj.final();
+    const plaintext = Buffer.concat([updateOutput, finalOutput]);
+
+    return Result$Ok(BitArray$BitArray(plaintext));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+// =============================================================================
 // Curve Helpers (shared by EC, EdDSA, XDH)
 // =============================================================================
 

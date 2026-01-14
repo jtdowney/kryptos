@@ -1,4 +1,5 @@
 import gleam/bit_array
+import gleam/int
 import kryptos/block
 import kryptos/crypto
 
@@ -215,4 +216,84 @@ pub fn ctr_different_nonce_different_ciphertext_test() {
 
   // Different nonces should produce different ciphertext
   assert ct1 != ct2
+}
+
+pub fn wrap_unwrap_aes_128_roundtrip_test() {
+  let assert Ok(kek) = block.aes_128(crypto.random_bytes(16))
+  let key_to_wrap = crypto.random_bytes(16)
+  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
+  let assert Ok(unwrapped) = block.unwrap(kek, wrapped)
+
+  assert unwrapped == key_to_wrap
+  assert bit_array.byte_size(wrapped) == 24
+}
+
+pub fn wrap_unwrap_aes_192_roundtrip_test() {
+  let assert Ok(kek) = block.aes_192(crypto.random_bytes(24))
+  let key_to_wrap = crypto.random_bytes(24)
+  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
+  let assert Ok(unwrapped) = block.unwrap(kek, wrapped)
+
+  assert unwrapped == key_to_wrap
+  assert bit_array.byte_size(wrapped) == 32
+}
+
+pub fn wrap_unwrap_aes_256_roundtrip_test() {
+  let assert Ok(kek) = block.aes_256(crypto.random_bytes(32))
+  let key_to_wrap = crypto.random_bytes(32)
+  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
+  let assert Ok(unwrapped) = block.unwrap(kek, wrapped)
+
+  assert unwrapped == key_to_wrap
+  assert bit_array.byte_size(wrapped) == 40
+}
+
+pub fn wrap_longer_key_than_kek_test() {
+  let assert Ok(kek) = block.aes_128(crypto.random_bytes(16))
+  let key_to_wrap = crypto.random_bytes(32)
+  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
+  let assert Ok(unwrapped) = block.unwrap(kek, wrapped)
+
+  assert unwrapped == key_to_wrap
+}
+
+pub fn wrap_plaintext_too_short_test() {
+  let assert Ok(kek) = block.aes_128(crypto.random_bytes(16))
+  let too_short = crypto.random_bytes(8)
+
+  assert block.wrap(kek, too_short) == Error(Nil)
+}
+
+pub fn wrap_plaintext_not_multiple_of_8_test() {
+  let assert Ok(kek) = block.aes_128(crypto.random_bytes(16))
+  let wrong_size = crypto.random_bytes(17)
+
+  assert block.wrap(kek, wrong_size) == Error(Nil)
+}
+
+pub fn unwrap_ciphertext_too_short_test() {
+  let assert Ok(kek) = block.aes_128(crypto.random_bytes(16))
+  let too_short = crypto.random_bytes(16)
+
+  assert block.unwrap(kek, too_short) == Error(Nil)
+}
+
+pub fn unwrap_wrong_key_test() {
+  let assert Ok(kek1) = block.aes_256(crypto.random_bytes(32))
+  let assert Ok(kek2) = block.aes_256(crypto.random_bytes(32))
+  let key_to_wrap = crypto.random_bytes(32)
+
+  let assert Ok(wrapped) = block.wrap(kek1, key_to_wrap)
+  assert block.unwrap(kek2, wrapped) == Error(Nil)
+}
+
+pub fn unwrap_tampered_ciphertext_test() {
+  let assert Ok(kek) = block.aes_256(crypto.random_bytes(32))
+  let key_to_wrap = crypto.random_bytes(32)
+  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
+
+  let assert <<first:int, rest:bits>> = wrapped
+  let tampered = <<{ int.bitwise_exclusive_or(first, 1) }:int, rest:bits>>
+
+  assert block.unwrap(kek, tampered) == Error(Nil)
 }

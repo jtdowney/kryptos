@@ -13,6 +13,8 @@
 -export([
     aead_open/5,
     aead_seal/4,
+    aes_decrypt_block/2,
+    aes_encrypt_block/2,
     block_cipher_decrypt/2,
     block_cipher_encrypt/2,
     constant_time_equal/2,
@@ -316,6 +318,25 @@ block_cipher_decrypt(Mode, Ciphertext) ->
         error:_ ->
             {error, nil}
     end.
+
+%% Raw AES block encryption/decryption (no padding, for key wrap)
+
+aes_cipher_name(#aes{key_size = 128}) ->
+    aes_128_ecb;
+aes_cipher_name(#aes{key_size = 192}) ->
+    aes_192_ecb;
+aes_cipher_name(#aes{key_size = 256}) ->
+    aes_256_ecb.
+
+aes_encrypt_block(Cipher, Block) ->
+    CipherName = aes_cipher_name(Cipher),
+    Key = Cipher#aes.key,
+    crypto:crypto_one_time(CipherName, Key, Block, [{encrypt, true}, {padding, none}]).
+
+aes_decrypt_block(Cipher, Block) ->
+    CipherName = aes_cipher_name(Cipher),
+    Key = Cipher#aes.key,
+    crypto:crypto_one_time(CipherName, Key, Block, [{encrypt, false}, {padding, none}]).
 
 %%------------------------------------------------------------------------------
 %% Curve/OID Mapping (shared by EC, EdDSA, XDH)

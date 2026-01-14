@@ -39,6 +39,13 @@
 
 import gleam/bit_array
 import gleam/int
+@target(erlang)
+import gleam/list
+@target(erlang)
+import kryptos/crypto
+
+@target(erlang)
+const aes_key_wrap_iv = <<0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6>>
 
 /// A block cipher with its associated key material.
 pub type BlockCipher {
@@ -286,4 +293,200 @@ pub fn cipher_iv(ctx: CipherContext) -> BitArray {
     Cbc(iv:, ..) -> iv
     Ctr(nonce:, ..) -> nonce
   }
+}
+
+/// Wraps key material using AES Key Wrap (RFC 3394).
+///
+/// Key wrapping is used to protect cryptographic keys when they need to be
+/// transported or stored. Unlike general encryption, key wrapping:
+/// - Does not require an IV (uses a default IV internally)
+/// - Provides integrity protection
+/// - Output is always 8 bytes larger than input
+///
+/// ## Parameters
+/// - `cipher`: The AES block cipher used as the key-encryption key (KEK)
+/// - `plaintext`: The key material to wrap (must be a multiple of 8 bytes, minimum 16 bytes)
+///
+/// ## Returns
+/// - `Ok(ciphertext)` where ciphertext is plaintext.size + 8 bytes
+/// - `Error(Nil)` if plaintext size is invalid
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/block
+/// import kryptos/crypto
+///
+/// let assert Ok(kek) = block.aes_256(crypto.random_bytes(32))
+/// let key_to_wrap = crypto.random_bytes(32)
+/// let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
+/// ```
+pub fn wrap(cipher: BlockCipher, plaintext: BitArray) -> Result(BitArray, Nil) {
+  let size = bit_array.byte_size(plaintext)
+  case size >= 16 && size % 8 == 0 {
+    True -> do_wrap(cipher, plaintext)
+    False -> Error(Nil)
+  }
+}
+
+@target(javascript)
+@external(javascript, "../kryptos_ffi.mjs", "blockCipherWrap")
+fn do_wrap(cipher: BlockCipher, plaintext: BitArray) -> Result(BitArray, Nil)
+
+@target(erlang)
+fn do_wrap(cipher: BlockCipher, plaintext: BitArray) -> Result(BitArray, Nil) {
+  let n = bit_array.byte_size(plaintext) / 8
+  let r = split_into_blocks(plaintext, [])
+
+  let #(a, r_final) = wrap_rounds(cipher, aes_key_wrap_iv, r, n, 0)
+  Ok(bit_array.concat([a, ..r_final]))
+}
+
+@target(erlang)
+fn wrap_rounds(
+  cipher: BlockCipher,
+  a: BitArray,
+  r: List(BitArray),
+  n: Int,
+  j: Int,
+) -> #(BitArray, List(BitArray)) {
+  case j < 6 {
+    False -> #(a, r)
+    True -> {
+      let #(a_new, r_new) = wrap_inner(cipher, a, r, n, j, 1, [])
+      wrap_rounds(cipher, a_new, r_new, n, j + 1)
+    }
+  }
+}
+
+@target(erlang)
+fn wrap_inner(
+  cipher: BlockCipher,
+  a: BitArray,
+  r: List(BitArray),
+  n: Int,
+  j: Int,
+  i: Int,
+  acc: List(BitArray),
+) -> #(BitArray, List(BitArray)) {
+  case r {
+    [] -> #(a, list.reverse(acc))
+    [ri, ..rest] -> {
+      let b = aes_encrypt_block(cipher, <<a:bits, ri:bits>>)
+      let assert <<a_new:bytes-size(8), ri_new:bytes-size(8)>> = b
+      let t = n * j + i
+      let a_xored = xor_with_counter(a_new, t)
+      wrap_inner(cipher, a_xored, rest, n, j, i + 1, [ri_new, ..acc])
+    }
+  }
+}
+
+/// Unwraps key material using AES Key Wrap (RFC 3394).
+///
+/// ## Parameters
+/// - `cipher`: The AES block cipher used as the key-encryption key (KEK)
+/// - `ciphertext`: The wrapped key material (must be a multiple of 8 bytes, minimum 24 bytes)
+///
+/// ## Returns
+/// - `Ok(plaintext)` where plaintext is ciphertext.size - 8 bytes
+/// - `Error(Nil)` if ciphertext size is invalid or integrity check fails
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/block
+///
+/// let assert Ok(kek) = block.aes_256(kek_bytes)
+/// let assert Ok(unwrapped) = block.unwrap(kek, wrapped_key)
+/// ```
+pub fn unwrap(
+  cipher: BlockCipher,
+  ciphertext: BitArray,
+) -> Result(BitArray, Nil) {
+  let size = bit_array.byte_size(ciphertext)
+  case size >= 24 && size % 8 == 0 {
+    True -> do_unwrap(cipher, ciphertext)
+    False -> Error(Nil)
+  }
+}
+
+@target(javascript)
+@external(javascript, "../kryptos_ffi.mjs", "blockCipherUnwrap")
+fn do_unwrap(cipher: BlockCipher, ciphertext: BitArray) -> Result(BitArray, Nil)
+
+@target(erlang)
+fn do_unwrap(cipher: BlockCipher, ciphertext: BitArray) -> Result(BitArray, Nil) {
+  let assert <<a:bytes-size(8), rest:bytes>> = ciphertext
+  let n = bit_array.byte_size(rest) / 8
+  let r = split_into_blocks(rest, [])
+
+  let #(a_final, r_final) = unwrap_rounds(cipher, a, r, n, 5)
+  case crypto.constant_time_equal(a_final, aes_key_wrap_iv) {
+    True -> Ok(bit_array.concat(r_final))
+    False -> Error(Nil)
+  }
+}
+
+@target(erlang)
+fn unwrap_rounds(
+  cipher: BlockCipher,
+  a: BitArray,
+  r: List(BitArray),
+  n: Int,
+  j: Int,
+) -> #(BitArray, List(BitArray)) {
+  case j >= 0 {
+    False -> #(a, r)
+    True -> {
+      let #(a_new, r_new) =
+        unwrap_inner(cipher, a, list.reverse(r), n, j, n, [])
+      unwrap_rounds(cipher, a_new, r_new, n, j - 1)
+    }
+  }
+}
+
+@target(erlang)
+fn unwrap_inner(
+  cipher: BlockCipher,
+  a: BitArray,
+  r: List(BitArray),
+  n: Int,
+  j: Int,
+  i: Int,
+  acc: List(BitArray),
+) -> #(BitArray, List(BitArray)) {
+  case r {
+    [] -> #(a, acc)
+    [ri, ..rest] -> {
+      let t = n * j + i
+      let a_xored = xor_with_counter(a, t)
+      let b = aes_decrypt_block(cipher, <<a_xored:bits, ri:bits>>)
+      let assert <<a_new:bytes-size(8), ri_new:bytes-size(8)>> = b
+      unwrap_inner(cipher, a_new, rest, n, j, i - 1, [ri_new, ..acc])
+    }
+  }
+}
+
+@target(erlang)
+fn split_into_blocks(data: BitArray, acc: List(BitArray)) -> List(BitArray) {
+  case data {
+    <<block:bytes-size(8), rest:bytes>> ->
+      split_into_blocks(rest, [block, ..acc])
+    _ -> list.reverse(acc)
+  }
+}
+
+@target(erlang)
+@external(erlang, "kryptos_ffi", "aes_encrypt_block")
+fn aes_encrypt_block(cipher: BlockCipher, block: BitArray) -> BitArray
+
+@target(erlang)
+@external(erlang, "kryptos_ffi", "aes_decrypt_block")
+fn aes_decrypt_block(cipher: BlockCipher, block: BitArray) -> BitArray
+
+@target(erlang)
+fn xor_with_counter(a: BitArray, t: Int) -> BitArray {
+  let assert <<a_int:unsigned-size(64)>> = a
+  let result = int.bitwise_exclusive_or(a_int, t)
+  <<result:size(64)>>
 }

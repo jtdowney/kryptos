@@ -2,7 +2,7 @@ import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/aead
 import kryptos/block
-import wycheproof/utils.{Invalid, Valid}
+import wycheproof/utils.{Acceptable, Invalid, Valid}
 
 type TestCase {
   TestCase(
@@ -93,7 +93,7 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
         Error(Nil) -> Nil
         Ok(ctx) ->
           case tc.result {
-            Valid -> {
+            Valid | Acceptable -> {
               // Test encryption
               let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
                 as context
@@ -136,7 +136,7 @@ fn run_chacha20_poly1305_test(_group: TestGroup, tc: TestCase) -> Nil {
   let assert Ok(ctx) = aead.chacha20_poly1305(key) as context
 
   case tc.result {
-    Valid -> {
+    Valid | Acceptable -> {
       // Test encryption
       let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
         as context
@@ -190,7 +190,7 @@ fn run_ccm_test(group: TestGroup, tc: TestCase) -> Nil {
         }
         Ok(ctx) -> {
           case tc.result {
-            Valid -> {
+            Valid | Acceptable -> {
               // Test encryption
               let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
                 as context
