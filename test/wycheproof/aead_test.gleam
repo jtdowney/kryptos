@@ -2,6 +2,7 @@ import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/aead
 import kryptos/block
+import unitest
 import wycheproof/utils.{Acceptable, Invalid, Valid}
 
 type TestCase {
@@ -119,6 +120,7 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_aes_gcm_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("aes_gcm_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
@@ -158,6 +160,7 @@ fn run_chacha20_poly1305_test(_group: TestGroup, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_chacha20_poly1305_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("chacha20_poly1305_test.json", test_file_decoder())
   utils.run_tests(
@@ -217,6 +220,7 @@ fn run_ccm_test(group: TestGroup, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_aes_ccm_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("aes_ccm_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_ccm_test)

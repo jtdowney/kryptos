@@ -1,6 +1,7 @@
 import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/block
+import unitest
 import wycheproof/utils.{Acceptable, Invalid, Valid}
 
 type CbcTestCase {
@@ -138,6 +139,7 @@ fn run_cbc_test(group: CbcTestGroup, tc: CbcTestCase) -> Nil {
 }
 
 pub fn wycheproof_aes_cbc_pkcs5_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("aes_cbc_pkcs5_test.json", cbc_test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_cbc_test)
@@ -186,6 +188,7 @@ fn run_keywrap_test(group: KeywrapTestGroup, tc: KeywrapTestCase) -> Nil {
 }
 
 pub fn wycheproof_aes_wrap_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("aes_wrap_test.json", keywrap_test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_keywrap_test)

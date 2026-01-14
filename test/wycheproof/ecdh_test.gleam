@@ -4,6 +4,7 @@ import gleam/list
 import kryptos/ec
 import kryptos/ecdh
 import kryptos/internal/ec as internal_ec
+import unitest
 import wycheproof/utils
 
 type TestResult {
@@ -120,24 +121,28 @@ fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_ecdh_secp256r1_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ecdh_secp256r1_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
 
 pub fn wycheproof_ecdh_secp384r1_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ecdh_secp384r1_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
 
 pub fn wycheproof_ecdh_secp521r1_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ecdh_secp521r1_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
 
 pub fn wycheproof_ecdh_secp256k1_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ecdh_secp256k1_test.json", test_file_decoder())
   let groups =
@@ -188,18 +193,21 @@ fn run_pem_test_for_supported_curve(tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_ecdh_secp256r1_pem_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ecdh_secp256r1_pem_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)
 }
 
 pub fn wycheproof_ecdh_secp384r1_pem_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ecdh_secp384r1_pem_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)
 }
 
 pub fn wycheproof_ecdh_secp521r1_pem_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ecdh_secp521r1_pem_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)

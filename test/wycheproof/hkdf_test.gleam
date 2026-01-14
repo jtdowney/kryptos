@@ -3,6 +3,7 @@ import gleam/dynamic/decode
 import gleam/option.{None, Some}
 import kryptos/crypto
 import kryptos/hash
+import unitest
 import wycheproof/utils.{Acceptable, Invalid, Valid}
 
 type TestCase {
@@ -101,17 +102,21 @@ fn run_single_test(algorithm: hash.HashAlgorithm, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_hkdf_sha1_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("hkdf_sha1_test.json", hash.Sha1)
 }
 
 pub fn wycheproof_hkdf_sha256_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("hkdf_sha256_test.json", hash.Sha256)
 }
 
 pub fn wycheproof_hkdf_sha384_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("hkdf_sha384_test.json", hash.Sha384)
 }
 
 pub fn wycheproof_hkdf_sha512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("hkdf_sha512_test.json", hash.Sha512)
 }

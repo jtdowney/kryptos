@@ -3,6 +3,7 @@ import gleam/dynamic/decode
 import kryptos/ec
 import kryptos/ecdsa
 import kryptos/hash
+import unitest
 import wycheproof/utils
 
 type TestResult {
@@ -137,57 +138,71 @@ fn run_wycheproof_tests(filename: String, hash_alg: hash.HashAlgorithm) -> Nil {
 }
 
 pub fn wycheproof_ecdsa_secp256r1_sha256_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp256r1_sha256_test.json", hash.Sha256)
 }
 
 pub fn wycheproof_ecdsa_secp256r1_sha512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp256r1_sha512_test.json", hash.Sha512)
 }
 
 pub fn wycheproof_ecdsa_secp256r1_sha3_256_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp256r1_sha3_256_test.json", hash.Sha3x256)
 }
 
 pub fn wycheproof_ecdsa_secp256r1_sha3_512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp256r1_sha3_512_test.json", hash.Sha3x512)
 }
 
 pub fn wycheproof_ecdsa_secp384r1_sha384_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp384r1_sha384_test.json", hash.Sha384)
 }
 
 pub fn wycheproof_ecdsa_secp384r1_sha512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp384r1_sha512_test.json", hash.Sha512)
 }
 
 pub fn wycheproof_ecdsa_secp384r1_sha3_384_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp384r1_sha3_384_test.json", hash.Sha3x384)
 }
 
 pub fn wycheproof_ecdsa_secp384r1_sha3_512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp384r1_sha3_512_test.json", hash.Sha3x512)
 }
 
 pub fn wycheproof_ecdsa_secp521r1_sha512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp521r1_sha512_test.json", hash.Sha512)
 }
 
 pub fn wycheproof_ecdsa_secp521r1_sha3_512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp521r1_sha3_512_test.json", hash.Sha3x512)
 }
 
 pub fn wycheproof_ecdsa_secp256k1_sha256_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp256k1_sha256_test.json", hash.Sha256)
 }
 
 pub fn wycheproof_ecdsa_secp256k1_sha512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp256k1_sha512_test.json", hash.Sha512)
 }
 
 pub fn wycheproof_ecdsa_secp256k1_sha3_256_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp256k1_sha3_256_test.json", hash.Sha3x256)
 }
 
 pub fn wycheproof_ecdsa_secp256k1_sha3_512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("ecdsa_secp256k1_sha3_512_test.json", hash.Sha3x512)
 }

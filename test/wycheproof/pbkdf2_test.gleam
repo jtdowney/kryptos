@@ -2,6 +2,7 @@ import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/crypto
 import kryptos/hash
+import unitest
 import wycheproof/utils.{Acceptable, Invalid, Valid}
 
 type TestCase {
@@ -94,17 +95,21 @@ fn run_single_test(algorithm: hash.HashAlgorithm, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_pbkdf2_hmacsha1_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("pbkdf2_hmacsha1_test.json", hash.Sha1)
 }
 
 pub fn wycheproof_pbkdf2_hmacsha256_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("pbkdf2_hmacsha256_test.json", hash.Sha256)
 }
 
 pub fn wycheproof_pbkdf2_hmacsha384_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("pbkdf2_hmacsha384_test.json", hash.Sha384)
 }
 
 pub fn wycheproof_pbkdf2_hmacsha512_test() {
+  use <- unitest.tag("wycheproof")
   run_wycheproof_tests("pbkdf2_hmacsha512_test.json", hash.Sha512)
 }

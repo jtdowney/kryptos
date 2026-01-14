@@ -1,6 +1,7 @@
 import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/eddsa
+import unitest
 import wycheproof/utils
 
 type TestResult {
@@ -119,12 +120,14 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_ed25519_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ed25519_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
 
 pub fn wycheproof_ed448_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("ed448_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)

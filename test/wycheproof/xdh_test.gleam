@@ -3,6 +3,7 @@ import gleam/bool
 import gleam/dynamic/decode
 import gleam/result
 import kryptos/xdh
+import unitest
 import wycheproof/utils
 
 type TestResult {
@@ -133,12 +134,14 @@ fn run_test_for_curve(curve: xdh.Curve, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_x25519_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("x25519_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
 }
 
 pub fn wycheproof_x448_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("x448_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_single_test)
@@ -185,12 +188,14 @@ fn run_asn_test(group: TestGroup, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_x25519_asn_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("x25519_asn_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_asn_test)
 }
 
 pub fn wycheproof_x448_asn_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("x448_asn_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_asn_test)
@@ -235,12 +240,14 @@ fn run_pem_test(group: TestGroup, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_x25519_pem_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("x25519_pem_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)
 }
 
 pub fn wycheproof_x448_pem_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file("x448_pem_test.json", test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pem_test)

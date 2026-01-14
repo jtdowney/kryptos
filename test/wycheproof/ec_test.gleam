@@ -3,6 +3,7 @@ import gleam/dynamic/decode
 import kryptos/ec
 import kryptos/ecdh
 import kryptos/internal/ec as internal_ec
+import unitest
 import wycheproof/utils
 
 type TestResult {
@@ -119,6 +120,7 @@ fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
 }
 
 pub fn wycheproof_ec_ecpoint_secp256r1_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file(
       "ecdh_secp256r1_ecpoint_test.json",
@@ -128,6 +130,7 @@ pub fn wycheproof_ec_ecpoint_secp256r1_test() {
 }
 
 pub fn wycheproof_ec_ecpoint_secp384r1_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file(
       "ecdh_secp384r1_ecpoint_test.json",
@@ -137,6 +140,7 @@ pub fn wycheproof_ec_ecpoint_secp384r1_test() {
 }
 
 pub fn wycheproof_ec_ecpoint_secp521r1_test() {
+  use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
     utils.load_test_file(
       "ecdh_secp521r1_ecpoint_test.json",
