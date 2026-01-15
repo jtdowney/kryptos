@@ -267,6 +267,141 @@ pub fn chacha20_poly1305_wrong_key_size_test() {
   assert aead.chacha20_poly1305(crypto.random_bytes(33)) == Error(Nil)
 }
 
+pub fn xchacha20_poly1305_test() {
+  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+  let plaintext = <<"attack at dawn":utf8>>
+  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
+  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+
+  assert output == plaintext
+}
+
+pub fn xchacha20_poly1305_with_aad_test() {
+  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+  let plaintext = <<"secret message":utf8>>
+  let aad = <<"header data":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) =
+    aead.seal_with_aad(ctx, nonce, plaintext, aad)
+  let assert Ok(output) = aead.open_with_aad(ctx, nonce, tag, ciphertext, aad)
+
+  assert output == plaintext
+}
+
+pub fn xchacha20_poly1305_wrong_nonce_size_seal_test() {
+  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let wrong_nonce = crypto.random_bytes(12)
+  let plaintext = <<"test":utf8>>
+
+  assert aead.seal(ctx, nonce: wrong_nonce, plaintext:) == Error(Nil)
+}
+
+pub fn xchacha20_poly1305_wrong_nonce_size_open_test() {
+  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let wrong_nonce = crypto.random_bytes(12)
+  let tag = crypto.random_bytes(16)
+  let ciphertext = <<"test":utf8>>
+
+  assert aead.open(ctx, nonce: wrong_nonce, tag:, ciphertext:) == Error(Nil)
+}
+
+pub fn xchacha20_poly1305_tampered_ciphertext_test() {
+  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+  let plaintext = <<"secret":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
+  let tampered = <<0xFF, ciphertext:bits>>
+
+  assert aead.open(ctx, nonce:, tag:, ciphertext: tampered) == Error(Nil)
+}
+
+pub fn xchacha20_poly1305_tampered_tag_test() {
+  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+  let plaintext = <<"secret":utf8>>
+
+  let assert Ok(#(ciphertext, _tag)) = aead.seal(ctx, nonce:, plaintext:)
+  let tampered_tag = crypto.random_bytes(16)
+
+  assert aead.open(ctx, nonce:, tag: tampered_tag, ciphertext:) == Error(Nil)
+}
+
+pub fn xchacha20_poly1305_wrong_aad_test() {
+  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+  let plaintext = <<"secret":utf8>>
+  let aad = <<"correct aad":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) =
+    aead.seal_with_aad(ctx, nonce, plaintext, aad)
+  let wrong_aad = <<"wrong aad":utf8>>
+
+  assert aead.open_with_aad(ctx, nonce, tag, ciphertext, wrong_aad)
+    == Error(Nil)
+}
+
+pub fn xchacha20_poly1305_empty_plaintext_test() {
+  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+  let plaintext = <<>>
+
+  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
+  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+
+  assert output == plaintext
+}
+
+pub fn xchacha20_poly1305_wrong_key_test() {
+  let assert Ok(ctx1) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let assert Ok(ctx2) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+  let nonce = crypto.random_bytes(24)
+  let plaintext = <<"secret":utf8>>
+
+  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx1, nonce:, plaintext:)
+
+  assert aead.open(ctx2, nonce:, tag:, ciphertext:) == Error(Nil)
+}
+
+pub fn xchacha20_poly1305_wrong_key_size_test() {
+  assert aead.xchacha20_poly1305(crypto.random_bytes(31)) == Error(Nil)
+  assert aead.xchacha20_poly1305(crypto.random_bytes(33)) == Error(Nil)
+}
+
+/// Test vector from draft-irtf-cfrg-xchacha-03 Appendix A.3.1
+pub fn xchacha20_poly1305_ietf_test_vector_test() {
+  let assert Ok(key) =
+    bit_array.base16_decode(
+      "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",
+    )
+  let assert Ok(nonce) =
+    bit_array.base16_decode("404142434445464748494a4b4c4d4e4f5051525354555657")
+  let assert Ok(aad) = bit_array.base16_decode("50515253c0c1c2c3c4c5c6c7")
+  let assert Ok(plaintext) =
+    bit_array.base16_decode(
+      "4c616469657320616e642047656e746c656d656e206f662074686520636c617373206f66202739393a204966204920636f756c64206f6666657220796f75206f6e6c79206f6e652074697020666f7220746865206675747572652c2073756e73637265656e20776f756c642062652069742e",
+    )
+  let assert Ok(expected_ciphertext) =
+    bit_array.base16_decode(
+      "bd6d179d3e83d43b9576579493c0e939572a1700252bfaccbed2902c21396cbb731c7f1b0b4aa6440bf3a82f4eda7e39ae64c6708c54c216cb96b72e1213b4522f8c9ba40db5d945b11b69b982c1bb9e3f3fac2bc369488f76b2383565d3fff921f9664c97637da9768812f615c68b13b52e",
+    )
+  let assert Ok(expected_tag) =
+    bit_array.base16_decode("c0875924c1c7987947deafd8780acf49")
+
+  let assert Ok(ctx) = aead.xchacha20_poly1305(key)
+
+  let assert Ok(#(ciphertext, tag)) =
+    aead.seal_with_aad(ctx, nonce, plaintext, aad)
+  assert ciphertext == expected_ciphertext
+  assert tag == expected_tag
+
+  let assert Ok(decrypted) =
+    aead.open_with_aad(ctx, nonce, expected_tag, expected_ciphertext, aad)
+  assert decrypted == plaintext
+}
+
 pub fn aes_128_ccm_test() {
   let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
   let ctx = aead.ccm(cipher)

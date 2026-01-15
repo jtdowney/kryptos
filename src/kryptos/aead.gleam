@@ -19,7 +19,9 @@
 
 import gleam/bit_array
 import gleam/list
+import gleam/result
 import kryptos/block.{type BlockCipher}
+import kryptos/internal/hchacha20
 
 /// AEAD context with its configuration.
 ///
@@ -28,8 +30,9 @@ import kryptos/block.{type BlockCipher}
 /// which validate parameters:
 ///
 /// - `gcm()` / `gcm_with_nonce_size()` for AES-GCM
-/// - `ccm()` / `ccm_with_options()` for AES-CCM
+/// - `ccm()` / `ccm_with_sizes()` for AES-CCM
 /// - `chacha20_poly1305()` for ChaCha20-Poly1305
+/// - `xchacha20_poly1305()` for XChaCha20-Poly1305
 pub type AeadContext {
   /// AES-GCM with the specified cipher and nonce size.
   Gcm(cipher: BlockCipher, nonce_size: Int)
@@ -37,6 +40,8 @@ pub type AeadContext {
   Ccm(cipher: BlockCipher, nonce_size: Int, tag_size: Int)
   /// ChaCha20-Poly1305 with a 256-bit key (RFC 8439).
   ChaCha20Poly1305(key: BitArray)
+  /// XChaCha20-Poly1305 with a 256-bit key and 24-byte nonce.
+  XChaCha20Poly1305(key: BitArray)
 }
 
 /// Creates an AES-GCM context with the given block cipher.
@@ -138,18 +143,38 @@ pub fn chacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
   }
 }
 
+/// Creates an XChaCha20-Poly1305 AEAD context with the given key.
+///
+/// Uses extended parameters: 24-byte (192-bit) nonce and 16-byte (128-bit)
+/// authentication tag. The extended nonce provides better collision resistance
+/// when generating random nonces.
+///
+/// ## Parameters
+/// - `key`: A 32-byte (256-bit) key
+///
+/// ## Returns
+/// - `Ok(AeadContext)` if the key is exactly 32 bytes
+/// - `Error(Nil)` if the key size is incorrect
+pub fn xchacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
+  case bit_array.byte_size(key) == 32 {
+    True -> Ok(XChaCha20Poly1305(key))
+    False -> Error(Nil)
+  }
+}
+
 /// Returns the required nonce size in bytes for an AEAD context.
 ///
 /// ## Parameters
 /// - `ctx`: The AEAD context
 ///
 /// ## Returns
-/// The nonce size in bytes (12 for AES-GCM).
+/// The nonce size in bytes (12 for AES-GCM and ChaCha20-Poly1305, 24 for XChaCha20-Poly1305).
 pub fn nonce_size(ctx: AeadContext) -> Int {
   case ctx {
     Gcm(nonce_size:, ..) -> nonce_size
     Ccm(nonce_size:, ..) -> nonce_size
     ChaCha20Poly1305(..) -> 12
+    XChaCha20Poly1305(..) -> 24
   }
 }
 
@@ -165,6 +190,7 @@ pub fn tag_size(ctx: AeadContext) -> Int {
     Gcm(..) -> 16
     Ccm(tag_size:, ..) -> tag_size
     ChaCha20Poly1305(..) -> 16
+    XChaCha20Poly1305(..) -> 16
   }
 }
 
@@ -209,7 +235,14 @@ pub fn seal_with_aad(
 ) -> Result(#(BitArray, BitArray), Nil) {
   let nonce_len = bit_array.byte_size(nonce)
   case nonce_len > 0 && nonce_len == nonce_size(ctx) {
-    True -> do_seal(ctx, nonce, plaintext, aad)
+    True ->
+      case ctx {
+        XChaCha20Poly1305(key) -> {
+          use #(subkey, chacha_nonce) <- result.try(xchacha20_derive(key, nonce))
+          do_seal(ChaCha20Poly1305(subkey), chacha_nonce, plaintext, aad)
+        }
+        _ -> do_seal(ctx, nonce, plaintext, aad)
+      }
     False -> Error(Nil)
   }
 }
@@ -269,7 +302,14 @@ pub fn open_with_aad(
   case
     nonce_len > 0 && nonce_len == nonce_size(ctx) && tag_len == tag_size(ctx)
   {
-    True -> do_open(ctx, nonce, tag, ciphertext, aad)
+    True ->
+      case ctx {
+        XChaCha20Poly1305(key) -> {
+          use #(subkey, chacha_nonce) <- result.try(xchacha20_derive(key, nonce))
+          do_open(ChaCha20Poly1305(subkey), chacha_nonce, tag, ciphertext, aad)
+        }
+        _ -> do_open(ctx, nonce, tag, ciphertext, aad)
+      }
     False -> Error(Nil)
   }
 }
@@ -283,3 +323,21 @@ fn do_open(
   ciphertext: BitArray,
   aad: BitArray,
 ) -> Result(BitArray, Nil)
+
+/// Derives the subkey and ChaCha20 nonce for XChaCha20-Poly1305.
+fn xchacha20_derive(
+  key: BitArray,
+  nonce: BitArray,
+) -> Result(#(BitArray, BitArray), Nil) {
+  // Split 24-byte nonce: first 16 bytes for HChaCha20, last 8 bytes for ChaCha20
+  case nonce {
+    <<hchacha_input:bytes-size(16), nonce_suffix:bytes-size(8)>> -> {
+      // Derive 32-byte subkey using HChaCha20
+      let subkey = hchacha20.subkey(key, hchacha_input)
+      // Construct 12-byte ChaCha20 nonce: 4 zero bytes + last 8 bytes of original nonce
+      let chacha_nonce = <<0:32, nonce_suffix:bits>>
+      Ok(#(subkey, chacha_nonce))
+    }
+    _ -> Error(Nil)
+  }
+}
