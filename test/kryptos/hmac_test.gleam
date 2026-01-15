@@ -3,7 +3,10 @@ import gleam/list
 import kryptos/crypto
 import kryptos/hash
 import kryptos/hmac
+import kryptos/utils
+import qcheck
 
+// RFC 4231 Test Vectors - keep as example-based
 pub fn hmac_sha256_rfc4231_test_case_1_test() {
   let assert Ok(key) =
     bit_array.base16_decode("0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B")
@@ -115,37 +118,90 @@ pub fn hmac_algorithms_table_test() {
   })
 }
 
-pub fn incremental_hmac_test() {
-  let key = <<"secret":utf8>>
-  let data = <<"hello world":utf8>>
-  let assert Ok(expected) = crypto.hmac(hash.Sha256, key, data)
+// Property: HMAC in chunks produces same result as HMAC all at once
+pub fn hmac_chunking_invariant_property_test() {
+  let gen =
+    qcheck.tuple3(
+      qcheck.from_generators(qcheck.return(hash.Sha256), [
+        qcheck.return(hash.Sha512),
+        qcheck.return(hash.Sha1),
+      ]),
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  let assert Ok(hmac_state) = hmac.new(hash.Sha256, key)
-  let result =
-    hmac_state
-    |> hmac.update(<<"hello ":utf8>>)
-    |> hmac.update(<<"world":utf8>>)
-    |> hmac.final()
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(algorithm, key, data) = input
+    let data_size = bit_array.byte_size(data)
+    let assert Ok(expected) = crypto.hmac(algorithm, key, data)
 
-  assert result == expected
+    list.each([0, data_size / 2, data_size], fn(split_point) {
+      let split_point = case split_point > data_size {
+        True -> data_size
+        False -> split_point
+      }
+      let assert Ok(first) = bit_array.slice(data, 0, split_point)
+      let assert Ok(second) =
+        bit_array.slice(data, split_point, data_size - split_point)
+
+      let assert Ok(hmac_state) = hmac.new(algorithm, key)
+      let result =
+        hmac_state
+        |> hmac.update(first)
+        |> hmac.update(second)
+        |> hmac.final()
+
+      assert result == expected
+    })
+  })
 }
 
-pub fn incremental_single_byte_chunks_test() {
-  let key = <<"key":utf8>>
-  let data = <<"abc":utf8>>
-  let assert Ok(expected) = crypto.hmac(hash.Sha256, key, data)
+// Property: verify(hmac(key, data), key, data) == True
+pub fn hmac_verify_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple3(
+      qcheck.from_generators(qcheck.return(hash.Sha256), [
+        qcheck.return(hash.Sha512),
+        qcheck.return(hash.Sha1),
+      ]),
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  let assert Ok(hmac_state) = hmac.new(hash.Sha256, key)
-  let result =
-    hmac_state
-    |> hmac.update(<<"a":utf8>>)
-    |> hmac.update(<<"b":utf8>>)
-    |> hmac.update(<<"c":utf8>>)
-    |> hmac.final()
-
-  assert result == expected
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(algorithm, key, data) = input
+    let assert Ok(mac) = crypto.hmac(algorithm, key, data)
+    let assert Ok(valid) = hmac.verify(algorithm, key, data, mac)
+    assert valid
+  })
 }
 
+// Property: wrong key fails verification
+pub fn hmac_wrong_key_fails_property_test() {
+  let gen =
+    qcheck.tuple3(
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.non_empty_byte_aligned_bit_array(),
+    )
+
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(key1, key2, data) = input
+    // HMAC pads keys shorter than the block size with zeros, so keys that
+    // differ only by trailing zeros are HMAC-equivalent. We compare the
+    // canonical form (trailing zeros stripped) to detect this.
+    case utils.strip_trailing_zeros(key1) == utils.strip_trailing_zeros(key2) {
+      True -> Nil
+      False -> {
+        let assert Ok(mac) = crypto.hmac(hash.Sha256, key1, data)
+        let assert Ok(valid) = hmac.verify(hash.Sha256, key2, data, mac)
+        assert !valid
+      }
+    }
+  })
+}
+
+// Edge case: empty data produces valid HMAC
 pub fn empty_data_test() {
   let key = <<"key":utf8>>
   let data = <<>>
@@ -154,65 +210,6 @@ pub fn empty_data_test() {
 
   assert bit_array.base16_encode(result)
     == "5D5D139563C95B5967B9BD9A8C9B233A9DEDB45072794CD232DC1B74832607D0"
-}
-
-pub fn incremental_empty_updates_test() {
-  let key = <<"secret":utf8>>
-  let data = <<"test":utf8>>
-  let assert Ok(expected) = crypto.hmac(hash.Sha256, key, data)
-
-  let assert Ok(hmac_state) = hmac.new(hash.Sha256, key)
-  let result =
-    hmac_state
-    |> hmac.update(<<>>)
-    |> hmac.update(data)
-    |> hmac.update(<<>>)
-    |> hmac.final()
-
-  assert result == expected
-}
-
-pub fn incremental_no_updates_test() {
-  let key = <<"key":utf8>>
-  let assert Ok(expected) = crypto.hmac(hash.Sha256, key, <<>>)
-  let assert Ok(hmac_state) = hmac.new(hash.Sha256, key)
-  let result = hmac.final(hmac_state)
-
-  assert result == expected
-}
-
-pub fn verify_valid_mac_test() {
-  let key = <<"secret":utf8>>
-  let data = <<"message":utf8>>
-  let assert Ok(mac) = crypto.hmac(hash.Sha256, key, data)
-  let assert Ok(valid) = hmac.verify(hash.Sha256, key, data, mac)
-  assert valid
-}
-
-pub fn verify_invalid_mac_test() {
-  let key = <<"secret":utf8>>
-  let data = <<"message":utf8>>
-  let wrong_mac = <<"wrong":utf8>>
-  let assert Ok(valid) = hmac.verify(hash.Sha256, key, data, wrong_mac)
-  assert !valid
-}
-
-pub fn verify_wrong_key_test() {
-  let key = <<"secret":utf8>>
-  let wrong_key = <<"wrong key":utf8>>
-  let data = <<"message":utf8>>
-  let assert Ok(mac) = crypto.hmac(hash.Sha256, key, data)
-  let assert Ok(valid) = hmac.verify(hash.Sha256, wrong_key, data, mac)
-  assert !valid
-}
-
-pub fn verify_tampered_data_test() {
-  let key = <<"secret":utf8>>
-  let data = <<"message":utf8>>
-  let tampered_data = <<"tampered":utf8>>
-  let assert Ok(mac) = crypto.hmac(hash.Sha256, key, data)
-  let assert Ok(valid) = hmac.verify(hash.Sha256, key, tampered_data, mac)
-  assert !valid
 }
 
 pub fn unsupported_algorithm_new_test() {
@@ -234,4 +231,33 @@ pub fn unsupported_algorithm_verify_test() {
   let mac = <<"mac":utf8>>
   let result = hmac.verify(hash.Sha3x256, key, data, mac)
   assert result == Error(Nil)
+}
+
+// HMAC keys shorter than the block size are zero-padded, so keys differing
+// only by trailing zeros produce identical MACs. This is expected behavior.
+pub fn keys_differing_by_trailing_zeros_are_equivalent_test() {
+  let key1 = <<65>>
+  let key2 = <<65, 0>>
+  let key3 = <<65, 0, 0, 0>>
+  let data = <<0>>
+
+  let assert Ok(mac1) = crypto.hmac(hash.Sha256, key1, data)
+  let assert Ok(mac2) = crypto.hmac(hash.Sha256, key2, data)
+  let assert Ok(mac3) = crypto.hmac(hash.Sha256, key3, data)
+
+  // All three keys are HMAC-equivalent due to zero-padding
+  assert mac1 == mac2
+  assert mac2 == mac3
+}
+
+// Keys differing by non-zero bytes produce different MACs
+pub fn keys_differing_by_nonzero_bytes_produce_different_macs_test() {
+  let key1 = <<65>>
+  let key2 = <<65, 1>>
+  let data = <<0>>
+
+  let assert Ok(mac1) = crypto.hmac(hash.Sha256, key1, data)
+  let assert Ok(mac2) = crypto.hmac(hash.Sha256, key2, data)
+
+  assert mac1 != mac2
 }

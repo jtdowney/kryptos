@@ -1,6 +1,7 @@
 import birdie
 import gleam/bit_array
 import kryptos/xdh.{X25519, X448}
+import qcheck
 import simplifile
 
 fn load_x25519_key() -> String {
@@ -13,72 +14,74 @@ fn load_x448_key() -> String {
   pem
 }
 
-pub fn x25519_shared_secret_test() {
-  let #(alice_private, alice_public) = xdh.generate_key_pair(X25519)
-  let #(bob_private, bob_public) = xdh.generate_key_pair(X25519)
+// Property: XDH is commutative - Alice with Bob's public == Bob with Alice's public
+pub fn xdh_commutativity_property_test() {
+  let gen = qcheck.from_generators(qcheck.return(X25519), [qcheck.return(X448)])
 
-  let assert Ok(alice_shared) =
-    xdh.compute_shared_secret(alice_private, bob_public)
-  let assert Ok(bob_shared) =
-    xdh.compute_shared_secret(bob_private, alice_public)
+  qcheck.run(qcheck.default_config(), gen, fn(curve) {
+    let #(alice_private, alice_public) = xdh.generate_key_pair(curve)
+    let #(bob_private, bob_public) = xdh.generate_key_pair(curve)
 
-  assert alice_shared == bob_shared
+    let assert Ok(alice_shared) =
+      xdh.compute_shared_secret(alice_private, bob_public)
+    let assert Ok(bob_shared) =
+      xdh.compute_shared_secret(bob_private, alice_public)
+
+    assert alice_shared == bob_shared
+  })
 }
 
-pub fn x448_shared_secret_test() {
-  let #(alice_private, alice_public) = xdh.generate_key_pair(X448)
-  let #(bob_private, bob_public) = xdh.generate_key_pair(X448)
+// Property: shared secret size matches expected curve output size
+pub fn xdh_shared_secret_size_property_test() {
+  let gen =
+    qcheck.from_generators(qcheck.return(#(X25519, 32)), [
+      qcheck.return(#(X448, 56)),
+    ])
 
-  let assert Ok(alice_shared) =
-    xdh.compute_shared_secret(alice_private, bob_public)
-  let assert Ok(bob_shared) =
-    xdh.compute_shared_secret(bob_private, alice_public)
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(curve, expected_size) = input
+    let #(alice_private, _) = xdh.generate_key_pair(curve)
+    let #(_, bob_public) = xdh.generate_key_pair(curve)
 
-  assert alice_shared == bob_shared
+    let assert Ok(shared) = xdh.compute_shared_secret(alice_private, bob_public)
+
+    assert bit_array.byte_size(shared) == expected_size
+  })
 }
 
-pub fn x25519_deterministic_shared_secret_test() {
-  let #(alice_private, _) = xdh.generate_key_pair(X25519)
-  let #(_, bob_public) = xdh.generate_key_pair(X25519)
+// Property: same inputs always produce same shared secret
+pub fn xdh_deterministic_property_test() {
+  let gen = qcheck.from_generators(qcheck.return(X25519), [qcheck.return(X448)])
 
-  let assert Ok(shared1) = xdh.compute_shared_secret(alice_private, bob_public)
-  let assert Ok(shared2) = xdh.compute_shared_secret(alice_private, bob_public)
+  qcheck.run(qcheck.default_config(), gen, fn(curve) {
+    let #(alice_private, _) = xdh.generate_key_pair(curve)
+    let #(_, bob_public) = xdh.generate_key_pair(curve)
 
-  assert shared1 == shared2
+    let assert Ok(shared1) =
+      xdh.compute_shared_secret(alice_private, bob_public)
+    let assert Ok(shared2) =
+      xdh.compute_shared_secret(alice_private, bob_public)
+
+    assert shared1 == shared2
+  })
 }
 
-pub fn x448_deterministic_shared_secret_test() {
-  let #(alice_private, _) = xdh.generate_key_pair(X448)
-  let #(_, bob_public) = xdh.generate_key_pair(X448)
+// Property: different public keys produce different shared secrets
+pub fn xdh_different_keys_different_secrets_property_test() {
+  let gen = qcheck.from_generators(qcheck.return(X25519), [qcheck.return(X448)])
 
-  let assert Ok(shared1) = xdh.compute_shared_secret(alice_private, bob_public)
-  let assert Ok(shared2) = xdh.compute_shared_secret(alice_private, bob_public)
+  qcheck.run(qcheck.default_config(), gen, fn(curve) {
+    let #(alice_private, _) = xdh.generate_key_pair(curve)
+    let #(_, bob_public) = xdh.generate_key_pair(curve)
+    let #(_, charlie_public) = xdh.generate_key_pair(curve)
 
-  assert shared1 == shared2
-}
+    let assert Ok(with_bob) =
+      xdh.compute_shared_secret(alice_private, bob_public)
+    let assert Ok(with_charlie) =
+      xdh.compute_shared_secret(alice_private, charlie_public)
 
-pub fn x25519_different_keys_different_secrets_test() {
-  let #(alice_private, _) = xdh.generate_key_pair(X25519)
-  let #(_, bob_public) = xdh.generate_key_pair(X25519)
-  let #(_, charlie_public) = xdh.generate_key_pair(X25519)
-
-  let assert Ok(with_bob) = xdh.compute_shared_secret(alice_private, bob_public)
-  let assert Ok(with_charlie) =
-    xdh.compute_shared_secret(alice_private, charlie_public)
-
-  assert with_bob != with_charlie
-}
-
-pub fn x448_different_keys_different_secrets_test() {
-  let #(alice_private, _) = xdh.generate_key_pair(X448)
-  let #(_, bob_public) = xdh.generate_key_pair(X448)
-  let #(_, charlie_public) = xdh.generate_key_pair(X448)
-
-  let assert Ok(with_bob) = xdh.compute_shared_secret(alice_private, bob_public)
-  let assert Ok(with_charlie) =
-    xdh.compute_shared_secret(alice_private, charlie_public)
-
-  assert with_bob != with_charlie
+    assert with_bob != with_charlie
+  })
 }
 
 pub fn curve_mismatch_x25519_x448_test() {
@@ -93,24 +96,6 @@ pub fn curve_mismatch_x448_x25519_test() {
   let #(_, bob_public) = xdh.generate_key_pair(X25519)
 
   assert xdh.compute_shared_secret(alice_private, bob_public) == Error(Nil)
-}
-
-pub fn x25519_shared_secret_size_test() {
-  let #(alice_private, _) = xdh.generate_key_pair(X25519)
-  let #(_, bob_public) = xdh.generate_key_pair(X25519)
-
-  let assert Ok(shared) = xdh.compute_shared_secret(alice_private, bob_public)
-
-  assert bit_array.byte_size(shared) == 32
-}
-
-pub fn x448_shared_secret_size_test() {
-  let #(alice_private, _) = xdh.generate_key_pair(X448)
-  let #(_, bob_public) = xdh.generate_key_pair(X448)
-
-  let assert Ok(shared) = xdh.compute_shared_secret(alice_private, bob_public)
-
-  assert bit_array.byte_size(shared) == 56
 }
 
 pub fn x25519_invalid_public_key_length_test() {

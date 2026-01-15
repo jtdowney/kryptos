@@ -2,52 +2,52 @@ import gleam/bit_array
 import kryptos/aead
 import kryptos/block
 import kryptos/crypto
+import qcheck
 
-pub fn aes_128_gcm_test() {
-  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
-  let ctx = aead.gcm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+// Property: AES-GCM seal then open returns original plaintext
+pub fn aes_gcm_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(16), [
+        qcheck.return(24),
+        qcheck.return(32),
+      ]),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  assert output == plaintext
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(key_size, plaintext) = input
+    let assert Ok(cipher) = case key_size {
+      16 -> block.aes_128(crypto.random_bytes(16))
+      24 -> block.aes_192(crypto.random_bytes(24))
+      _ -> block.aes_256(crypto.random_bytes(32))
+    }
+    let ctx = aead.gcm(cipher)
+    let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+    let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
+    let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+    assert output == plaintext
+  })
 }
 
-pub fn aes_192_gcm_test() {
-  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
-  let ctx = aead.gcm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+// Property: AES-GCM with AAD seal then open returns original plaintext
+pub fn aes_gcm_with_aad_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.byte_aligned_bit_array(),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  assert output == plaintext
-}
-
-pub fn aes_256_gcm_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let ctx = aead.gcm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
-
-  assert output == plaintext
-}
-
-pub fn aes_gcm_with_aad_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let ctx = aead.gcm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"secret message":utf8>>
-  let aad = <<"header data":utf8>>
-
-  let assert Ok(#(ciphertext, tag)) =
-    aead.seal_with_aad(ctx, nonce, plaintext, aad)
-  let assert Ok(output) = aead.open_with_aad(ctx, nonce, tag, ciphertext, aad)
-
-  assert output == plaintext
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(plaintext, aad) = input
+    let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
+    let ctx = aead.gcm(cipher)
+    let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+    let assert Ok(#(ciphertext, tag)) =
+      aead.seal_with_aad(ctx, nonce, plaintext, aad)
+    let assert Ok(output) = aead.open_with_aad(ctx, nonce, tag, ciphertext, aad)
+    assert output == plaintext
+  })
 }
 
 pub fn wrong_nonce_size_seal_test() {
@@ -108,18 +108,6 @@ pub fn wrong_aad_test() {
     == Error(Nil)
 }
 
-pub fn empty_plaintext_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let ctx = aead.gcm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<>>
-
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
-
-  assert output == plaintext
-}
-
 pub fn wrong_key_test() {
   let assert Ok(cipher1) = block.aes_256(crypto.random_bytes(32))
   let assert Ok(cipher2) = block.aes_256(crypto.random_bytes(32))
@@ -164,27 +152,31 @@ pub fn wrong_tag_size_test() {
   assert aead.open(ctx, nonce:, tag: <<>>, ciphertext:) == Error(Nil)
 }
 
-pub fn chacha20_poly1305_test() {
-  let assert Ok(ctx) = aead.chacha20_poly1305(crypto.random_bytes(32))
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+// Property: ChaCha20-Poly1305 seal then open returns original plaintext
+pub fn chacha20_poly1305_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.byte_aligned_bit_array(),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  assert output == plaintext
-}
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(plaintext, aad) = input
+    let assert Ok(ctx) = aead.chacha20_poly1305(crypto.random_bytes(32))
+    let nonce = crypto.random_bytes(aead.nonce_size(ctx))
 
-pub fn chacha20_poly1305_with_aad_test() {
-  let assert Ok(ctx) = aead.chacha20_poly1305(crypto.random_bytes(32))
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"secret message":utf8>>
-  let aad = <<"header data":utf8>>
+    // Test without AAD
+    let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
+    let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+    assert output == plaintext
 
-  let assert Ok(#(ciphertext, tag)) =
-    aead.seal_with_aad(ctx, nonce, plaintext, aad)
-  let assert Ok(output) = aead.open_with_aad(ctx, nonce, tag, ciphertext, aad)
-
-  assert output == plaintext
+    // Test with AAD
+    let assert Ok(#(ciphertext2, tag2)) =
+      aead.seal_with_aad(ctx, nonce, plaintext, aad)
+    let assert Ok(output2) =
+      aead.open_with_aad(ctx, nonce, tag2, ciphertext2, aad)
+    assert output2 == plaintext
+  })
 }
 
 pub fn chacha20_poly1305_wrong_nonce_size_seal_test() {
@@ -240,17 +232,6 @@ pub fn chacha20_poly1305_wrong_aad_test() {
     == Error(Nil)
 }
 
-pub fn chacha20_poly1305_empty_plaintext_test() {
-  let assert Ok(ctx) = aead.chacha20_poly1305(crypto.random_bytes(32))
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<>>
-
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
-
-  assert output == plaintext
-}
-
 pub fn chacha20_poly1305_wrong_key_test() {
   let assert Ok(ctx1) = aead.chacha20_poly1305(crypto.random_bytes(32))
   let assert Ok(ctx2) = aead.chacha20_poly1305(crypto.random_bytes(32))
@@ -267,27 +248,31 @@ pub fn chacha20_poly1305_wrong_key_size_test() {
   assert aead.chacha20_poly1305(crypto.random_bytes(33)) == Error(Nil)
 }
 
-pub fn xchacha20_poly1305_test() {
-  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+// Property: XChaCha20-Poly1305 seal then open returns original plaintext
+pub fn xchacha20_poly1305_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.byte_aligned_bit_array(),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  assert output == plaintext
-}
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(plaintext, aad) = input
+    let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+    let nonce = crypto.random_bytes(aead.nonce_size(ctx))
 
-pub fn xchacha20_poly1305_with_aad_test() {
-  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"secret message":utf8>>
-  let aad = <<"header data":utf8>>
+    // Test without AAD
+    let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
+    let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+    assert output == plaintext
 
-  let assert Ok(#(ciphertext, tag)) =
-    aead.seal_with_aad(ctx, nonce, plaintext, aad)
-  let assert Ok(output) = aead.open_with_aad(ctx, nonce, tag, ciphertext, aad)
-
-  assert output == plaintext
+    // Test with AAD
+    let assert Ok(#(ciphertext2, tag2)) =
+      aead.seal_with_aad(ctx, nonce, plaintext, aad)
+    let assert Ok(output2) =
+      aead.open_with_aad(ctx, nonce, tag2, ciphertext2, aad)
+    assert output2 == plaintext
+  })
 }
 
 pub fn xchacha20_poly1305_wrong_nonce_size_seal_test() {
@@ -343,17 +328,6 @@ pub fn xchacha20_poly1305_wrong_aad_test() {
     == Error(Nil)
 }
 
-pub fn xchacha20_poly1305_empty_plaintext_test() {
-  let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<>>
-
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
-
-  assert output == plaintext
-}
-
 pub fn xchacha20_poly1305_wrong_key_test() {
   let assert Ok(ctx1) = aead.xchacha20_poly1305(crypto.random_bytes(32))
   let assert Ok(ctx2) = aead.xchacha20_poly1305(crypto.random_bytes(32))
@@ -402,51 +376,42 @@ pub fn xchacha20_poly1305_ietf_test_vector_test() {
   assert decrypted == plaintext
 }
 
-pub fn aes_128_ccm_test() {
-  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
-  let ctx = aead.ccm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+// Property: AES-CCM seal then open returns original plaintext
+pub fn aes_ccm_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(16), [
+        qcheck.return(24),
+        qcheck.return(32),
+      ]),
+      qcheck.tuple2(
+        qcheck.byte_aligned_bit_array(),
+        qcheck.byte_aligned_bit_array(),
+      ),
+    )
 
-  assert output == plaintext
-}
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(key_size, #(plaintext, aad)) = input
+    let assert Ok(cipher) = case key_size {
+      16 -> block.aes_128(crypto.random_bytes(16))
+      24 -> block.aes_192(crypto.random_bytes(24))
+      _ -> block.aes_256(crypto.random_bytes(32))
+    }
+    let ctx = aead.ccm(cipher)
+    let nonce = crypto.random_bytes(aead.nonce_size(ctx))
 
-pub fn aes_192_ccm_test() {
-  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
-  let ctx = aead.ccm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+    // Test without AAD
+    let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
+    let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+    assert output == plaintext
 
-  assert output == plaintext
-}
-
-pub fn aes_256_ccm_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let ctx = aead.ccm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
-
-  assert output == plaintext
-}
-
-pub fn aes_ccm_with_aad_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let ctx = aead.ccm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<"secret message":utf8>>
-  let aad = <<"header data":utf8>>
-
-  let assert Ok(#(ciphertext, tag)) =
-    aead.seal_with_aad(ctx, nonce, plaintext, aad)
-  let assert Ok(output) = aead.open_with_aad(ctx, nonce, tag, ciphertext, aad)
-
-  assert output == plaintext
+    // Test with AAD
+    let assert Ok(#(ciphertext2, tag2)) =
+      aead.seal_with_aad(ctx, nonce, plaintext, aad)
+    let assert Ok(output2) =
+      aead.open_with_aad(ctx, nonce, tag2, ciphertext2, aad)
+    assert output2 == plaintext
+  })
 }
 
 pub fn aes_ccm_with_custom_sizes_test() {
@@ -532,18 +497,6 @@ pub fn ccm_wrong_aad_test() {
 
   assert aead.open_with_aad(ctx, nonce, tag, ciphertext, wrong_aad)
     == Error(Nil)
-}
-
-pub fn ccm_empty_plaintext_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let ctx = aead.ccm(cipher)
-  let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-  let plaintext = <<>>
-
-  let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-  let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
-
-  assert output == plaintext
 }
 
 pub fn ccm_wrong_key_test() {

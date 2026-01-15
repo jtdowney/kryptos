@@ -2,6 +2,49 @@ import gleam/bit_array
 import gleam/option.{None, Some}
 import kryptos/crypto
 import kryptos/hash
+import qcheck
+
+// Property: HKDF output length matches requested length
+pub fn hkdf_output_length_property_test() {
+  let gen =
+    qcheck.tuple3(
+      qcheck.from_generators(qcheck.return(hash.Sha256), [
+        qcheck.return(hash.Sha512),
+        qcheck.return(hash.Sha1),
+      ]),
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.bounded_int(1, 255),
+    )
+
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(algorithm, ikm, length) = input
+    let assert Ok(result) =
+      crypto.hkdf(algorithm, input: ikm, salt: None, info: <<>>, length:)
+    assert bit_array.byte_size(result) == length
+  })
+}
+
+// Property: HKDF is deterministic - same inputs produce same output
+pub fn hkdf_deterministic_property_test() {
+  let gen =
+    qcheck.tuple3(
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.byte_aligned_bit_array(),
+      qcheck.byte_aligned_bit_array(),
+    )
+
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(ikm, salt, info) = input
+    let length = 32
+
+    let assert Ok(result1) =
+      crypto.hkdf(hash.Sha256, input: ikm, salt: Some(salt), info:, length:)
+    let assert Ok(result2) =
+      crypto.hkdf(hash.Sha256, input: ikm, salt: Some(salt), info:, length:)
+
+    assert result1 == result2
+  })
+}
 
 // RFC 5869 Appendix A - Test Case 1 (SHA-256)
 pub fn hkdf_sha256_rfc5869_test_case_1_test() {

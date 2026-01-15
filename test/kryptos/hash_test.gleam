@@ -3,6 +3,7 @@ import gleam/list
 import gleam/result
 import kryptos/crypto
 import kryptos/hash
+import qcheck
 
 pub fn digest_table_test() {
   let input = <<"too many secrets":utf8>>
@@ -60,43 +61,60 @@ pub fn digest_table_test() {
   })
 }
 
-pub fn incremental_hash_test() {
-  let input = <<"too many secrets":utf8>>
-  let assert Ok(expected) = crypto.hash(hash.Sha256, input)
+// Property: hashing in chunks produces same result as hashing all at once
+pub fn hash_chunking_invariant_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(hash.Sha256), [
+        qcheck.return(hash.Sha512),
+        qcheck.return(hash.Sha1),
+        qcheck.return(hash.Blake2b),
+        qcheck.return(hash.Blake2s),
+      ]),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  let assert Ok(hasher) = hash.new(hash.Sha256)
-  let result =
-    hasher
-    |> hash.update(bit_array.from_string("too many "))
-    |> hash.update(bit_array.from_string("secrets"))
-    |> hash.final()
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(algorithm, data) = input
+    let data_size = bit_array.byte_size(data)
+    let assert Ok(expected) = crypto.hash(algorithm, data)
 
-  assert result == expected
+    // Test with multiple chunk sizes
+    list.each([0, data_size / 2, data_size], fn(split_point) {
+      let split_point = case split_point > data_size {
+        True -> data_size
+        False -> split_point
+      }
+      let assert Ok(first) = bit_array.slice(data, 0, split_point)
+      let assert Ok(second) =
+        bit_array.slice(data, split_point, data_size - split_point)
+
+      let assert Ok(hasher) = hash.new(algorithm)
+      let result =
+        hasher
+        |> hash.update(first)
+        |> hash.update(second)
+        |> hash.final()
+
+      assert result == expected
+    })
+  })
 }
 
-pub fn empty_input_test() {
-  let empty = <<>>
-  let assert Ok(expected) = crypto.hash(hash.Sha256, empty)
+// Property: hashing is deterministic
+pub fn hash_deterministic_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(hash.Sha256), [
+        qcheck.return(hash.Sha512),
+      ]),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  let assert Ok(hasher) = hash.new(hash.Sha256)
-  let result =
-    hasher
-    |> hash.final()
-
-  assert result == expected
-}
-
-pub fn single_byte_chunks_test() {
-  let input = <<"abc":utf8>>
-  let assert Ok(expected) = crypto.hash(hash.Sha256, input)
-
-  let assert Ok(hasher) = hash.new(hash.Sha256)
-  let result =
-    hasher
-    |> hash.update(<<"a":utf8>>)
-    |> hash.update(<<"b":utf8>>)
-    |> hash.update(<<"c":utf8>>)
-    |> hash.final()
-
-  assert result == expected
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(algorithm, data) = input
+    let assert Ok(hash1) = crypto.hash(algorithm, data)
+    let assert Ok(hash2) = crypto.hash(algorithm, data)
+    assert hash1 == hash2
+  })
 }

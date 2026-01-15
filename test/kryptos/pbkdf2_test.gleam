@@ -1,6 +1,52 @@
 import gleam/bit_array
 import kryptos/crypto
 import kryptos/hash
+import qcheck
+
+// Property: PBKDF2 output length matches requested length
+pub fn pbkdf2_output_length_property_test() {
+  let gen =
+    qcheck.tuple3(
+      qcheck.from_generators(qcheck.return(hash.Sha256), [
+        qcheck.return(hash.Sha512),
+        qcheck.return(hash.Sha1),
+      ]),
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.bounded_int(1, 128),
+    )
+
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(algorithm, password, length) = input
+    let salt = <<"salt":utf8>>
+    let iterations = 1
+
+    let assert Ok(result) =
+      crypto.pbkdf2(algorithm, password:, salt:, iterations:, length:)
+    assert bit_array.byte_size(result) == length
+  })
+}
+
+// Property: PBKDF2 is deterministic - same inputs produce same output
+pub fn pbkdf2_deterministic_property_test() {
+  let gen =
+    qcheck.tuple3(
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.non_empty_byte_aligned_bit_array(),
+      qcheck.bounded_int(1, 10),
+    )
+
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(password, salt, iterations) = input
+    let length = 32
+
+    let assert Ok(result1) =
+      crypto.pbkdf2(hash.Sha256, password:, salt:, iterations:, length:)
+    let assert Ok(result2) =
+      crypto.pbkdf2(hash.Sha256, password:, salt:, iterations:, length:)
+
+    assert result1 == result2
+  })
+}
 
 // RFC 6070 Test Vectors for PBKDF2-HMAC-SHA1
 

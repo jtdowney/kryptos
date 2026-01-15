@@ -2,35 +2,32 @@ import gleam/bit_array
 import gleam/int
 import kryptos/block
 import kryptos/crypto
+import qcheck
 
-pub fn ecb_aes_128_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
-  let ctx = block.ecb(cipher)
-  let plaintext = <<"attack at dawn!!":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
+// Property: ECB encrypt then decrypt returns original plaintext
+pub fn ecb_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(16), [
+        qcheck.return(24),
+        qcheck.return(32),
+      ]),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  assert output == plaintext
-}
-
-pub fn ecb_aes_192_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
-  let ctx = block.ecb(cipher)
-  let plaintext = <<"attack at dawn!!":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
-
-  assert output == plaintext
-}
-
-pub fn ecb_aes_256_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let ctx = block.ecb(cipher)
-  let plaintext = <<"attack at dawn!!":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
-
-  assert output == plaintext
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(key_size, plaintext) = input
+    let key = crypto.random_bytes(key_size)
+    let assert Ok(cipher) = case key_size {
+      16 -> block.aes_128(key)
+      24 -> block.aes_192(key)
+      _ -> block.aes_256(key)
+    }
+    let ctx = block.ecb(cipher)
+    let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
+    let assert Ok(output) = block.decrypt(ctx, ciphertext)
+    assert output == plaintext
+  })
 }
 
 pub fn ecb_pattern_visibility_test() {
@@ -47,69 +44,30 @@ pub fn ecb_pattern_visibility_test() {
   assert block1 == block2
 }
 
-pub fn cbc_aes_128_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
-  let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
+// Property: CBC encrypt then decrypt returns original plaintext
+pub fn cbc_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(16), [
+        qcheck.return(24),
+        qcheck.return(32),
+      ]),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  assert output == plaintext
-}
-
-pub fn cbc_aes_192_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
-  let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
-
-  assert output == plaintext
-}
-
-pub fn cbc_aes_256_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
-
-  assert output == plaintext
-}
-
-pub fn cbc_pkcs7_padding_test() {
-  // CBC with PKCS7 padding should handle various plaintext sizes
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
-
-  // Test various sizes that need different padding amounts
-  let short = <<"short":utf8>>
-  let assert Ok(ct1) = block.encrypt(ctx, short)
-  let assert Ok(out1) = block.decrypt(ctx, ct1)
-  assert out1 == short
-
-  // Exactly one block (16 bytes) - needs full block of padding
-  let one_block = <<"exactly16bytes!!":utf8>>
-  let assert Ok(ct2) = block.encrypt(ctx, one_block)
-  let assert Ok(out2) = block.decrypt(ctx, ct2)
-  assert out2 == one_block
-
-  // 17 bytes - needs 15 bytes padding
-  let seventeen = <<"17bytesofdata!!!!":utf8>>
-  let assert Ok(ct3) = block.encrypt(ctx, seventeen)
-  let assert Ok(out3) = block.decrypt(ctx, ct3)
-  assert out3 == seventeen
-}
-
-pub fn cbc_empty_plaintext_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
-  let plaintext = <<>>
-
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
-
-  assert output == plaintext
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(key_size, plaintext) = input
+    let key = crypto.random_bytes(key_size)
+    let assert Ok(cipher) = case key_size {
+      16 -> block.aes_128(key)
+      24 -> block.aes_192(key)
+      _ -> block.aes_256(key)
+    }
+    let assert Ok(ctx) = block.cbc(cipher, crypto.random_bytes(16))
+    let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
+    let assert Ok(output) = block.decrypt(ctx, ciphertext)
+    assert output == plaintext
+  })
 }
 
 pub fn cbc_wrong_iv_size_test() {
@@ -155,46 +113,32 @@ pub fn cbc_wrong_key_test() {
   }
 }
 
-pub fn ctr_aes_128_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_128(crypto.random_bytes(16))
-  let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
+// Property: CTR encrypt then decrypt returns original plaintext
+pub fn ctr_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(16), [
+        qcheck.return(24),
+        qcheck.return(32),
+      ]),
+      qcheck.byte_aligned_bit_array(),
+    )
 
-  assert output == plaintext
-}
-
-pub fn ctr_aes_192_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_192(crypto.random_bytes(24))
-  let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
-
-  assert output == plaintext
-}
-
-pub fn ctr_aes_256_roundtrip_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
-  let plaintext = <<"attack at dawn":utf8>>
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
-
-  assert output == plaintext
-}
-
-pub fn ctr_empty_plaintext_test() {
-  let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-  let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
-  let plaintext = <<>>
-
-  let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
-  let assert Ok(output) = block.decrypt(ctx, ciphertext)
-
-  assert output == plaintext
-  assert bit_array.byte_size(ciphertext) == 0
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(key_size, plaintext) = input
+    let key = crypto.random_bytes(key_size)
+    let assert Ok(cipher) = case key_size {
+      16 -> block.aes_128(key)
+      24 -> block.aes_192(key)
+      _ -> block.aes_256(key)
+    }
+    let assert Ok(ctx) = block.ctr(cipher, crypto.random_bytes(16))
+    let assert Ok(ciphertext) = block.encrypt(ctx, plaintext)
+    let assert Ok(output) = block.decrypt(ctx, ciphertext)
+    assert output == plaintext
+    // CTR mode: ciphertext length equals plaintext length
+    assert bit_array.byte_size(ciphertext) == bit_array.byte_size(plaintext)
+  })
 }
 
 pub fn ctr_wrong_nonce_size_test() {
@@ -218,43 +162,37 @@ pub fn ctr_different_nonce_different_ciphertext_test() {
   assert ct1 != ct2
 }
 
-pub fn wrap_unwrap_aes_128_roundtrip_test() {
-  let assert Ok(kek) = block.aes_128(crypto.random_bytes(16))
-  let key_to_wrap = crypto.random_bytes(16)
-  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
-  let assert Ok(unwrapped) = block.unwrap(kek, wrapped)
+// Property: key wrap then unwrap returns original key
+pub fn key_wrap_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(16), [
+        qcheck.return(24),
+        qcheck.return(32),
+      ]),
+      // Key to wrap must be multiple of 8 bytes and >= 16 bytes
+      qcheck.bounded_int(2, 8),
+    )
 
-  assert unwrapped == key_to_wrap
-  assert bit_array.byte_size(wrapped) == 24
-}
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(kek_size, key_blocks) = input
+    let key_size = key_blocks * 8
+    let kek = crypto.random_bytes(kek_size)
+    let key_to_wrap = crypto.random_bytes(key_size)
 
-pub fn wrap_unwrap_aes_192_roundtrip_test() {
-  let assert Ok(kek) = block.aes_192(crypto.random_bytes(24))
-  let key_to_wrap = crypto.random_bytes(24)
-  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
-  let assert Ok(unwrapped) = block.unwrap(kek, wrapped)
+    let assert Ok(cipher) = case kek_size {
+      16 -> block.aes_128(kek)
+      24 -> block.aes_192(kek)
+      _ -> block.aes_256(kek)
+    }
 
-  assert unwrapped == key_to_wrap
-  assert bit_array.byte_size(wrapped) == 32
-}
+    let assert Ok(wrapped) = block.wrap(cipher, key_to_wrap)
+    let assert Ok(unwrapped) = block.unwrap(cipher, wrapped)
 
-pub fn wrap_unwrap_aes_256_roundtrip_test() {
-  let assert Ok(kek) = block.aes_256(crypto.random_bytes(32))
-  let key_to_wrap = crypto.random_bytes(32)
-  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
-  let assert Ok(unwrapped) = block.unwrap(kek, wrapped)
-
-  assert unwrapped == key_to_wrap
-  assert bit_array.byte_size(wrapped) == 40
-}
-
-pub fn wrap_longer_key_than_kek_test() {
-  let assert Ok(kek) = block.aes_128(crypto.random_bytes(16))
-  let key_to_wrap = crypto.random_bytes(32)
-  let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
-  let assert Ok(unwrapped) = block.unwrap(kek, wrapped)
-
-  assert unwrapped == key_to_wrap
+    assert unwrapped == key_to_wrap
+    // Wrapped key is 8 bytes longer than original
+    assert bit_array.byte_size(wrapped) == key_size + 8
+  })
 }
 
 pub fn wrap_plaintext_too_short_test() {

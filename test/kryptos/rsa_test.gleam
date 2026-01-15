@@ -1,12 +1,116 @@
 import birdie
 import gleam/bit_array
+import gleam/int
+import kryptos/crypto
 import kryptos/hash
 import kryptos/rsa
+import qcheck
 import simplifile
 
 fn load_test_key() -> String {
   let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
   pem
+}
+
+fn load_test_key_pair() -> #(rsa.PrivateKey, rsa.PublicKey) {
+  let assert Ok(#(private, public)) = rsa.from_pem(load_test_key(), rsa.Pkcs8)
+  #(private, public)
+}
+
+// Property: sign then verify returns true for all padding/hash combinations
+pub fn rsa_sign_verify_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(#(hash.Sha256, rsa.Pkcs1v15)), [
+        qcheck.return(#(hash.Sha384, rsa.Pkcs1v15)),
+        qcheck.return(#(hash.Sha512, rsa.Pkcs1v15)),
+        qcheck.return(#(hash.Sha256, rsa.Pss(rsa.SaltLengthHashLen))),
+        qcheck.return(#(hash.Sha256, rsa.Pss(rsa.SaltLengthMax))),
+        qcheck.return(#(hash.Sha256, rsa.Pss(rsa.SaltLengthExplicit(20)))),
+      ]),
+      qcheck.byte_aligned_bit_array(),
+    )
+
+  let #(private_key, public_key) = load_test_key_pair()
+
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(#(hash_alg, padding), message) = input
+    let signature = rsa.sign(private_key, message, hash_alg, padding)
+    assert rsa.verify(public_key, message, signature, hash_alg, padding)
+  })
+}
+
+// Property: wrong public key fails verification
+pub fn rsa_wrong_public_key_fails_property_test() {
+  let gen = qcheck.byte_aligned_bit_array()
+
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(5),
+    gen,
+    fn(message) {
+      let assert Ok(#(private_key, _)) = rsa.generate_key_pair(2048)
+      let assert Ok(#(_, other_public_key)) = rsa.generate_key_pair(2048)
+      let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
+      assert !rsa.verify(
+        other_public_key,
+        message,
+        signature,
+        hash.Sha256,
+        rsa.Pkcs1v15,
+      )
+    },
+  )
+}
+
+// Property: tampered message fails verification
+pub fn rsa_tampered_message_fails_property_test() {
+  let gen = qcheck.non_empty_byte_aligned_bit_array()
+  let #(private_key, public_key) = load_test_key_pair()
+
+  qcheck.run(qcheck.default_config(), gen, fn(message) {
+    let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
+
+    // Flip first bit
+    let assert <<first_byte:8, rest:bits>> = message
+    let tampered = <<{ int.bitwise_exclusive_or(first_byte, 1) }:8, rest:bits>>
+
+    assert !rsa.verify(
+      public_key,
+      tampered,
+      signature,
+      hash.Sha256,
+      rsa.Pkcs1v15,
+    )
+  })
+}
+
+// Property: encrypt then decrypt returns original plaintext
+// Note: RSA plaintext size is limited by key size and padding
+// For 2048-bit key with OAEP-SHA256: max ~190 bytes
+pub fn rsa_encrypt_decrypt_roundtrip_property_test() {
+  let #(private_key, public_key) = load_test_key_pair()
+  let gen =
+    qcheck.tuple2(
+      qcheck.from_generators(qcheck.return(rsa.EncryptPkcs1v15), [
+        qcheck.return(rsa.Oaep(hash: hash.Sha256, label: <<>>)),
+        qcheck.return(rsa.Oaep(hash: hash.Sha384, label: <<>>)),
+      ]),
+      // Limit plaintext to 100 bytes to stay within all padding schemes
+      qcheck.bounded_int(0, 100),
+    )
+
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(10),
+    gen,
+    fn(input) {
+      let #(padding, plaintext_size) = input
+      let plaintext = crypto.random_bytes(plaintext_size)
+
+      let assert Ok(ciphertext) = rsa.encrypt(public_key, plaintext, padding)
+      let assert Ok(decrypted) = rsa.decrypt(private_key, ciphertext, padding)
+      assert decrypted == plaintext
+    },
+  )
 }
 
 pub fn generate_key_pair_too_small_test() {
@@ -17,116 +121,14 @@ pub fn generate_key_pair_minimum_test() {
   let assert Ok(#(_private_key, _public_key)) = rsa.generate_key_pair(1024)
 }
 
-pub fn sign_verify_pkcs1v15_sha256_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let message = <<"hello world":utf8>>
-  let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
-  let valid =
-    rsa.verify(public_key, message, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert valid
-}
-
-pub fn sign_verify_pkcs1v15_sha384_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let message = <<"hello world":utf8>>
-  let signature = rsa.sign(private_key, message, hash.Sha384, rsa.Pkcs1v15)
-  let valid =
-    rsa.verify(public_key, message, signature, hash.Sha384, rsa.Pkcs1v15)
-  assert valid
-}
-
-pub fn sign_verify_pkcs1v15_sha512_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let message = <<"hello world":utf8>>
-  let signature = rsa.sign(private_key, message, hash.Sha512, rsa.Pkcs1v15)
-  let valid =
-    rsa.verify(public_key, message, signature, hash.Sha512, rsa.Pkcs1v15)
-  assert valid
-}
-
-pub fn sign_verify_pss_hash_len_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let message = <<"hello world":utf8>>
-  let padding = rsa.Pss(rsa.SaltLengthHashLen)
-  let signature = rsa.sign(private_key, message, hash.Sha256, padding)
-  let valid = rsa.verify(public_key, message, signature, hash.Sha256, padding)
-  assert valid
-}
-
-pub fn sign_verify_pss_max_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let message = <<"hello world":utf8>>
-  let padding = rsa.Pss(rsa.SaltLengthMax)
-  let signature = rsa.sign(private_key, message, hash.Sha256, padding)
-  let valid = rsa.verify(public_key, message, signature, hash.Sha256, padding)
-  assert valid
-}
-
-pub fn sign_verify_pss_explicit_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let message = <<"hello world":utf8>>
-  let padding = rsa.Pss(rsa.SaltLengthExplicit(20))
-  let signature = rsa.sign(private_key, message, hash.Sha256, padding)
-  let valid = rsa.verify(public_key, message, signature, hash.Sha256, padding)
-  assert valid
-}
-
-pub fn verify_wrong_key_test() {
-  let assert Ok(#(private_key, _public_key)) = rsa.generate_key_pair(2048)
-  let assert Ok(#(_other_private, other_public)) = rsa.generate_key_pair(2048)
-  let message = <<"hello world":utf8>>
-  let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
-  let valid =
-    rsa.verify(other_public, message, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert !valid
-}
-
-pub fn verify_tampered_message_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let message = <<"hello world":utf8>>
-  let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
-  let tampered = <<"goodbye world":utf8>>
-  let valid =
-    rsa.verify(public_key, tampered, signature, hash.Sha256, rsa.Pkcs1v15)
-  assert !valid
-}
-
 pub fn verify_tampered_signature_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
+  let #(private_key, public_key) = load_test_key_pair()
   let message = <<"hello world":utf8>>
   let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
   let tampered = <<0, signature:bits>>
   let valid =
     rsa.verify(public_key, message, tampered, hash.Sha256, rsa.Pkcs1v15)
   assert !valid
-}
-
-pub fn encrypt_decrypt_pkcs1v15_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let plaintext = <<"secret message":utf8>>
-  let assert Ok(ciphertext) =
-    rsa.encrypt(public_key, plaintext, rsa.EncryptPkcs1v15)
-  let assert Ok(decrypted) =
-    rsa.decrypt(private_key, ciphertext, rsa.EncryptPkcs1v15)
-  assert decrypted == plaintext
-}
-
-pub fn encrypt_decrypt_oaep_sha256_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let plaintext = <<"secret message":utf8>>
-  let padding = rsa.Oaep(hash: hash.Sha256, label: <<>>)
-  let assert Ok(ciphertext) = rsa.encrypt(public_key, plaintext, padding)
-  let assert Ok(decrypted) = rsa.decrypt(private_key, ciphertext, padding)
-  assert decrypted == plaintext
-}
-
-pub fn encrypt_decrypt_oaep_sha384_test() {
-  let assert Ok(#(private_key, public_key)) = rsa.generate_key_pair(2048)
-  let plaintext = <<"secret message":utf8>>
-  let padding = rsa.Oaep(hash: hash.Sha384, label: <<>>)
-  let assert Ok(ciphertext) = rsa.encrypt(public_key, plaintext, padding)
-  let assert Ok(decrypted) = rsa.decrypt(private_key, ciphertext, padding)
-  assert decrypted == plaintext
 }
 
 pub fn encrypt_decrypt_oaep_sha512_test() {
