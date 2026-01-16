@@ -246,3 +246,36 @@ pub fn curve(key: PrivateKey) -> Curve
 @external(erlang, "kryptos_ffi", "ec_public_key_curve")
 @external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyCurve")
 pub fn public_key_curve(key: PublicKey) -> Curve
+
+/// Exports an EC private key to raw scalar bytes.
+///
+/// Returns the private scalar (the "d" value in JWK terminology) as
+/// big-endian bytes. The size matches the curve's coordinate size.
+///
+/// ## Parameters
+/// - `key`: The private key to export
+///
+/// ## Returns
+/// The raw private scalar bytes.
+@external(erlang, "kryptos_ffi", "ec_private_key_to_bytes")
+@external(javascript, "../kryptos_ffi.mjs", "ecPrivateKeyToBytes")
+pub fn to_bytes(key: PrivateKey) -> BitArray
+
+/// Imports an EC private key from raw scalar bytes.
+///
+/// The scalar should be in big-endian format with size matching the
+/// curve's coordinate size (32 bytes for P256/Secp256k1, 48 for P384,
+/// 66 for P521).
+///
+/// ## Parameters
+/// - `curve`: The elliptic curve
+/// - `private_bytes`: The raw private scalar bytes
+///
+/// ## Returns
+/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if invalid.
+@external(erlang, "kryptos_ffi", "ec_private_key_from_bytes")
+@external(javascript, "../kryptos_ffi.mjs", "ecPrivateKeyFromBytes")
+pub fn from_bytes(
+  curve: Curve,
+  private_bytes: BitArray,
+) -> Result(#(PrivateKey, PublicKey), Nil)

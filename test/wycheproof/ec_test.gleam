@@ -2,7 +2,6 @@ import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/ec
 import kryptos/ecdh
-import kryptos/internal/ec as internal_ec
 import unitest
 import wycheproof/utils
 
@@ -89,7 +88,7 @@ fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
   let assert Ok(expected_shared) = bit_array.base16_decode(tc.shared)
 
   let pub_key_result = ec.public_key_from_raw_point(curve, public_point)
-  let priv_key_result = internal_ec.private_key_from_bytes(curve, private_bytes)
+  let priv_key_result = ec.from_bytes(curve, private_bytes)
 
   case tc.result, pub_key_result, priv_key_result {
     Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->

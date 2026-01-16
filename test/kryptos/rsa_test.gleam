@@ -476,3 +476,168 @@ pub fn public_key_exponent_3_test() {
   let assert Ok(public) = rsa.public_key_from_pem(pem, rsa.Spki)
   assert rsa.public_key_exponent(public) == 3
 }
+
+pub fn modulus_bytes_consistency_property_test() {
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(5),
+    qcheck.return(Nil),
+    fn(_) {
+      let assert Ok(#(private, public)) = rsa.generate_key_pair(2048)
+      let priv_modulus = rsa.modulus(private)
+      let pub_modulus = rsa.public_key_modulus(public)
+      assert priv_modulus == pub_modulus
+    },
+  )
+}
+
+pub fn exponent_bytes_consistency_property_test() {
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(5),
+    qcheck.return(Nil),
+    fn(_) {
+      let assert Ok(#(private, public)) = rsa.generate_key_pair(2048)
+      let priv_exp = rsa.public_exponent_bytes(private)
+      let pub_exp = rsa.public_key_exponent_bytes(public)
+      assert priv_exp == pub_exp
+    },
+  )
+}
+
+pub fn from_components_roundtrip_sign_verify_property_test() {
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(5),
+    qcheck.byte_aligned_bit_array(),
+    fn(message) {
+      let assert Ok(#(original_private, original_public)) =
+        rsa.generate_key_pair(2048)
+
+      let n = rsa.modulus(original_private)
+      let e = rsa.public_exponent_bytes(original_private)
+      let d = rsa.private_exponent_bytes(original_private)
+
+      let assert Ok(#(reconstructed_private, reconstructed_public)) =
+        rsa.from_components(n, e, d)
+
+      let signature =
+        rsa.sign(reconstructed_private, message, hash.Sha256, rsa.Pkcs1v15)
+      assert rsa.verify(
+        original_public,
+        message,
+        signature,
+        hash.Sha256,
+        rsa.Pkcs1v15,
+      )
+      assert rsa.verify(
+        reconstructed_public,
+        message,
+        signature,
+        hash.Sha256,
+        rsa.Pkcs1v15,
+      )
+    },
+  )
+}
+
+pub fn from_full_components_roundtrip_sign_verify_property_test() {
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(5),
+    qcheck.byte_aligned_bit_array(),
+    fn(message) {
+      let assert Ok(#(original_private, original_public)) =
+        rsa.generate_key_pair(2048)
+
+      let n = rsa.modulus(original_private)
+      let e = rsa.public_exponent_bytes(original_private)
+      let d = rsa.private_exponent_bytes(original_private)
+      let p = rsa.prime1(original_private)
+      let q = rsa.prime2(original_private)
+      let dp = rsa.exponent1(original_private)
+      let dq = rsa.exponent2(original_private)
+      let qi = rsa.coefficient(original_private)
+
+      let assert Ok(#(reconstructed_private, reconstructed_public)) =
+        rsa.from_full_components(n, e, d, p, q, dp, dq, qi)
+
+      let signature =
+        rsa.sign(reconstructed_private, message, hash.Sha256, rsa.Pkcs1v15)
+      assert rsa.verify(
+        original_public,
+        message,
+        signature,
+        hash.Sha256,
+        rsa.Pkcs1v15,
+      )
+      assert rsa.verify(
+        reconstructed_public,
+        message,
+        signature,
+        hash.Sha256,
+        rsa.Pkcs1v15,
+      )
+    },
+  )
+}
+
+pub fn from_components_crt_accessors_work_test() {
+  // Verify CRT accessors work on keys created via from_components
+  let assert Ok(#(original_private, _)) = rsa.generate_key_pair(2048)
+
+  let n = rsa.modulus(original_private)
+  let e = rsa.public_exponent_bytes(original_private)
+  let d = rsa.private_exponent_bytes(original_private)
+
+  let assert Ok(#(reconstructed_private, _)) = rsa.from_components(n, e, d)
+
+  // These should not crash - CRT params should be computed
+  let p = rsa.prime1(reconstructed_private)
+  let q = rsa.prime2(reconstructed_private)
+  let dp = rsa.exponent1(reconstructed_private)
+  let dq = rsa.exponent2(reconstructed_private)
+  let qi = rsa.coefficient(reconstructed_private)
+
+  // Verify the CRT params are non-empty
+  assert bit_array.byte_size(p) > 0
+  assert bit_array.byte_size(q) > 0
+  assert bit_array.byte_size(dp) > 0
+  assert bit_array.byte_size(dq) > 0
+  assert bit_array.byte_size(qi) > 0
+
+  // Verify modulus = p * q (basic sanity check)
+  // We just verify that the key works for signing
+  let message = <<"CRT test":utf8>>
+  let signature =
+    rsa.sign(reconstructed_private, message, hash.Sha256, rsa.Pkcs1v15)
+  let reconstructed_public =
+    rsa.public_key_from_private_key(reconstructed_private)
+  assert rsa.verify(
+    reconstructed_public,
+    message,
+    signature,
+    hash.Sha256,
+    rsa.Pkcs1v15,
+  )
+}
+
+pub fn public_key_from_components_roundtrip_property_test() {
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(5),
+    qcheck.byte_aligned_bit_array(),
+    fn(message) {
+      let assert Ok(#(private, _)) = rsa.generate_key_pair(2048)
+
+      let n = rsa.modulus(private)
+      let e = rsa.public_exponent_bytes(private)
+
+      let assert Ok(reconstructed_public) = rsa.public_key_from_components(n, e)
+
+      let signature = rsa.sign(private, message, hash.Sha256, rsa.Pkcs1v15)
+      assert rsa.verify(
+        reconstructed_public,
+        message,
+        signature,
+        hash.Sha256,
+        rsa.Pkcs1v15,
+      )
+    },
+  )
+}

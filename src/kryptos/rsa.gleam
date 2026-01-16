@@ -39,8 +39,8 @@
 
 import gleam/result
 import gleam/string
-
 import kryptos/hash.{type HashAlgorithm}
+import kryptos/internal/rsa_crt
 
 /// An RSA private key.
 pub type PrivateKey
@@ -395,3 +395,168 @@ pub fn public_exponent(key: PrivateKey) -> Int
 @external(erlang, "kryptos_ffi", "rsa_public_key_public_exponent")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyPublicExponent")
 pub fn public_key_exponent(key: PublicKey) -> Int
+
+/// Returns the modulus (n) as big-endian bytes for an RSA private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The modulus as raw bytes.
+@external(erlang, "kryptos_ffi", "rsa_private_key_modulus")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyModulus")
+pub fn modulus(key: PrivateKey) -> BitArray
+
+/// Returns the modulus (n) as big-endian bytes for an RSA public key.
+///
+/// ## Parameters
+/// - `key`: The public key
+///
+/// ## Returns
+/// The modulus as raw bytes.
+@external(erlang, "kryptos_ffi", "rsa_public_key_modulus")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyModulus")
+pub fn public_key_modulus(key: PublicKey) -> BitArray
+
+/// Returns the public exponent (e) as big-endian bytes for an RSA private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The public exponent as raw bytes.
+@external(erlang, "kryptos_ffi", "rsa_private_key_public_exponent_bytes")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPublicExponentBytes")
+pub fn public_exponent_bytes(key: PrivateKey) -> BitArray
+
+/// Returns the public exponent (e) as big-endian bytes for an RSA public key.
+///
+/// ## Parameters
+/// - `key`: The public key
+///
+/// ## Returns
+/// The public exponent as raw bytes.
+@external(erlang, "kryptos_ffi", "rsa_public_key_exponent_bytes")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyExponentBytes")
+pub fn public_key_exponent_bytes(key: PublicKey) -> BitArray
+
+/// Returns the private exponent (d) as big-endian bytes for an RSA private key.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The private exponent as raw bytes.
+@external(erlang, "kryptos_ffi", "rsa_private_key_private_exponent_bytes")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrivateExponentBytes")
+pub fn private_exponent_bytes(key: PrivateKey) -> BitArray
+
+/// Returns the first prime factor (p) as big-endian bytes.
+///
+/// This is part of the CRT (Chinese Remainder Theorem) parameters used
+/// for efficient RSA operations.
+@external(erlang, "kryptos_ffi", "rsa_private_key_prime1")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrime1")
+pub fn prime1(key: PrivateKey) -> BitArray
+
+/// Returns the second prime factor (q) as big-endian bytes.
+///
+/// This is part of the CRT (Chinese Remainder Theorem) parameters used
+/// for efficient RSA operations.
+@external(erlang, "kryptos_ffi", "rsa_private_key_prime2")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrime2")
+pub fn prime2(key: PrivateKey) -> BitArray
+
+/// Returns the first CRT exponent (dp = d mod (p-1)) as big-endian bytes.
+///
+/// This is part of the CRT (Chinese Remainder Theorem) parameters used
+/// for efficient RSA operations.
+@external(erlang, "kryptos_ffi", "rsa_private_key_exponent1")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyExponent1")
+pub fn exponent1(key: PrivateKey) -> BitArray
+
+/// Returns the second CRT exponent (dq = d mod (q-1)) as big-endian bytes.
+///
+/// This is part of the CRT (Chinese Remainder Theorem) parameters used
+/// for efficient RSA operations.
+@external(erlang, "kryptos_ffi", "rsa_private_key_exponent2")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyExponent2")
+pub fn exponent2(key: PrivateKey) -> BitArray
+
+/// Returns the CRT coefficient (qi = q^-1 mod p) as big-endian bytes.
+///
+/// This is part of the CRT (Chinese Remainder Theorem) parameters used
+/// for efficient RSA operations.
+@external(erlang, "kryptos_ffi", "rsa_private_key_coefficient")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyCoefficient")
+pub fn coefficient(key: PrivateKey) -> BitArray
+
+/// Constructs an RSA public key from its components.
+///
+/// ## Parameters
+/// - `n`: The modulus as big-endian bytes
+/// - `e`: The public exponent as big-endian bytes
+///
+/// ## Returns
+/// `Ok(public_key)` on success, `Error(Nil)` if components are invalid.
+@external(erlang, "kryptos_ffi", "rsa_public_key_from_components")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyFromComponents")
+pub fn public_key_from_components(
+  n: BitArray,
+  e: BitArray,
+) -> Result(PublicKey, Nil)
+
+/// Constructs an RSA private key from its components.
+///
+/// Creates a private key from the minimal set of components (n, e, d).
+/// CRT parameters are computed automatically using Miller's algorithm.
+///
+/// Note: This function is not constant-time. The CRT parameter derivation
+/// involves operations that may leak timing information. This is acceptable
+/// for key import since the caller already possesses the secret material,
+/// but avoid calling this in timing-sensitive contexts.
+///
+/// ## Parameters
+/// - `n`: The modulus as big-endian bytes
+/// - `e`: The public exponent as big-endian bytes
+/// - `d`: The private exponent as big-endian bytes
+///
+/// ## Returns
+/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if components are invalid.
+pub fn from_components(
+  n: BitArray,
+  e: BitArray,
+  d: BitArray,
+) -> Result(#(PrivateKey, PublicKey), Nil) {
+  use #(p, q, dp, dq, qi) <- result.try(rsa_crt.compute_crt_params(n, e, d))
+  from_full_components(n, e, d, p, q, dp, dq, qi)
+}
+
+/// Constructs an RSA private key from all components including CRT parameters.
+///
+/// This function works on both Erlang and JavaScript targets.
+///
+/// ## Parameters
+/// - `n`: The modulus as big-endian bytes
+/// - `e`: The public exponent as big-endian bytes
+/// - `d`: The private exponent as big-endian bytes
+/// - `p`: The first prime factor as big-endian bytes
+/// - `q`: The second prime factor as big-endian bytes
+/// - `dp`: The first CRT exponent (d mod (p-1)) as big-endian bytes
+/// - `dq`: The second CRT exponent (d mod (q-1)) as big-endian bytes
+/// - `qi`: The CRT coefficient (q^-1 mod p) as big-endian bytes
+///
+/// ## Returns
+/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if components are invalid.
+@external(erlang, "kryptos_ffi", "rsa_private_key_from_full_components")
+@external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyFromFullComponents")
+pub fn from_full_components(
+  n: BitArray,
+  e: BitArray,
+  d: BitArray,
+  p: BitArray,
+  q: BitArray,
+  dp: BitArray,
+  dq: BitArray,
+  qi: BitArray,
+) -> Result(#(PrivateKey, PublicKey), Nil)

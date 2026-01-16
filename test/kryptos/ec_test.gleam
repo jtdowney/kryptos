@@ -4,6 +4,7 @@ import kryptos/ec
 import kryptos/ecdh
 import kryptos/ecdsa
 import kryptos/hash
+import qcheck
 import simplifile
 
 fn load_test_key() -> String {
@@ -467,4 +468,69 @@ pub fn public_key_curve_secp256k1_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/secp256k1_spki_pub.pem")
   let assert Ok(public) = ec.public_key_from_pem(pem)
   assert ec.public_key_curve(public) == ec.Secp256k1
+}
+
+pub fn to_bytes_from_bytes_roundtrip_property_test() {
+  let gen =
+    qcheck.from_generators(qcheck.return(#(ec.P256, hash.Sha256, 32)), [
+      qcheck.return(#(ec.P384, hash.Sha384, 48)),
+      qcheck.return(#(ec.P521, hash.Sha512, 66)),
+      qcheck.return(#(ec.Secp256k1, hash.Sha256, 32)),
+    ])
+
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+    fn(input) {
+      let #(curve, hash_alg, expected_size) = input
+      let #(private, public) = ec.generate_key_pair(curve)
+      let bytes = ec.to_bytes(private)
+
+      assert bit_array.byte_size(bytes) == expected_size
+
+      let assert Ok(#(reimported_private, reimported_public)) =
+        ec.from_bytes(curve, bytes)
+
+      let message = <<"roundtrip test":utf8>>
+      let signature = ecdsa.sign(reimported_private, message, hash_alg)
+      assert ecdsa.verify(public, message, signature, hash_alg)
+      assert ecdsa.verify(reimported_public, message, signature, hash_alg)
+    },
+  )
+}
+
+pub fn from_bytes_rejects_way_too_long_scalar_test() {
+  // P256 expects 32 bytes, provide 34 (more than coordSize + 1)
+  let long_scalar = <<0:size(34)-unit(8)>>
+  assert ec.from_bytes(ec.P256, long_scalar) == Error(Nil)
+
+  // P384 expects 48 bytes, provide 50
+  let long_scalar_384 = <<0:size(50)-unit(8)>>
+  assert ec.from_bytes(ec.P384, long_scalar_384) == Error(Nil)
+
+  // P521 expects 66 bytes, provide 68
+  let long_scalar_521 = <<0:size(68)-unit(8)>>
+  assert ec.from_bytes(ec.P521, long_scalar_521) == Error(Nil)
+
+  // Secp256k1 expects 32 bytes, provide 34
+  let long_scalar_k1 = <<0:size(34)-unit(8)>>
+  assert ec.from_bytes(ec.Secp256k1, long_scalar_k1) == Error(Nil)
+}
+
+pub fn from_bytes_rejects_invalid_der_sign_byte_test() {
+  // P256 expects 32 bytes, provide 33 with non-zero leading byte
+  // (33 bytes is only valid if first byte is 0x00 for DER sign)
+  let invalid_der = <<1:8, 0:size(32)-unit(8)>>
+  assert ec.from_bytes(ec.P256, invalid_der) == Error(Nil)
+
+  // P384: 49 bytes with non-zero leading byte
+  let invalid_der_384 = <<1:8, 0:size(48)-unit(8)>>
+  assert ec.from_bytes(ec.P384, invalid_der_384) == Error(Nil)
+}
+
+pub fn from_bytes_rejects_empty_scalar_test() {
+  assert ec.from_bytes(ec.P256, <<>>) == Error(Nil)
+  assert ec.from_bytes(ec.P384, <<>>) == Error(Nil)
+  assert ec.from_bytes(ec.P521, <<>>) == Error(Nil)
+  assert ec.from_bytes(ec.Secp256k1, <<>>) == Error(Nil)
 }

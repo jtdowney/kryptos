@@ -28,6 +28,7 @@
     ec_import_public_key_der/1,
     ec_import_public_key_pem/1,
     ec_private_key_from_bytes/2,
+    ec_private_key_to_bytes/1,
     ec_public_key_from_private/1,
     ec_public_key_from_raw_point/2,
     ec_public_key_to_raw_point/1,
@@ -57,6 +58,7 @@
     eddsa_verify/3,
     hash_new/1,
     hmac_new/2,
+    mod_pow/3,
     pbkdf2_derive/5,
     random_bytes/1,
     rsa_decrypt/3,
@@ -75,8 +77,20 @@
     rsa_public_key_from_x509/1,
     rsa_private_key_modulus_bits/1,
     rsa_public_key_modulus_bits/1,
+    rsa_private_key_modulus/1,
+    rsa_public_key_modulus/1,
     rsa_private_key_public_exponent/1,
     rsa_public_key_public_exponent/1,
+    rsa_private_key_public_exponent_bytes/1,
+    rsa_public_key_exponent_bytes/1,
+    rsa_private_key_private_exponent_bytes/1,
+    rsa_private_key_prime1/1,
+    rsa_private_key_prime2/1,
+    rsa_private_key_exponent1/1,
+    rsa_private_key_exponent2/1,
+    rsa_private_key_coefficient/1,
+    rsa_public_key_from_components/2,
+    rsa_private_key_from_full_components/8,
     rsa_sign/4,
     rsa_verify/5,
     xdh_compute_shared_secret/2,
@@ -403,24 +417,70 @@ ec_generate_key_pair(Curve) ->
     PubKey = {{'ECPoint', PubPoint}, {namedCurve, CurveName}},
     {PrivKey, PubKey}.
 
+ec_coordinate_size(Curve) ->
+    case Curve of
+        p256 ->
+            32;
+        p384 ->
+            48;
+        p521 ->
+            66;
+        secp256k1 ->
+            32
+    end.
+
 ec_private_key_from_bytes(Curve, PrivateScalar) ->
-    try
-        CurveName = ec_curve_name(Curve),
-        OID = curve_to_oid(CurveName),
-        {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, PrivateScalar),
-        PrivKey =
-            #'ECPrivateKey'{
-                version = ecPrivkeyVer1,
-                privateKey = PrivateScalar,
-                parameters = {namedCurve, OID},
-                publicKey = PublicPoint
-            },
-        PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
-        {ok, {PrivKey, PubKey}}
-    catch
-        _:_ ->
+    ExpectedSize = ec_coordinate_size(Curve),
+    case normalize_ec_scalar(PrivateScalar, ExpectedSize) of
+        {ok, NormalizedScalar} ->
+            try
+                CurveName = ec_curve_name(Curve),
+                OID = curve_to_oid(CurveName),
+                {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, NormalizedScalar),
+                PrivKey =
+                    #'ECPrivateKey'{
+                        version = ecPrivkeyVer1,
+                        privateKey = NormalizedScalar,
+                        parameters = {namedCurve, OID},
+                        publicKey = PublicPoint
+                    },
+                PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
+                {ok, {PrivKey, PubKey}}
+            catch
+                _:_ ->
+                    {error, nil}
+            end;
+        error ->
             {error, nil}
     end.
+
+%% Normalize EC scalar to expected size, handling DER integer encoding
+normalize_ec_scalar(Scalar, ExpectedSize) ->
+    ActualSize = byte_size(Scalar),
+    if
+        ActualSize =:= 0 ->
+            %% Empty scalar is invalid
+            error;
+        ActualSize =:= ExpectedSize ->
+            {ok, Scalar};
+        ActualSize =:= ExpectedSize + 1 ->
+            %% May have leading 0x00 for DER sign byte
+            case Scalar of
+                <<0, Rest/binary>> ->
+                    {ok, Rest};
+                _ ->
+                    error
+            end;
+        ActualSize < ExpectedSize ->
+            %% Pad with leading zeros
+            PadSize = ExpectedSize - ActualSize,
+            {ok, <<0:PadSize/unit:8, Scalar/binary>>};
+        true ->
+            error
+    end.
+
+ec_private_key_to_bytes(#'ECPrivateKey'{privateKey = PrivateScalar}) ->
+    PrivateScalar.
 
 ec_public_key_from_x509(DerBytes) ->
     try
@@ -511,10 +571,14 @@ ec_private_key_curve(#'ECPrivateKey'{parameters = {namedCurve, CurveOID}}) ->
 ec_public_key_curve({{'ECPoint', _}, {namedCurve, CurveName}}) ->
     erlang_ec_curve_to_gleam(CurveName).
 
-erlang_ec_curve_to_gleam(secp256r1) -> p256;
-erlang_ec_curve_to_gleam(secp384r1) -> p384;
-erlang_ec_curve_to_gleam(secp521r1) -> p521;
-erlang_ec_curve_to_gleam(secp256k1) -> secp256k1.
+erlang_ec_curve_to_gleam(secp256r1) ->
+    p256;
+erlang_ec_curve_to_gleam(secp384r1) ->
+    p384;
+erlang_ec_curve_to_gleam(secp521r1) ->
+    p521;
+erlang_ec_curve_to_gleam(secp256k1) ->
+    secp256k1.
 
 ecdsa_sign(PrivateKey, Message, HashAlgorithm) ->
     DigestType = hash_algorithm_name(HashAlgorithm),
@@ -944,6 +1008,88 @@ rsa_private_key_public_exponent(#'RSAPrivateKey'{publicExponent = E}) ->
 
 rsa_public_key_public_exponent(#'RSAPublicKey'{publicExponent = E}) ->
     E.
+
+rsa_private_key_modulus(#'RSAPrivateKey'{modulus = N}) ->
+    binary:encode_unsigned(N).
+
+rsa_public_key_modulus(#'RSAPublicKey'{modulus = N}) ->
+    binary:encode_unsigned(N).
+
+rsa_private_key_public_exponent_bytes(#'RSAPrivateKey'{publicExponent = E}) ->
+    binary:encode_unsigned(E).
+
+rsa_public_key_exponent_bytes(#'RSAPublicKey'{publicExponent = E}) ->
+    binary:encode_unsigned(E).
+
+rsa_private_key_private_exponent_bytes(#'RSAPrivateKey'{privateExponent = D}) ->
+    binary:encode_unsigned(D).
+
+rsa_private_key_prime1(#'RSAPrivateKey'{prime1 = P}) ->
+    binary:encode_unsigned(P).
+
+rsa_private_key_prime2(#'RSAPrivateKey'{prime2 = Q}) ->
+    binary:encode_unsigned(Q).
+
+rsa_private_key_exponent1(#'RSAPrivateKey'{exponent1 = DP}) ->
+    binary:encode_unsigned(DP).
+
+rsa_private_key_exponent2(#'RSAPrivateKey'{exponent2 = DQ}) ->
+    binary:encode_unsigned(DQ).
+
+rsa_private_key_coefficient(#'RSAPrivateKey'{coefficient = QI}) ->
+    binary:encode_unsigned(QI).
+
+rsa_public_key_from_components(N, E) ->
+    try
+        NInt = bin_to_int(N),
+        EInt = bin_to_int(E),
+        case NInt > 1 andalso EInt > 1 andalso EInt < NInt of
+            true ->
+                {ok, #'RSAPublicKey'{modulus = NInt, publicExponent = EInt}};
+            false ->
+                {error, nil}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+mod_pow(Base, Exp, Mod) ->
+    crypto:mod_pow(bin_to_int(Base), bin_to_int(Exp), bin_to_int(Mod)).
+
+rsa_private_key_from_full_components(N, E, D, P, Q, DP, DQ, QI) ->
+    try
+        NInt = bin_to_int(N),
+        EInt = bin_to_int(E),
+        DInt = bin_to_int(D),
+        PInt = bin_to_int(P),
+        QInt = bin_to_int(Q),
+        DPInt = bin_to_int(DP),
+        DQInt = bin_to_int(DQ),
+        QIInt = bin_to_int(QI),
+        case NInt > 1 andalso EInt > 1 andalso EInt < NInt andalso PInt * QInt =:= NInt of
+            true ->
+                PrivKey =
+                    #'RSAPrivateKey'{
+                        version = 'two-prime',
+                        modulus = NInt,
+                        publicExponent = EInt,
+                        privateExponent = DInt,
+                        prime1 = PInt,
+                        prime2 = QInt,
+                        exponent1 = DPInt,
+                        exponent2 = DQInt,
+                        coefficient = QIInt
+                    },
+                PubKey = #'RSAPublicKey'{modulus = NInt, publicExponent = EInt},
+                {ok, {PrivKey, PubKey}};
+            false ->
+                {error, nil}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
 
 %% RSA Signing
 

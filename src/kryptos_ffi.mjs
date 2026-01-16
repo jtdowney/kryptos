@@ -476,6 +476,116 @@ export function rsaPublicKeyPublicExponent(key) {
   return base64UrlToInt(jwk.e);
 }
 
+export function rsaPrivateKeyModulus(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.n, "base64url"));
+}
+
+export function rsaPublicKeyModulus(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.n, "base64url"));
+}
+
+export function rsaPrivateKeyPublicExponentBytes(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.e, "base64url"));
+}
+
+export function rsaPublicKeyExponentBytes(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.e, "base64url"));
+}
+
+export function rsaPrivateKeyPrivateExponentBytes(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.d, "base64url"));
+}
+
+export function rsaPrivateKeyPrime1(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.p, "base64url"));
+}
+
+export function rsaPrivateKeyPrime2(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.q, "base64url"));
+}
+
+export function rsaPrivateKeyExponent1(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.dp, "base64url"));
+}
+
+export function rsaPrivateKeyExponent2(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.dq, "base64url"));
+}
+
+export function rsaPrivateKeyCoefficient(key) {
+  const jwk = key.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.qi, "base64url"));
+}
+
+export function rsaPublicKeyFromComponents(n, e) {
+  try {
+    const jwk = {
+      kty: "RSA",
+      n: Buffer.from(n.rawBuffer).toString("base64url"),
+      e: Buffer.from(e.rawBuffer).toString("base64url"),
+    };
+    const publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
+    return Result$Ok(publicKey);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function modPow(baseBits, expBits, modBits) {
+  const base = BigInt(
+    "0x" + (Buffer.from(baseBits.rawBuffer).toString("hex") || "0"),
+  );
+  const exp = BigInt(
+    "0x" + (Buffer.from(expBits.rawBuffer).toString("hex") || "0"),
+  );
+  const mod = BigInt(
+    "0x" + (Buffer.from(modBits.rawBuffer).toString("hex") || "0"),
+  );
+
+  let result = 1n;
+  let b = base % mod;
+  let e = exp;
+  while (e > 0n) {
+    if (e % 2n === 1n) result = (result * b) % mod;
+    e /= 2n;
+    b = (b * b) % mod;
+  }
+
+  let hex = result.toString(16);
+  if (hex.length % 2 !== 0) hex = "0" + hex;
+  return BitArray$BitArray(Buffer.from(hex, "hex"));
+}
+
+export function rsaPrivateKeyFromFullComponents(n, e, d, p, q, dp, dq, qi) {
+  try {
+    const jwk = {
+      kty: "RSA",
+      n: Buffer.from(n.rawBuffer).toString("base64url"),
+      e: Buffer.from(e.rawBuffer).toString("base64url"),
+      d: Buffer.from(d.rawBuffer).toString("base64url"),
+      p: Buffer.from(p.rawBuffer).toString("base64url"),
+      q: Buffer.from(q.rawBuffer).toString("base64url"),
+      dp: Buffer.from(dp.rawBuffer).toString("base64url"),
+      dq: Buffer.from(dq.rawBuffer).toString("base64url"),
+      qi: Buffer.from(qi.rawBuffer).toString("base64url"),
+    };
+    const privateKey = crypto.createPrivateKey({ key: jwk, format: "jwk" });
+    const publicKey = crypto.createPublicKey(privateKey);
+    return Result$Ok([privateKey, publicKey]);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
 export function xdhPublicKeyFromPrivate(privateKey) {
   const keyType = privateKey.asymmetricKeyType;
   if (keyType !== "x25519" && keyType !== "x448") {
@@ -553,9 +663,25 @@ export function ecPrivateKeyFromBytes(curve, privateScalar) {
   try {
     const curveName = ecCurveToOpensslName(curve);
     const coordSize = ecCoordinateSize(curve);
+    let privBuffer = Buffer.from(privateScalar.rawBuffer);
+
+    // Handle DER integer encoding: may have leading 0x00 for sign or be shorter
+    if (privBuffer.length === 0 || privBuffer.length > coordSize + 1) {
+      return Result$Error(undefined);
+    }
+    if (privBuffer.length === coordSize + 1) {
+      if (privBuffer[0] !== 0x00) {
+        return Result$Error(undefined);
+      }
+      privBuffer = privBuffer.subarray(1);
+    } else if (privBuffer.length < coordSize) {
+      // Pad with leading zeros
+      const padded = Buffer.alloc(coordSize);
+      privBuffer.copy(padded, coordSize - privBuffer.length);
+      privBuffer = padded;
+    }
 
     const ecdh = crypto.createECDH(curveName);
-    const privBuffer = Buffer.from(privateScalar.rawBuffer);
     ecdh.setPrivateKey(privBuffer);
     const publicPoint = ecdh.getPublicKey();
 
@@ -577,6 +703,11 @@ export function ecPrivateKeyFromBytes(curve, privateScalar) {
   } catch {
     return Result$Error(undefined);
   }
+}
+
+export function ecPrivateKeyToBytes(privateKey) {
+  const jwk = privateKey.export({ format: "jwk" });
+  return BitArray$BitArray(Buffer.from(jwk.d, "base64url"));
 }
 
 export function ecPublicKeyFromDer(derBytes) {
