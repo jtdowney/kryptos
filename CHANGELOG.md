@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-16
+
+### Added
+
+#### Authenticated Encryption
+
+- XChaCha20-Poly1305 with extended 192-bit nonces
+
+#### Key Management
+
+- AES Key Wrap (RFC 3394) for secure key encapsulation
+- Key introspection methods for all key types
+- RSA CRT parameter computation for private keys
+- EC key introspection (curve parameters, public point coordinates)
+
+### Changed
+
+- Migrated tests to qcheck property-based testing
+- Wycheproof tests now tagged and excluded from default test runs
+- Erlang FFI refactored to use Gleam-generated .hrl records
+
 ## [1.0.0] - 2026-01-09
 
 ### Added
@@ -82,4 +103,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Wycheproof test vector validation for ECDSA, AES-GCM, AES-CBC, ChaCha20-Poly1305, XDH, and ECDH
 
+[1.1.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.1.0
 [1.0.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.0.0
