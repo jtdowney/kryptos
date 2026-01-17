@@ -1,3 +1,8 @@
+//// Internal HKDF (HMAC-based Key Derivation Function) implementation.
+////
+//// Implements RFC 5869 extract-and-expand key derivation. Used internally
+//// by the crypto module for deriving cryptographic keys from input keying material.
+
 import gleam/bit_array
 import gleam/bytes_tree.{type BytesTree}
 import gleam/result

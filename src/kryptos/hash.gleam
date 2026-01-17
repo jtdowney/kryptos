@@ -1,3 +1,18 @@
+//// Cryptographic hash functions.
+////
+//// Hash functions take arbitrary input data and produce a fixed-size digest.
+//// Use these for data integrity verification, fingerprinting, and as building
+//// blocks for other cryptographic constructs like HMAC.
+////
+//// ## Example
+////
+//// ```gleam
+//// import kryptos/hash
+////
+//// let assert Ok(h) = hash.new(hash.Sha256)
+//// let digest = h |> hash.update(<<"hello":utf8>>) |> hash.final()
+//// ```
+
 /// Supported cryptographic hash algorithms.
 pub type HashAlgorithm {
   /// BLAKE2b (512-bit output)
