@@ -4,7 +4,6 @@ import gleam/dynamic/decode
 import gleam/int
 import gleam/result
 import kryptos/hash
-import kryptos/internal/rsa as internal_rsa
 import kryptos/rsa
 import unitest
 import wycheproof/utils
@@ -319,7 +318,7 @@ fn run_signature_test(group: SignatureTestGroup, tc: SignatureTestCase) -> Nil {
   let assert Ok(msg) = bit_array.base16_decode(tc.msg)
   let assert Ok(sig) = bit_array.base16_decode(tc.sig)
 
-  case internal_rsa.public_key_from_x509(pub_der) {
+  case rsa.public_key_from_der(pub_der, rsa.Spki) {
     Error(Nil) -> {
       case tc.result {
         Invalid | Acceptable -> Nil
@@ -362,7 +361,7 @@ fn run_pss_test(group: PssTestGroup, tc: PssTestCase) -> Nil {
   let assert Ok(msg) = bit_array.base16_decode(tc.msg)
   let assert Ok(sig) = bit_array.base16_decode(tc.sig)
 
-  case internal_rsa.public_key_from_x509(pub_der) {
+  case rsa.public_key_from_der(pub_der, rsa.Spki) {
     Error(Nil) -> {
       case tc.result {
         Invalid | Acceptable -> Nil
@@ -405,7 +404,7 @@ fn run_oaep_test(group: OaepTestGroup, tc: OaepTestCase) -> Nil {
   let assert Ok(expected_msg) = bit_array.base16_decode(tc.msg)
   let assert Ok(label) = bit_array.base16_decode(tc.label)
 
-  case internal_rsa.private_key_from_pkcs8(priv_der) {
+  case rsa.from_der(priv_der, rsa.Pkcs8) {
     Error(Nil) -> {
       case tc.result {
         Invalid | Acceptable -> Nil
@@ -445,7 +444,7 @@ fn run_pkcs1_decrypt_test(
   let assert Ok(ct) = bit_array.base16_decode(tc.ct)
   let assert Ok(expected_msg) = bit_array.base16_decode(tc.msg)
 
-  case internal_rsa.private_key_from_pkcs8(priv_der) {
+  case rsa.from_der(priv_der, rsa.Pkcs8) {
     Error(Nil) -> {
       case tc.result {
         Invalid | Acceptable -> Nil
@@ -491,7 +490,7 @@ fn run_sig_gen_test(group: SigGenTestGroup, tc: SigGenTestCase) -> Nil {
   let assert Ok(msg) = bit_array.base16_decode(tc.msg)
   let assert Ok(expected_sig) = bit_array.base16_decode(tc.sig)
 
-  case internal_rsa.private_key_from_pkcs8(priv_der) {
+  case rsa.from_der(priv_der, rsa.Pkcs8) {
     Error(Nil) -> {
       case tc.result {
         Invalid | Acceptable -> Nil
