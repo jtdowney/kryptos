@@ -1,5 +1,7 @@
 import gleam/bit_array
+import gleam/bool
 import gleam/dynamic/decode
+import gleam/result
 import kryptos/ec
 import kryptos/ecdsa
 import kryptos/hash
@@ -32,6 +34,11 @@ type TestGroup {
 
 type TestFile {
   TestFile(test_groups: List(TestGroup))
+}
+
+type SignatureFormat {
+  Der
+  P1363
 }
 
 fn test_result_decoder() -> decode.Decoder(TestResult) {
@@ -83,126 +90,215 @@ fn curve_from_name(name: String) -> Result(ec.Curve, Nil) {
   }
 }
 
+fn verify_signature(
+  format: SignatureFormat,
+  pub_key: ec.PublicKey,
+  msg: BitArray,
+  sig: BitArray,
+  hash_alg: hash.HashAlgorithm,
+) -> Bool {
+  case format {
+    Der -> ecdsa.verify(pub_key, msg, sig, hash_alg)
+    P1363 -> ecdsa.verify_rs(pub_key, msg, sig, hash_alg)
+  }
+}
+
+fn format_name(format: SignatureFormat) -> String {
+  case format {
+    Der -> "DER"
+    P1363 -> "P1363"
+  }
+}
+
 fn run_single_test(
+  format: SignatureFormat,
   hash_alg: hash.HashAlgorithm,
   group: TestGroup,
   tc: TestCase,
 ) -> Nil {
   let context = utils.test_context(tc.tc_id, tc.comment)
+  let fmt = format_name(format)
 
-  case curve_from_name(group.public_key.curve) {
-    Error(Nil) -> Nil
-    Ok(curve) -> {
-      let assert Ok(pk_bytes) =
-        bit_array.base16_decode(group.public_key.uncompressed)
-      let assert Ok(msg_bytes) = bit_array.base16_decode(tc.msg)
-      let assert Ok(sig_bytes) = bit_array.base16_decode(tc.sig)
+  let curve_result = curve_from_name(group.public_key.curve)
+  use <- bool.guard(when: result.is_error(curve_result), return: Nil)
+  let assert Ok(curve) = curve_result
 
-      case tc.result {
-        Invalid -> {
-          case ec.public_key_from_raw_point(curve, pk_bytes) {
-            Ok(pub_key) -> {
-              assert !ecdsa.verify(pub_key, msg_bytes, sig_bytes, hash_alg)
-                as {
-                  "ECDSA verification succeeded for invalid test: " <> context
-                }
-            }
-            Error(Nil) -> Nil
-          }
+  let assert Ok(pk_bytes) =
+    bit_array.base16_decode(group.public_key.uncompressed)
+  let assert Ok(msg_bytes) = bit_array.base16_decode(tc.msg)
+  let assert Ok(sig_bytes) = bit_array.base16_decode(tc.sig)
+
+  let pub_key_result = ec.public_key_from_raw_point(curve, pk_bytes)
+
+  case tc.result {
+    Invalid -> {
+      use <- bool.guard(when: result.is_error(pub_key_result), return: Nil)
+      let assert Ok(pub_key) = pub_key_result
+      assert !verify_signature(format, pub_key, msg_bytes, sig_bytes, hash_alg)
+        as {
+          "ECDSA "
+          <> fmt
+          <> " verification succeeded for invalid test: "
+          <> context
         }
-        Valid -> {
-          let assert Ok(pub_key) = ec.public_key_from_raw_point(curve, pk_bytes)
-            as { "Public key import failed: " <> context }
-          assert ecdsa.verify(pub_key, msg_bytes, sig_bytes, hash_alg)
-            as { "ECDSA verification failed for valid test: " <> context }
+    }
+    Valid -> {
+      let assert Ok(pub_key) = pub_key_result
+        as { "Public key import failed: " <> context }
+      assert verify_signature(format, pub_key, msg_bytes, sig_bytes, hash_alg)
+        as {
+          "ECDSA " <> fmt <> " verification failed for valid test: " <> context
         }
-        Acceptable -> {
-          case ec.public_key_from_raw_point(curve, pk_bytes) {
-            Ok(pub_key) -> {
-              let _ = ecdsa.verify(pub_key, msg_bytes, sig_bytes, hash_alg)
-              Nil
-            }
-            Error(Nil) -> Nil
-          }
-        }
-      }
+    }
+    Acceptable -> {
+      use <- bool.guard(when: result.is_error(pub_key_result), return: Nil)
+      let assert Ok(pub_key) = pub_key_result
+      let _ = verify_signature(format, pub_key, msg_bytes, sig_bytes, hash_alg)
+      Nil
     }
   }
 }
 
-fn run_wycheproof_tests(filename: String, hash_alg: hash.HashAlgorithm) -> Nil {
+fn run_wycheproof_tests(
+  format: SignatureFormat,
+  filename: String,
+  hash_alg: hash.HashAlgorithm,
+) -> Nil {
   let assert Ok(test_file) = utils.load_test_file(filename, test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, fn(group, tc) {
-    run_single_test(hash_alg, group, tc)
+    run_single_test(format, hash_alg, group, tc)
   })
 }
 
 pub fn wycheproof_ecdsa_secp256r1_sha256_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp256r1_sha256_test.json", hash.Sha256)
+  run_wycheproof_tests(Der, "ecdsa_secp256r1_sha256_test.json", hash.Sha256)
 }
 
 pub fn wycheproof_ecdsa_secp256r1_sha512_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp256r1_sha512_test.json", hash.Sha512)
+  run_wycheproof_tests(Der, "ecdsa_secp256r1_sha512_test.json", hash.Sha512)
 }
 
 pub fn wycheproof_ecdsa_secp256r1_sha3_256_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp256r1_sha3_256_test.json", hash.Sha3x256)
+  run_wycheproof_tests(Der, "ecdsa_secp256r1_sha3_256_test.json", hash.Sha3x256)
 }
 
 pub fn wycheproof_ecdsa_secp256r1_sha3_512_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp256r1_sha3_512_test.json", hash.Sha3x512)
+  run_wycheproof_tests(Der, "ecdsa_secp256r1_sha3_512_test.json", hash.Sha3x512)
 }
 
 pub fn wycheproof_ecdsa_secp384r1_sha384_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp384r1_sha384_test.json", hash.Sha384)
+  run_wycheproof_tests(Der, "ecdsa_secp384r1_sha384_test.json", hash.Sha384)
 }
 
 pub fn wycheproof_ecdsa_secp384r1_sha512_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp384r1_sha512_test.json", hash.Sha512)
+  run_wycheproof_tests(Der, "ecdsa_secp384r1_sha512_test.json", hash.Sha512)
 }
 
 pub fn wycheproof_ecdsa_secp384r1_sha3_384_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp384r1_sha3_384_test.json", hash.Sha3x384)
+  run_wycheproof_tests(Der, "ecdsa_secp384r1_sha3_384_test.json", hash.Sha3x384)
 }
 
 pub fn wycheproof_ecdsa_secp384r1_sha3_512_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp384r1_sha3_512_test.json", hash.Sha3x512)
+  run_wycheproof_tests(Der, "ecdsa_secp384r1_sha3_512_test.json", hash.Sha3x512)
 }
 
 pub fn wycheproof_ecdsa_secp521r1_sha512_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp521r1_sha512_test.json", hash.Sha512)
+  run_wycheproof_tests(Der, "ecdsa_secp521r1_sha512_test.json", hash.Sha512)
 }
 
 pub fn wycheproof_ecdsa_secp521r1_sha3_512_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp521r1_sha3_512_test.json", hash.Sha3x512)
+  run_wycheproof_tests(Der, "ecdsa_secp521r1_sha3_512_test.json", hash.Sha3x512)
 }
 
 pub fn wycheproof_ecdsa_secp256k1_sha256_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp256k1_sha256_test.json", hash.Sha256)
+  run_wycheproof_tests(Der, "ecdsa_secp256k1_sha256_test.json", hash.Sha256)
 }
 
 pub fn wycheproof_ecdsa_secp256k1_sha512_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp256k1_sha512_test.json", hash.Sha512)
+  run_wycheproof_tests(Der, "ecdsa_secp256k1_sha512_test.json", hash.Sha512)
 }
 
 pub fn wycheproof_ecdsa_secp256k1_sha3_256_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp256k1_sha3_256_test.json", hash.Sha3x256)
+  run_wycheproof_tests(Der, "ecdsa_secp256k1_sha3_256_test.json", hash.Sha3x256)
 }
 
 pub fn wycheproof_ecdsa_secp256k1_sha3_512_test() {
   use <- unitest.tag("wycheproof")
-  run_wycheproof_tests("ecdsa_secp256k1_sha3_512_test.json", hash.Sha3x512)
+  run_wycheproof_tests(Der, "ecdsa_secp256k1_sha3_512_test.json", hash.Sha3x512)
+}
+
+pub fn wycheproof_ecdsa_secp256r1_sha256_p1363_test() {
+  use <- unitest.tag("wycheproof")
+  run_wycheproof_tests(
+    P1363,
+    "ecdsa_secp256r1_sha256_p1363_test.json",
+    hash.Sha256,
+  )
+}
+
+pub fn wycheproof_ecdsa_secp256r1_sha512_p1363_test() {
+  use <- unitest.tag("wycheproof")
+  run_wycheproof_tests(
+    P1363,
+    "ecdsa_secp256r1_sha512_p1363_test.json",
+    hash.Sha512,
+  )
+}
+
+pub fn wycheproof_ecdsa_secp384r1_sha384_p1363_test() {
+  use <- unitest.tag("wycheproof")
+  run_wycheproof_tests(
+    P1363,
+    "ecdsa_secp384r1_sha384_p1363_test.json",
+    hash.Sha384,
+  )
+}
+
+pub fn wycheproof_ecdsa_secp384r1_sha512_p1363_test() {
+  use <- unitest.tag("wycheproof")
+  run_wycheproof_tests(
+    P1363,
+    "ecdsa_secp384r1_sha512_p1363_test.json",
+    hash.Sha512,
+  )
+}
+
+pub fn wycheproof_ecdsa_secp521r1_sha512_p1363_test() {
+  use <- unitest.tag("wycheproof")
+  run_wycheproof_tests(
+    P1363,
+    "ecdsa_secp521r1_sha512_p1363_test.json",
+    hash.Sha512,
+  )
+}
+
+pub fn wycheproof_ecdsa_secp256k1_sha256_p1363_test() {
+  use <- unitest.tag("wycheproof")
+  run_wycheproof_tests(
+    P1363,
+    "ecdsa_secp256k1_sha256_p1363_test.json",
+    hash.Sha256,
+  )
+}
+
+pub fn wycheproof_ecdsa_secp256k1_sha512_p1363_test() {
+  use <- unitest.tag("wycheproof")
+  run_wycheproof_tests(
+    P1363,
+    "ecdsa_secp256k1_sha512_p1363_test.json",
+    hash.Sha512,
+  )
 }

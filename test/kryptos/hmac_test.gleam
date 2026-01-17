@@ -3,10 +3,10 @@ import gleam/list
 import kryptos/crypto
 import kryptos/hash
 import kryptos/hmac
-import kryptos/utils
+import kryptos/internal/utils
 import qcheck
 
-// RFC 4231 Test Vectors - keep as example-based
+// RFC 4231 Test Vectors
 pub fn hmac_sha256_rfc4231_test_case_1_test() {
   let assert Ok(key) =
     bit_array.base16_decode("0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B")

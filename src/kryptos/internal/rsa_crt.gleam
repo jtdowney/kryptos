@@ -3,6 +3,7 @@ import gleam/bit_array
 import gleam/order
 import gleam/result
 import kryptos/crypto
+import kryptos/internal/utils
 
 /// Compute CRT parameters from minimal RSA components. This is used for
 /// loading RSA keys where only the modulus, public exponent, and private
@@ -71,18 +72,7 @@ fn to_bytes_trimmed(value: BigInt, max_byte_len: Int) -> Result(BitArray, Nil) {
     bigi.Unsigned,
     max_byte_len,
   ))
-  Ok(trim_leading_zeros(bytes))
-}
-
-fn trim_leading_zeros(bytes: BitArray) -> BitArray {
-  case bytes {
-    <<0, rest:bytes>> ->
-      case bit_array.byte_size(rest) > 0 {
-        True -> trim_leading_zeros(rest)
-        False -> bytes
-      }
-    _ -> bytes
-  }
+  Ok(utils.strip_leading_zeros(bytes))
 }
 
 fn to_bytes_minimal(value: BigInt) -> Result(BitArray, Nil) {
@@ -97,7 +87,7 @@ fn to_bytes_minimal(value: BigInt) -> Result(BitArray, Nil) {
         bigi.Unsigned,
         byte_len,
       ))
-      Ok(trim_leading_zeros(bytes))
+      Ok(utils.strip_leading_zeros(bytes))
     }
   }
 }

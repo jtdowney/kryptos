@@ -17,8 +17,13 @@
 //// // valid == True
 //// ```
 
-import kryptos/ec.{type PrivateKey, type PublicKey}
+import gleam/bit_array
+import gleam/bool
+import gleam/result
+import kryptos/ec.{type Curve, type PrivateKey, type PublicKey}
 import kryptos/hash.{type HashAlgorithm}
+import kryptos/internal/der
+import kryptos/internal/utils
 
 /// Signs a message using ECDSA with the specified hash algorithm.
 ///
@@ -63,3 +68,118 @@ pub fn verify(
   signature signature: BitArray,
   hash hash: HashAlgorithm,
 ) -> Bool
+
+/// Signs a message and returns the signature in R||S format (IEEE P1363).
+///
+/// In R||S format, the signature is the concatenation of r and s values,
+/// each padded to the curve's coordinate size.
+///
+/// ## Parameters
+/// - `private_key`: An elliptic curve private key
+/// - `message`: The message to sign
+/// - `hash`: The hash algorithm to use
+///
+/// ## Returns
+/// An R||S format signature (2 * coordinate_size bytes).
+pub fn sign_rs(
+  private_key: PrivateKey,
+  message: BitArray,
+  hash: HashAlgorithm,
+) -> BitArray {
+  let der_sig = sign(private_key, message, hash)
+  let curve = ec.curve(private_key)
+  let assert Ok(rs_sig) = der_to_rs(der_sig, curve)
+  rs_sig
+}
+
+/// Verifies an R||S format signature against a message.
+///
+/// The R||S format is the concatenation of r and s values, each padded
+/// to the curve's coordinate size.
+///
+/// ## Parameters
+/// - `public_key`: The public key corresponding to the signing key
+/// - `message`: The original message that was signed
+/// - `signature`: The R||S format signature to verify
+/// - `hash`: The hash algorithm used during signing
+///
+/// ## Returns
+/// `True` if the signature is valid, `False` otherwise.
+pub fn verify_rs(
+  public_key: PublicKey,
+  message: BitArray,
+  signature: BitArray,
+  hash: HashAlgorithm,
+) -> Bool {
+  let curve = ec.public_key_curve(public_key)
+  case rs_to_der(signature, curve) {
+    Ok(der_sig) -> verify(public_key, message, der_sig, hash)
+    Error(Nil) -> False
+  }
+}
+
+/// Converts a DER-encoded ECDSA signature to R||S format.
+///
+/// R||S format concatenates the r and s integer values, each padded
+/// to the curve's coordinate size with leading zeros.
+///
+/// ## Parameters
+/// - `der`: A DER-encoded ECDSA signature
+/// - `curve`: The elliptic curve used for the signature
+///
+/// ## Returns
+/// `Ok(rs_signature)` on success, `Error(Nil)` if the DER is malformed
+/// or contains trailing garbage.
+pub fn der_to_rs(der_sig: BitArray, curve: Curve) -> Result(BitArray, Nil) {
+  let coord_size = ec.coordinate_size(curve)
+
+  use #(content, remaining) <- result.try(der.parse_sequence(der_sig))
+  use <- bool.guard(
+    when: bit_array.byte_size(remaining) != 0,
+    return: Error(Nil),
+  )
+
+  use #(r_bytes, remaining) <- result.try(der.parse_integer(content))
+  use #(s_bytes, remaining) <- result.try(der.parse_integer(remaining))
+  use <- bool.guard(
+    when: bit_array.byte_size(remaining) != 0,
+    return: Error(Nil),
+  )
+
+  let r = utils.strip_leading_zeros(r_bytes)
+  let s = utils.strip_leading_zeros(s_bytes)
+  let r_ok = bit_array.byte_size(r) <= coord_size
+  let s_ok = bit_array.byte_size(s) <= coord_size
+  use <- bool.guard(when: !r_ok || !s_ok, return: Error(Nil))
+
+  Ok(
+    bit_array.concat([
+      utils.pad_left(r, coord_size),
+      utils.pad_left(s, coord_size),
+    ]),
+  )
+}
+
+/// Converts an R||S format signature to DER encoding.
+///
+/// ## Parameters
+/// - `rs`: An R||S format signature (2 * coordinate_size bytes)
+/// - `curve`: The elliptic curve used for the signature
+///
+/// ## Returns
+/// `Ok(der_signature)` on success, `Error(Nil)` if input length is invalid.
+pub fn rs_to_der(rs: BitArray, curve: Curve) -> Result(BitArray, Nil) {
+  let coord_size = ec.coordinate_size(curve)
+
+  use <- bool.guard(
+    when: bit_array.byte_size(rs) != coord_size * 2,
+    return: Error(Nil),
+  )
+
+  let assert Ok(r) = bit_array.slice(rs, 0, coord_size)
+  let assert Ok(s) = bit_array.slice(rs, coord_size, coord_size)
+
+  bit_array.concat([der.encode_integer(r), der.encode_integer(s)])
+  |> der.encode_sequence
+  |> Ok
+}
