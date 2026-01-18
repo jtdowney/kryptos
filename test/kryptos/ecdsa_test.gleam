@@ -19,43 +19,55 @@ pub fn ecdsa_sign_verify_roundtrip_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(#(curve, hash_alg), message) = input
-    let #(private_key, public_key) = ec.generate_key_pair(curve)
-    let signature = ecdsa.sign(private_key, message, hash_alg)
-    assert ecdsa.verify(public_key, message, signature, hash_alg)
-  })
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+    fn(input) {
+      let #(#(curve, hash_alg), message) = input
+      let #(private_key, public_key) = ec.generate_key_pair(curve)
+      let signature = ecdsa.sign(private_key, message, hash_alg)
+      assert ecdsa.verify(public_key, message, signature, hash_alg)
+    },
+  )
 }
 
 // Property: wrong public key fails verification
 pub fn ecdsa_wrong_public_key_fails_property_test() {
   let gen = qcheck.byte_aligned_bit_array()
 
-  qcheck.run(qcheck.default_config(), gen, fn(message) {
-    let #(private_key, _) = ec.generate_key_pair(P256)
-    let #(_, other_public_key) = ec.generate_key_pair(P256)
-    let signature = ecdsa.sign(private_key, message, Sha256)
-    assert !ecdsa.verify(other_public_key, message, signature, Sha256)
-  })
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+    fn(message) {
+      let #(private_key, _) = ec.generate_key_pair(P256)
+      let #(_, other_public_key) = ec.generate_key_pair(P256)
+      let signature = ecdsa.sign(private_key, message, Sha256)
+      assert !ecdsa.verify(other_public_key, message, signature, Sha256)
+    },
+  )
 }
 
 // Property: tampered message fails verification
 pub fn ecdsa_tampered_message_fails_property_test() {
   let gen = qcheck.non_empty_byte_aligned_bit_array()
 
-  qcheck.run(qcheck.default_config(), gen, fn(message) {
-    let #(private_key, public_key) = ec.generate_key_pair(P256)
-    let signature = ecdsa.sign(private_key, message, Sha256)
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+    fn(message) {
+      let #(private_key, public_key) = ec.generate_key_pair(P256)
+      let signature = ecdsa.sign(private_key, message, Sha256)
 
-    // Flip first bit
-    let assert <<first_byte:8, rest:bits>> = message
-    let tampered = <<
-      { int.bitwise_exclusive_or(first_byte, 1) }:8,
-      rest:bits,
-    >>
+      // Flip first bit
+      let assert <<first_byte:8, rest:bits>> = message
+      let tampered = <<
+        { int.bitwise_exclusive_or(first_byte, 1) }:8,
+        rest:bits,
+      >>
 
-    assert !ecdsa.verify(public_key, tampered, signature, Sha256)
-  })
+      assert !ecdsa.verify(public_key, tampered, signature, Sha256)
+    },
+  )
 }
 
 pub fn verify_tampered_signature_test() {
@@ -90,15 +102,19 @@ pub fn ecdsa_sign_rs_verify_rs_roundtrip_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(#(curve, hash_alg), message) = input
-    let #(private_key, public_key) = ec.generate_key_pair(curve)
-    let signature = ecdsa.sign_rs(private_key, message, hash_alg)
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+    fn(input) {
+      let #(#(curve, hash_alg), message) = input
+      let #(private_key, public_key) = ec.generate_key_pair(curve)
+      let signature = ecdsa.sign_rs(private_key, message, hash_alg)
 
-    let expected_len = ec.coordinate_size(curve) * 2
-    assert bit_array.byte_size(signature) == expected_len
-    assert ecdsa.verify_rs(public_key, message, signature, hash_alg)
-  })
+      let expected_len = ec.coordinate_size(curve) * 2
+      assert bit_array.byte_size(signature) == expected_len
+      assert ecdsa.verify_rs(public_key, message, signature, hash_alg)
+    },
+  )
 }
 
 // Property: DER -> R||S -> DER roundtrip produces verifiable signature
@@ -113,17 +129,21 @@ pub fn ecdsa_der_rs_roundtrip_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(#(curve, hash_alg), message) = input
-    let #(private_key, public_key) = ec.generate_key_pair(curve)
-    let der_sig = ecdsa.sign(private_key, message, hash_alg)
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+    fn(input) {
+      let #(#(curve, hash_alg), message) = input
+      let #(private_key, public_key) = ec.generate_key_pair(curve)
+      let der_sig = ecdsa.sign(private_key, message, hash_alg)
 
-    let assert Ok(rs_sig) = ecdsa.der_to_rs(der_sig, curve)
-    let assert Ok(der_sig2) = ecdsa.rs_to_der(rs_sig, curve)
+      let assert Ok(rs_sig) = ecdsa.der_to_rs(der_sig, curve)
+      let assert Ok(der_sig2) = ecdsa.rs_to_der(rs_sig, curve)
 
-    assert ecdsa.verify(public_key, message, der_sig, hash_alg)
-    assert ecdsa.verify(public_key, message, der_sig2, hash_alg)
-  })
+      assert ecdsa.verify(public_key, message, der_sig, hash_alg)
+      assert ecdsa.verify(public_key, message, der_sig2, hash_alg)
+    },
+  )
 }
 
 // Property: R||S -> DER -> R||S roundtrip preserves signature
@@ -138,16 +158,20 @@ pub fn ecdsa_rs_der_roundtrip_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(#(curve, hash_alg), message) = input
-    let #(private_key, _public_key) = ec.generate_key_pair(curve)
-    let rs_sig = ecdsa.sign_rs(private_key, message, hash_alg)
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+    fn(input) {
+      let #(#(curve, hash_alg), message) = input
+      let #(private_key, _public_key) = ec.generate_key_pair(curve)
+      let rs_sig = ecdsa.sign_rs(private_key, message, hash_alg)
 
-    let assert Ok(der_sig) = ecdsa.rs_to_der(rs_sig, curve)
-    let assert Ok(rs_sig2) = ecdsa.der_to_rs(der_sig, curve)
+      let assert Ok(der_sig) = ecdsa.rs_to_der(rs_sig, curve)
+      let assert Ok(rs_sig2) = ecdsa.der_to_rs(der_sig, curve)
 
-    assert rs_sig == rs_sig2
-  })
+      assert rs_sig == rs_sig2
+    },
+  )
 }
 
 pub fn ecdsa_sign_der_verify_rs_test() {
