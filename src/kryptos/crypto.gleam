@@ -10,6 +10,7 @@
 //// ```
 
 import gleam/bit_array
+import gleam/bytes_tree
 import gleam/int
 import gleam/list
 import gleam/option.{type Option}
@@ -17,6 +18,7 @@ import gleam/result
 import gleam/string
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/hmac
+import kryptos/internal/concat_kdf
 import kryptos/internal/hkdf
 import kryptos/internal/pbkdf2
 import kryptos/internal/subtle
@@ -93,6 +95,60 @@ pub fn hkdf(
   case hmac.supported_hash(algorithm), length > 0, length <= max_length {
     True, True, True -> hkdf.do_derive(algorithm, ikm, salt_bytes, info, length)
     _, _, _ -> Error(Nil)
+  }
+}
+
+/// Derives key material using Concat KDF (NIST SP 800-56A). Also called the
+/// single-step or one-step key derivation function.
+///
+/// Concat KDF is a single-step key derivation function that uses a hash
+/// function to derive key material from a shared secret and context-specific
+/// information.
+///
+/// ## Parameters
+/// - `algorithm`: The hash algorithm to use (SHA-1, SHA-2, or SHA-3 family)
+/// - `secret`: The shared secret from key agreement (e.g., ECDH)
+/// - `info`: Context and application specific information
+/// - `length`: Desired output length in bytes (max: 255 * hash_length)
+///
+/// ## Returns
+/// - `Ok(BitArray)` - The derived key material of the requested length
+/// - `Error(Nil)` - If the algorithm is not supported or length is invalid
+pub fn concat_kdf(
+  algorithm: HashAlgorithm,
+  secret secret: BitArray,
+  info info: BitArray,
+  length length: Int,
+) -> Result(BitArray, Nil) {
+  let max_length = 255 * hash.byte_size(algorithm)
+
+  case concat_kdf_supported_hash(algorithm), length > 0, length <= max_length {
+    True, True, True ->
+      concat_kdf.derive_loop(
+        algorithm,
+        secret,
+        info,
+        length,
+        1,
+        bytes_tree.new(),
+      )
+    _, _, _ -> Error(Nil)
+  }
+}
+
+fn concat_kdf_supported_hash(algorithm: HashAlgorithm) -> Bool {
+  case algorithm {
+    hash.Sha1 -> True
+    hash.Sha256 -> True
+    hash.Sha384 -> True
+    hash.Sha512 -> True
+    hash.Sha512x224 -> True
+    hash.Sha512x256 -> True
+    hash.Sha3x224 -> True
+    hash.Sha3x256 -> True
+    hash.Sha3x384 -> True
+    hash.Sha3x512 -> True
+    _ -> False
   }
 }
 
