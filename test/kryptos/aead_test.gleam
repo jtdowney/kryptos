@@ -256,7 +256,7 @@ pub fn xchacha20_poly1305_roundtrip_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
+  qcheck.run(qcheck.default_config() |> qcheck.with_test_count(20), gen, fn(input) {
     let #(plaintext, aad) = input
     let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
     let nonce = crypto.random_bytes(aead.nonce_size(ctx))

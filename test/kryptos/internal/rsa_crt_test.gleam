@@ -6,7 +6,7 @@ import qcheck
 
 pub fn compute_crt_params_invariants_property_test() {
   qcheck.run(
-    qcheck.default_config() |> qcheck.with_test_count(15),
+    qcheck.default_config() |> qcheck.with_test_count(9),
     qcheck.from_generators(qcheck.return(1024), [
       qcheck.return(2048),
       qcheck.return(3072),

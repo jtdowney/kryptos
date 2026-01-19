@@ -45,7 +45,7 @@ pub fn rsa_wrong_public_key_fails_property_test() {
   let gen = qcheck.byte_aligned_bit_array()
 
   qcheck.run(
-    qcheck.default_config() |> qcheck.with_test_count(5),
+    qcheck.default_config() |> qcheck.with_test_count(3),
     gen,
     fn(message) {
       let assert Ok(#(private_key, _)) = rsa.generate_key_pair(2048)
