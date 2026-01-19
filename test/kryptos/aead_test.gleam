@@ -256,23 +256,27 @@ pub fn xchacha20_poly1305_roundtrip_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config() |> qcheck.with_test_count(20), gen, fn(input) {
-    let #(plaintext, aad) = input
-    let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
-    let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+    fn(input) {
+      let #(plaintext, aad) = input
+      let assert Ok(ctx) = aead.xchacha20_poly1305(crypto.random_bytes(32))
+      let nonce = crypto.random_bytes(aead.nonce_size(ctx))
 
-    // Test without AAD
-    let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
-    let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
-    assert output == plaintext
+      // Test without AAD
+      let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext:)
+      let assert Ok(output) = aead.open(ctx, nonce:, tag:, ciphertext:)
+      assert output == plaintext
 
-    // Test with AAD
-    let assert Ok(#(ciphertext2, tag2)) =
-      aead.seal_with_aad(ctx, nonce, plaintext, aad)
-    let assert Ok(output2) =
-      aead.open_with_aad(ctx, nonce, tag2, ciphertext2, aad)
-    assert output2 == plaintext
-  })
+      // Test with AAD
+      let assert Ok(#(ciphertext2, tag2)) =
+        aead.seal_with_aad(ctx, nonce, plaintext, aad)
+      let assert Ok(output2) =
+        aead.open_with_aad(ctx, nonce, tag2, ciphertext2, aad)
+      assert output2 == plaintext
+    },
+  )
 }
 
 pub fn xchacha20_poly1305_wrong_nonce_size_seal_test() {
