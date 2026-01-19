@@ -48,21 +48,18 @@ import kryptos/crypto
 const aes_key_wrap_iv = <<0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6, 0xa6>>
 
 /// A block cipher with its associated key material.
-pub type BlockCipher {
-  /// AES block cipher with the specified key size and key.
+pub opaque type BlockCipher {
   Aes(key_size: Int, key: BitArray)
 }
 
 /// Context for block cipher modes of operation.
 ///
-/// **Note:** While the variants are public for pattern matching, direct
-/// construction is not recommended. Use the provided constructor functions
-/// which validate parameters:
+/// Use the provided constructor functions to create contexts:
 ///
 /// - `ecb()` for ECB mode
 /// - `cbc()` for CBC mode
 /// - `ctr()` for CTR mode
-pub type CipherContext {
+pub opaque type CipherContext {
   /// Electronic Codebook mode.
   Ecb(cipher: BlockCipher)
 
@@ -489,4 +486,19 @@ fn xor_with_counter(a: BitArray, t: Int) -> BitArray {
   let assert <<a_int:unsigned-size(64)>> = a
   let result = int.bitwise_exclusive_or(a_int, t)
   <<result:size(64)>>
+}
+
+@internal
+pub fn aes_key(cipher: BlockCipher) -> BitArray {
+  case cipher {
+    Aes(key:, ..) -> key
+  }
+}
+
+@internal
+pub fn is_ctr(ctx: CipherContext) -> Bool {
+  case ctx {
+    Ctr(..) -> True
+    _ -> False
+  }
 }

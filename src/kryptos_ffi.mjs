@@ -2,16 +2,18 @@ import crypto from "node:crypto";
 
 import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
 import {
-  AeadContext$isCcm,
-  AeadContext$isChaCha20Poly1305,
-  AeadContext$isGcm,
+  cipher_key as aeadCipherKey,
+  cipher_name as aeadCipherName,
+  is_ccm as aeadIsCcm,
   tag_size as aeadTagSize,
 } from "./kryptos/aead.mjs";
 import {
-  CipherContext$isCtr,
+  aes_key as blockAesKey,
   cipher_iv as blockCipherIv,
   cipher_key as blockCipherKey,
   cipher_name as blockCipherName,
+  is_ctr as blockIsCtr,
+  key_size as blockKeySize,
 } from "./kryptos/block.mjs";
 import {
   Curve$P256,
@@ -164,40 +166,13 @@ export function pbkdf2Derive(algorithm, password, salt, iterations, length) {
 // AEAD Ciphers (GCM, CCM, ChaCha20-Poly1305)
 // =============================================================================
 
-function aeadCipherName(ctx) {
-  if (AeadContext$isChaCha20Poly1305(ctx)) {
-    return "chacha20-poly1305";
-  }
-
-  const keySize = ctx.cipher.key_size;
-  const suffix = AeadContext$isGcm(ctx) ? "gcm" : "ccm";
-
-  switch (keySize) {
-    case 128:
-      return `aes-128-${suffix}`;
-    case 192:
-      return `aes-192-${suffix}`;
-    case 256:
-      return `aes-256-${suffix}`;
-    default:
-      throw new Error(`Unknown key size: ${keySize}`);
-  }
-}
-
-function aeadCipherKey(ctx) {
-  if (AeadContext$isChaCha20Poly1305(ctx)) {
-    return ctx.key;
-  }
-  return ctx.cipher.key;
-}
-
 export function aeadSeal(ctx, nonce, plaintext, aad) {
   try {
     const name = aeadCipherName(ctx);
     const key = aeadCipherKey(ctx);
     const authTagLength = aeadTagSize(ctx);
 
-    const aadOptions = AeadContext$isCcm(ctx)
+    const aadOptions = aeadIsCcm(ctx)
       ? { plaintextLength: plaintext.byteSize }
       : undefined;
 
@@ -222,7 +197,7 @@ export function aeadOpen(ctx, nonce, tag, ciphertext, aad) {
     const key = aeadCipherKey(ctx);
     const authTagLength = aeadTagSize(ctx);
 
-    const aadOptions = AeadContext$isCcm(ctx)
+    const aadOptions = aeadIsCcm(ctx)
       ? { plaintextLength: ciphertext.byteSize }
       : undefined;
 
@@ -249,7 +224,7 @@ export function aeadOpen(ctx, nonce, tag, ciphertext, aad) {
 // =============================================================================
 
 function blockCipherNeedsPadding(ctx) {
-  return !CipherContext$isCtr(ctx);
+  return !blockIsCtr(ctx);
 }
 
 export function blockCipherEncrypt(mode, plaintext) {
@@ -304,7 +279,7 @@ const KEYWRAP_DEFAULT_IV = Buffer.from([
 ]);
 
 function keywrapCipherName(cipher) {
-  const keySize = cipher.key_size;
+  const keySize = blockKeySize(cipher);
   switch (keySize) {
     case 128:
       return "aes128-wrap";
@@ -320,7 +295,7 @@ function keywrapCipherName(cipher) {
 export function blockCipherWrap(cipher, plaintext) {
   try {
     const algorithm = keywrapCipherName(cipher);
-    const key = cipher.key.rawBuffer;
+    const key = blockAesKey(cipher).rawBuffer;
 
     const cipherObj = crypto.createCipheriv(algorithm, key, KEYWRAP_DEFAULT_IV);
     const updateOutput = cipherObj.update(plaintext.rawBuffer);
@@ -336,7 +311,7 @@ export function blockCipherWrap(cipher, plaintext) {
 export function blockCipherUnwrap(cipher, ciphertext) {
   try {
     const algorithm = keywrapCipherName(cipher);
-    const key = cipher.key.rawBuffer;
+    const key = blockAesKey(cipher).rawBuffer;
 
     const decipherObj = crypto.createDecipheriv(
       algorithm,

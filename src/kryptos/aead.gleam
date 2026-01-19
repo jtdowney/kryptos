@@ -18,6 +18,7 @@
 //// ```
 
 import gleam/bit_array
+import gleam/int
 import gleam/list
 import gleam/result
 import kryptos/block.{type BlockCipher}
@@ -25,15 +26,13 @@ import kryptos/internal/hchacha20
 
 /// AEAD context with its configuration.
 ///
-/// **Note:** While the variants are public for pattern matching, direct
-/// construction is not recommended. Use the provided constructor functions
-/// which validate parameters:
+/// Use the provided constructor functions to create contexts:
 ///
 /// - `gcm()` / `gcm_with_nonce_size()` for AES-GCM
 /// - `ccm()` / `ccm_with_sizes()` for AES-CCM
 /// - `chacha20_poly1305()` for ChaCha20-Poly1305
 /// - `xchacha20_poly1305()` for XChaCha20-Poly1305
-pub type AeadContext {
+pub opaque type AeadContext {
   /// AES-GCM with the specified cipher and nonce size.
   Gcm(cipher: BlockCipher, nonce_size: Int)
   /// AES-CCM with configurable nonce and tag sizes (RFC 3610).
@@ -339,5 +338,49 @@ fn xchacha20_derive(
       Ok(#(subkey, chacha_nonce))
     }
     _ -> Error(Nil)
+  }
+}
+
+@internal
+pub fn cipher_name(ctx: AeadContext) -> String {
+  case ctx {
+    Gcm(cipher:, ..) ->
+      "aes-" <> int.to_string(block.key_size(cipher)) <> "-gcm"
+    Ccm(cipher:, ..) ->
+      "aes-" <> int.to_string(block.key_size(cipher)) <> "-ccm"
+    ChaCha20Poly1305(..) -> "chacha20-poly1305"
+    XChaCha20Poly1305(..) -> "chacha20-poly1305"
+  }
+}
+
+@internal
+pub fn cipher_key(ctx: AeadContext) -> BitArray {
+  case ctx {
+    Gcm(cipher:, ..) | Ccm(cipher:, ..) -> block.aes_key(cipher)
+    ChaCha20Poly1305(key:) | XChaCha20Poly1305(key:) -> key
+  }
+}
+
+@internal
+pub fn is_ccm(ctx: AeadContext) -> Bool {
+  case ctx {
+    Ccm(..) -> True
+    _ -> False
+  }
+}
+
+@internal
+pub fn is_gcm(ctx: AeadContext) -> Bool {
+  case ctx {
+    Gcm(..) -> True
+    _ -> False
+  }
+}
+
+@internal
+pub fn is_chacha20_poly1305(ctx: AeadContext) -> Bool {
+  case ctx {
+    ChaCha20Poly1305(..) -> True
+    _ -> False
   }
 }
