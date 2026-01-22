@@ -20,6 +20,12 @@ A cryptography library for Gleam targeting both Erlang and JavaScript runtimes.
   [Wycheproof](https://github.com/C2SP/wycheproof) test vectors to catch
   edge-case vulnerabilities.
 
+> [!NOTE]
+> **Browser JavaScript is not supported.** The WebCrypto API is promise-based,
+> which doesn't fit the synchronous FFI model. For browser crypto, see
+> [plinth](https://hexdocs.pm/plinth/index.html) which provides Gleam bindings
+> to WebCrypto using promises.
+
 ## Installation
 
 ```sh
