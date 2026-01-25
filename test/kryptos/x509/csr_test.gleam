@@ -31,6 +31,12 @@ fn mask_signature(output: String) -> String {
   regexp.replace(sig_re, output, "Signature Value:\n        [MASKED]\n")
 }
 
+/// Normalize Subject line formatting across OpenSSL versions
+/// OpenSSL 3.0.x uses "CN = foo" while 3.6.x uses "CN=foo"
+fn normalize_subject(output: String) -> String {
+  string.replace(output, " = ", "=")
+}
+
 fn contains_subsequence(haystack: BitArray, needle: BitArray) -> Bool {
   let needle_size = bit_array.byte_size(needle)
   let haystack_size = bit_array.byte_size(haystack)
@@ -226,7 +232,10 @@ pub fn csr_ecdsa_dns_san_verified_by_openssl_test() {
   let assert Ok(text_output) =
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
-  birdie.snap(mask_signature(text_output), title: "csr ecdsa dns san text")
+  text_output
+  |> mask_signature
+  |> normalize_subject
+  |> birdie.snap(title: "csr ecdsa dns san text")
 }
 
 pub fn ecdsa_csr_omits_null_params_test() {
@@ -307,7 +316,10 @@ pub fn csr_rsa_dns_san_verified_by_openssl_test() {
   let assert Ok(text_output) =
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
-  birdie.snap(mask_signature(text_output), title: "csr rsa dns san text")
+  text_output
+  |> mask_signature
+  |> normalize_subject
+  |> birdie.snap(title: "csr rsa dns san text")
 }
 
 // TODO: enable on javascript when shellout is fixed
@@ -340,7 +352,10 @@ pub fn csr_ecdsa_email_san_verified_by_openssl_test() {
   let assert Ok(text_output) =
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
-  birdie.snap(mask_signature(text_output), title: "csr ecdsa email san text")
+  text_output
+  |> mask_signature
+  |> normalize_subject
+  |> birdie.snap(title: "csr ecdsa email san text")
 }
 
 // TODO: enable on javascript when shellout is fixed
@@ -373,7 +388,10 @@ pub fn csr_ecdsa_ipv4_san_verified_by_openssl_test() {
   let assert Ok(text_output) =
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
-  birdie.snap(mask_signature(text_output), title: "csr ecdsa ipv4 san text")
+  text_output
+  |> mask_signature
+  |> normalize_subject
+  |> birdie.snap(title: "csr ecdsa ipv4 san text")
 }
 
 // TODO: enable on javascript when shellout is fixed
@@ -406,7 +424,10 @@ pub fn csr_ecdsa_ipv6_san_verified_by_openssl_test() {
   let assert Ok(text_output) =
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
-  birdie.snap(mask_signature(text_output), title: "csr ecdsa ipv6 san text")
+  text_output
+  |> mask_signature
+  |> normalize_subject
+  |> birdie.snap(title: "csr ecdsa ipv6 san text")
 }
 
 pub fn dns_name_accepts_ascii_test() {
