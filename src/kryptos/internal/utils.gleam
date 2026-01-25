@@ -1,5 +1,6 @@
 import gleam/bit_array
 import gleam/list
+import gleam/string
 
 /// Strip leading zero bytes from a BitArray, preserving at least one byte.
 ///
@@ -53,6 +54,25 @@ pub fn pad_left(value: BitArray, size: Int) -> BitArray {
       let padding_size = size - current_size
       let padding = list.repeat(<<0>>, padding_size) |> bit_array.concat
       bit_array.concat([padding, value])
+    }
+  }
+}
+
+/// Check if a string contains only ASCII characters (codepoints 0-127).
+pub fn is_ascii(s: String) -> Bool {
+  s
+  |> string.to_utf_codepoints
+  |> list.all(fn(cp) { string.utf_codepoint_to_int(cp) <= 127 })
+}
+
+/// Split a string into chunks of the specified size.
+pub fn chunk_string(s: String, size: Int) -> List(String) {
+  case string.length(s) <= size {
+    True -> [s]
+    False -> {
+      let chunk = string.slice(s, 0, size)
+      let rest = string.slice(s, size, string.length(s) - size)
+      [chunk, ..chunk_string(rest, size)]
     }
   }
 }

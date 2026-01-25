@@ -1,0 +1,29 @@
+---
+version: 1.5.3
+title: csr ecdsa ipv4 san text
+file: ./test/kryptos/x509/csr_test.gleam
+test_name: csr_ecdsa_ipv4_san_verified_by_openssl_test
+---
+Certificate Request:
+    Data:
+        Version: 1 (0x0)
+        Subject: CN=server.local
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:01:8f:bf:f2:67:c9:a2:02:55:ca:d8:a6:a5:e2:
+                    9a:bd:f1:93:24:e2:b8:52:0d:ca:55:d6:97:05:5a:
+                    73:7f:88:ff:cd:0a:02:f0:f7:47:12:06:07:87:da:
+                    00:4a:97:2e:88:08:b2:66:65:04:43:2b:3c:02:44:
+                    36:b7:62:dc:47
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        Attributes:
+            Requested Extensions:
+                X509v3 Subject Alternative Name: 
+                    IP Address:192.168.1.1
+    Signature Algorithm: ecdsa-with-SHA256
+    Signature Value:
+        [MASKED]
+
