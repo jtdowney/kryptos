@@ -53,6 +53,7 @@ pub fn digest_table_test() {
       "4C33F4D13255A63B30E242B785CDDEDD11E581E99C78C7C7DA18C5118AFEC348E37BBF9BC928A2C82C8F726719633F0FB2CD428868323BD319830A9B800E18D1",
     ),
   ]
+  |> list.filter(fn(pair) { hash.is_supported(pair.0) })
   |> list.each(fn(pair) {
     let #(algorithm, expected) = pair
     let assert Ok(output) =

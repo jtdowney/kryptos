@@ -110,6 +110,7 @@ pub fn hmac_algorithms_table_test() {
       "16CCF3457238D495235D582DA8EE594E841EDC3D25F076B37E566AFA87DBB58A",
     ),
   ]
+  |> list.filter(fn(pair) { hash.is_supported(pair.0) })
   |> list.each(fn(pair) {
     let #(algorithm, expected) = pair
     let assert Ok(output) = crypto.hmac(algorithm, key, data)

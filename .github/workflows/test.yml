@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        otp-version: ["27", "28"]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -18,7 +21,7 @@ jobs:
           node-version: "lts/*"
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: "28"
+          otp-version: ${{ matrix.otp-version }}
           gleam-version: "1.14.0"
           rebar3-version: "3"
       - run: gleam deps download

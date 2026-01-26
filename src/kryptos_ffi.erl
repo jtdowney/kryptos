@@ -113,6 +113,18 @@
 ]).
 
 %%------------------------------------------------------------------------------
+%% OTP Version Detection
+%%------------------------------------------------------------------------------
+
+%% OTP 28 changed PrivateKeyInfo from a 5-tuple to a 6-tuple (OneAsymmetricKey)
+%% and renamed the algorithm identifier tuple.
+otp_version() ->
+    list_to_integer(erlang:system_info(otp_release)).
+
+is_otp_28_or_later() ->
+    otp_version() >= 28.
+
+%%------------------------------------------------------------------------------
 %% Utilities & Random
 %%------------------------------------------------------------------------------
 
@@ -394,6 +406,15 @@ oid_to_curve({1, 3, 101, 111}) ->
 %% Elliptic Curve (EC/ECDSA/ECDH)
 %%------------------------------------------------------------------------------
 
+%% Return the appropriate ECPrivateKey version value for the current OTP version
+%% OTP 27: integer 1
+%% OTP 28: atom ecPrivkeyVer1
+ec_private_key_version() ->
+    case is_otp_28_or_later() of
+        true -> ecPrivkeyVer1;
+        false -> 1
+    end.
+
 ec_curve_name(p256) ->
     secp256r1;
 ec_curve_name(p384) ->
@@ -407,15 +428,14 @@ ec_generate_key_pair(Curve) ->
     CurveName = ec_curve_name(Curve),
     OID = curve_to_oid(CurveName),
     {PubPoint, PrivScalar} = crypto:generate_key(ecdh, CurveName),
-    PrivKey =
-        #'ECPrivateKey'{
-            version = ecPrivkeyVer1,
-            privateKey = PrivScalar,
-            parameters = {namedCurve, OID},
-            publicKey = PubPoint
-        },
+    PrivKey = make_ec_private_key(PrivScalar, OID, PubPoint),
     PubKey = {{'ECPoint', PubPoint}, {namedCurve, CurveName}},
     {PrivKey, PubKey}.
+
+%% Construct ECPrivateKey tuple compatible with both OTP 27 and OTP 28
+make_ec_private_key(PrivScalar, OID, PubPoint) ->
+    {'ECPrivateKey', ec_private_key_version(), PrivScalar, {namedCurve, OID}, PubPoint,
+        asn1_NOVALUE}.
 
 ec_coordinate_size(Curve) ->
     case Curve of
@@ -437,13 +457,7 @@ ec_private_key_from_bytes(Curve, PrivateScalar) ->
                 CurveName = ec_curve_name(Curve),
                 OID = curve_to_oid(CurveName),
                 {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, NormalizedScalar),
-                PrivKey =
-                    #'ECPrivateKey'{
-                        version = ecPrivkeyVer1,
-                        privateKey = NormalizedScalar,
-                        parameters = {namedCurve, OID},
-                        publicKey = PublicPoint
-                    },
+                PrivKey = make_ec_private_key(NormalizedScalar, OID, PublicPoint),
                 PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
                 {ok, {PrivKey, PubKey}}
             catch
@@ -635,21 +649,12 @@ ec_import_private_key_der(DerBytes) ->
     end.
 
 ec_import_private_key_from_der(DerBytes) ->
-    ECPrivKey = public_key:der_decode('PrivateKeyInfo', DerBytes),
-    case ECPrivKey of
-        #'ECPrivateKey'{
-            privateKey = PrivateScalar,
-            parameters = {namedCurve, CurveOID},
-            publicKey = PublicPoint
-        } ->
+    %% der_decode returns ECPrivateKey tuple
+    %% OTP 27/28: {'ECPrivateKey', Version, PrivScalar, {namedCurve, OID}, PubPoint, asn1_NOVALUE}
+    case public_key:der_decode('PrivateKeyInfo', DerBytes) of
+        {'ECPrivateKey', _, PrivateScalar, {namedCurve, CurveOID}, PublicPoint, _} ->
             CurveName = oid_to_curve(CurveOID),
-            PrivKey =
-                #'ECPrivateKey'{
-                    version = ecPrivkeyVer1,
-                    privateKey = PrivateScalar,
-                    parameters = {namedCurve, CurveOID},
-                    publicKey = PublicPoint
-                },
+            PrivKey = make_ec_private_key(PrivateScalar, CurveOID, PublicPoint),
             PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
             {ok, {PrivKey, PubKey}};
         _ ->
@@ -678,15 +683,42 @@ ec_import_public_key_der(DerBytes) ->
     end.
 
 ec_import_public_key_from_der(DerBytes) ->
-    #'SubjectPublicKeyInfo'{algorithm = AlgId, subjectPublicKey = PublicKeyBits} =
-        public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-    case AlgId of
-        #'AlgorithmIdentifier'{algorithm = ?'id-ecPublicKey', parameters = {namedCurve, OID}} ->
-            CurveName = oid_to_curve(OID),
-            {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
+    %% SubjectPublicKeyInfo structure:
+    %% {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', Algorithm, Parameters}, PublicKeyBits}
+    %% Parameters format differs between OTP versions:
+    %%   OTP 27: raw DER bytes
+    %%   OTP 28: {namedCurve, OID} tuple
+    case public_key:der_decode('SubjectPublicKeyInfo', DerBytes) of
+        {'SubjectPublicKeyInfo', {'AlgorithmIdentifier', ?'id-ecPublicKey', Params}, PublicKeyBits} ->
+            case extract_ec_curve_oid(Params) of
+                {ok, OID} ->
+                    CurveName = oid_to_curve(OID),
+                    {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
+                error ->
+                    {error, nil}
+            end;
         _ ->
             {error, nil}
     end.
+
+%% Extract curve OID from AlgorithmIdentifier parameters
+%% OTP 27: raw DER-encoded OID bytes
+%% OTP 28: {namedCurve, OID} tuple
+extract_ec_curve_oid({namedCurve, OID}) ->
+    {ok, OID};
+extract_ec_curve_oid(DerBytes) when is_binary(DerBytes) ->
+    %% OTP 27 returns raw DER bytes, decode the OID
+    try
+        OID = public_key:der_decode('EcpkParameters', DerBytes),
+        case OID of
+            {namedCurve, ActualOID} -> {ok, ActualOID};
+            _ -> error
+        end
+    catch
+        _:_ -> error
+    end;
+extract_ec_curve_oid(_) ->
+    error.
 
 %% EC Export Functions
 
@@ -827,19 +859,28 @@ xdh_import_private_key_der(DerBytes) ->
 
 xdh_import_private_key_from_der(DerBytes) ->
     %% der_decode returns tuples, not records
+    %% OTP 27: 5-tuple with 'PrivateKeyInfo_privateKeyAlgorithm'
+    %% OTP 28: 6-tuple with 'PrivateKeyAlgorithmIdentifier'
     case public_key:der_decode('PrivateKeyInfo', DerBytes) of
-        {'PrivateKeyInfo', _, {'PrivateKeyAlgorithmIdentifier', OID, _}, WrappedKey, _, _} ->
-            Curve = oid_to_curve(OID),
-            case Curve of
-                _ when Curve =:= x25519; Curve =:= x448 ->
-                    KeySize = kryptos@xdh:key_size(Curve),
-                    case WrappedKey of
-                        <<4, KeySize, PrivateBytes:KeySize/binary>> ->
-                            {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve, PrivateBytes),
-                            {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
-                        _ ->
-                            {error, nil}
-                    end;
+        {'PrivateKeyInfo', _, {_, OID, _}, WrappedKey, _} ->
+            %% OTP 27 format (5-tuple)
+            xdh_import_from_decoded(OID, WrappedKey);
+        {'PrivateKeyInfo', _, {_, OID, _}, WrappedKey, _, _} ->
+            %% OTP 28 format (6-tuple)
+            xdh_import_from_decoded(OID, WrappedKey);
+        _ ->
+            {error, nil}
+    end.
+
+xdh_import_from_decoded(OID, WrappedKey) ->
+    Curve = oid_to_curve(OID),
+    case Curve of
+        _ when Curve =:= x25519; Curve =:= x448 ->
+            KeySize = kryptos@xdh:key_size(Curve),
+            case WrappedKey of
+                <<4, KeySize, PrivateBytes:KeySize/binary>> ->
+                    {PubKey, PrivKey} = crypto:generate_key(ecdh, Curve, PrivateBytes),
+                    {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
                 _ ->
                     {error, nil}
             end;
@@ -889,19 +930,7 @@ xdh_import_public_key_from_der(DerBytes) ->
 
 xdh_export_private_key_pem({KeyBytes, Curve}) ->
     try
-        KeySize = kryptos@xdh:key_size(Curve),
-        WrappedKey = <<4, KeySize, KeyBytes/binary>>,
-        PrivKeyInfo =
-            #'PrivateKeyInfo'{
-                version = v1,
-                privateKeyAlgorithm =
-                    #'PrivateKeyInfo_privateKeyAlgorithm'{
-                        algorithm =
-                            curve_to_oid(Curve)
-                    },
-                privateKey = WrappedKey
-            },
-        Der = public_key:der_encode('PrivateKeyInfo', PrivKeyInfo),
+        Der = xdh_private_key_to_der(KeyBytes, Curve),
         {ok, public_key:pem_encode([{'PrivateKeyInfo', Der, not_encrypted}])}
     catch
         _:_ ->
@@ -910,23 +939,27 @@ xdh_export_private_key_pem({KeyBytes, Curve}) ->
 
 xdh_export_private_key_der({KeyBytes, Curve}) ->
     try
-        KeySize = kryptos@xdh:key_size(Curve),
-        WrappedKey = <<4, KeySize, KeyBytes/binary>>,
-        PrivKeyInfo =
-            #'PrivateKeyInfo'{
-                version = v1,
-                privateKeyAlgorithm =
-                    #'PrivateKeyInfo_privateKeyAlgorithm'{
-                        algorithm =
-                            curve_to_oid(Curve)
-                    },
-                privateKey = WrappedKey
-            },
-        {ok, public_key:der_encode('PrivateKeyInfo', PrivKeyInfo)}
+        {ok, xdh_private_key_to_der(KeyBytes, Curve)}
     catch
         _:_ ->
             {error, nil}
     end.
+
+xdh_private_key_to_der(KeyBytes, Curve) ->
+    KeySize = kryptos@xdh:key_size(Curve),
+    WrappedKey = <<4, KeySize, KeyBytes/binary>>,
+    OID = curve_to_oid(Curve),
+    AlgId = {'AlgorithmIdentifier', OID, asn1_NOVALUE},
+    PrivKeyInfo =
+        case is_otp_28_or_later() of
+            true ->
+                %% OTP 28+: 6-tuple OneAsymmetricKey format
+                {'OneAsymmetricKey', 0, AlgId, WrappedKey, asn1_NOVALUE, asn1_NOVALUE};
+            false ->
+                %% OTP 27: 5-tuple PrivateKeyInfo format
+                {'PrivateKeyInfo', v1, AlgId, WrappedKey, asn1_NOVALUE}
+        end,
+    public_key:der_encode('PrivateKeyInfo', PrivKeyInfo).
 
 xdh_export_public_key_pem({PubBytes, Curve}) ->
     try
