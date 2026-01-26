@@ -114,7 +114,7 @@ pub fn rsa_encrypt_decrypt_roundtrip_property_test() {
 }
 
 pub fn generate_key_pair_too_small_test() {
-  let assert Error(Nil) = rsa.generate_key_pair(512)
+  assert rsa.generate_key_pair(512) == Error(Nil)
 }
 
 pub fn generate_key_pair_minimum_test() {

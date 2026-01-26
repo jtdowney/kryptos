@@ -51,6 +51,7 @@ fn test_file_decoder() -> decode.Decoder(TestFile) {
 }
 
 fn run_wycheproof_tests(filename: String, algorithm: hash.HashAlgorithm) -> Nil {
+  use <- unitest.guard(!hash.is_supported(algorithm))
   let assert Ok(test_file) = utils.load_test_file(filename, test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, fn(group, tc) {
     run_single_test(algorithm, group, tc)

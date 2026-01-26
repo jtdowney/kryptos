@@ -313,6 +313,7 @@ fn run_signature_test(group: SignatureTestGroup, tc: SignatureTestCase) -> Nil {
   let hash_alg = hash_from_name(group.sha)
   use <- bool.guard(result.is_error(hash_alg), Nil)
   let assert Ok(hash_alg) = hash_alg
+  use <- bool.guard(!hash.is_supported(hash_alg), Nil)
 
   let assert Ok(pub_der) = bit_array.base16_decode(group.public_key_der)
   let assert Ok(msg) = bit_array.base16_decode(tc.msg)
@@ -356,6 +357,7 @@ fn run_pss_test(group: PssTestGroup, tc: PssTestCase) -> Nil {
   let hash_alg = hash_from_name(group.sha)
   use <- bool.guard(result.is_error(hash_alg), Nil)
   let assert Ok(hash_alg) = hash_alg
+  use <- bool.guard(!hash.is_supported(hash_alg), Nil)
 
   let assert Ok(pub_der) = bit_array.base16_decode(group.public_key_der)
   let assert Ok(msg) = bit_array.base16_decode(tc.msg)
@@ -398,6 +400,7 @@ fn run_oaep_test(group: OaepTestGroup, tc: OaepTestCase) -> Nil {
   let hash_alg = hash_from_name(group.sha)
   use <- bool.guard(result.is_error(hash_alg), Nil)
   let assert Ok(hash_alg) = hash_alg
+  use <- bool.guard(!hash.is_supported(hash_alg), Nil)
 
   let assert Ok(priv_der) = bit_array.base16_decode(group.private_key_pkcs8)
   let assert Ok(ct) = bit_array.base16_decode(tc.ct)
@@ -485,6 +488,7 @@ fn run_sig_gen_test(group: SigGenTestGroup, tc: SigGenTestCase) -> Nil {
   let hash_alg = hash_from_name(group.sha)
   use <- bool.guard(result.is_error(hash_alg), Nil)
   let assert Ok(hash_alg) = hash_alg
+  use <- bool.guard(!hash.is_supported(hash_alg), Nil)
 
   let assert Ok(priv_der) = bit_array.base16_decode(group.private_key_pkcs8)
   let assert Ok(msg) = bit_array.base16_decode(tc.msg)
