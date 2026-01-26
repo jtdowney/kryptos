@@ -8,6 +8,7 @@ on:
 
 jobs:
   check-format:
+    name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -20,6 +21,7 @@ jobs:
       - run: gleam format --check src test
 
   test-erlang:
+    name: Erlang (OTP ${{ matrix.otp-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -39,6 +41,7 @@ jobs:
       - run: gleam format --check src test
 
   test-javascript:
+    name: JavaScript (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
