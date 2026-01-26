@@ -118,3 +118,24 @@ pub fn hash_deterministic_property_test() {
     assert hash1 == hash2
   })
 }
+
+pub fn is_supported_sha256_test() {
+  assert hash.is_supported(hash.Sha256) == True
+}
+
+pub fn is_supported_matches_new_test() {
+  // is_supported should return True iff new() succeeds
+  [
+    hash.Blake2b, hash.Blake2s, hash.Md5, hash.Sha1, hash.Sha256, hash.Sha384,
+    hash.Sha512, hash.Sha512x224, hash.Sha512x256, hash.Sha3x224, hash.Sha3x256,
+    hash.Sha3x384, hash.Sha3x512,
+  ]
+  |> list.each(fn(alg) {
+    let supported = hash.is_supported(alg)
+    let new_works = case hash.new(alg) {
+      Ok(_) -> True
+      Error(_) -> False
+    }
+    assert supported == new_works
+  })
+}

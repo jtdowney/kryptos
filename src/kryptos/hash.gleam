@@ -133,3 +133,20 @@ pub fn update(hasher: Hasher, data: BitArray) -> Hasher
 @external(erlang, "crypto", "hash_final")
 @external(javascript, "../kryptos_ffi.mjs", "hashFinal")
 pub fn final(hasher: Hasher) -> BitArray
+
+/// Checks if a hash algorithm is supported by the current runtime.
+///
+/// Some algorithms may not be available depending on the platform or
+/// OpenSSL/crypto library version.
+///
+/// ## Parameters
+/// - `algorithm`: The hash algorithm to check
+///
+/// ## Returns
+/// `True` if the algorithm is supported, `False` otherwise.
+pub fn is_supported(algorithm: HashAlgorithm) -> Bool {
+  case new(algorithm) {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+}
