@@ -32,6 +32,11 @@ A cryptography library for Gleam targeting both Erlang and JavaScript runtimes.
 gleam add kryptos
 ```
 
+## Requirements
+
+- **Erlang/OTP 27+** — Required for the Erlang target
+- **Node.js 22+** — Required for the JavaScript target
+
 ## Features
 
 | Module                                                       | Algorithms                                              |
