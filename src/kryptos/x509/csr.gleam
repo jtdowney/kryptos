@@ -714,6 +714,7 @@ fn parse_single_attribute(bytes: BitArray) -> Result(#(Oid, BitArray), Nil) {
 fn parse_extension_request(
   bytes: BitArray,
 ) -> Result(#(List(SubjectAltName), List(#(Oid, BitArray))), Nil) {
+  use <- bool.guard(when: bytes == <<>>, return: Ok(#([], [])))
   use #(exts_content, _) <- result.try(der.parse_sequence(bytes))
   parse_extensions(exts_content, [], [])
 }
