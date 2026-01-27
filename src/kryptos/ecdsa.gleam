@@ -179,7 +179,7 @@ pub fn rs_to_der(rs: BitArray, curve: Curve) -> Result(BitArray, Nil) {
   let assert Ok(r) = bit_array.slice(rs, 0, coord_size)
   let assert Ok(s) = bit_array.slice(rs, coord_size, coord_size)
 
-  bit_array.concat([der.encode_integer(r), der.encode_integer(s)])
-  |> der.encode_sequence
-  |> Ok
+  use r_encoded <- result.try(der.encode_integer(r))
+  use s_encoded <- result.try(der.encode_integer(s))
+  der.encode_sequence(bit_array.concat([r_encoded, s_encoded]))
 }

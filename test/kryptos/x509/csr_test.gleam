@@ -8,7 +8,9 @@ import gleam/string
 import kryptos/ec
 import kryptos/hash
 import kryptos/rsa
-import kryptos/x509
+import kryptos/x509.{
+  DnsName, EcPublicKey, EcdsaSha256, RsaPublicKey, RsaSha256, Unknown,
+}
 import kryptos/x509/csr
 import qcheck
 import shellout
@@ -466,4 +468,245 @@ pub fn ipv6_full_form_parsing_property_test() {
     let assert Ok(_) = csr.new() |> csr.with_ip(ip)
     Nil
   })
+}
+
+pub fn ecdsa_csr_roundtrip_property_test() {
+  let curve_gen =
+    qcheck.from_generators(qcheck.return(ec.P256), [
+      qcheck.return(ec.P384),
+      qcheck.return(ec.P521),
+    ])
+
+  let hash_for_curve = fn(curve) {
+    case curve {
+      ec.P256 -> hash.Sha256
+      ec.P384 -> hash.Sha384
+      ec.P521 -> hash.Sha512
+      _ -> hash.Sha256
+    }
+  }
+
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(10),
+    curve_gen,
+    fn(curve) {
+      let #(private_key, _) = ec.generate_key_pair(curve)
+      let subject =
+        x509.name([x509.cn("test.example.com"), x509.organization("Test Org")])
+
+      let assert Ok(builder) =
+        csr.new()
+        |> csr.with_subject(subject)
+        |> csr.with_dns_name("test.example.com")
+        |> result.try(csr.with_dns_name(_, "www.test.example.com"))
+
+      let assert Ok(built_csr) =
+        csr.sign_with_ecdsa(builder, private_key, hash_for_curve(curve))
+
+      let der = csr.to_der(built_csr)
+      let assert Ok(parsed) = csr.from_der(der)
+
+      assert csr.version(parsed) == 0
+      let assert EcPublicKey(_) = csr.public_key(parsed)
+      assert list.length(csr.subject_alt_names(parsed)) == 2
+
+      let pem = csr.to_pem(built_csr)
+      let assert Ok(parsed_from_pem) = csr.from_pem(pem)
+      assert csr.version(parsed_from_pem) == 0
+
+      Nil
+    },
+  )
+}
+
+pub fn rsa_csr_roundtrip_test() {
+  let assert Ok(#(private_key, _)) = rsa.generate_key_pair(2048)
+  let subject = x509.name([x509.cn("rsa.example.com")])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("rsa.example.com")
+
+  let assert Ok(built_csr) =
+    csr.sign_with_rsa(builder, private_key, hash.Sha256)
+
+  let der = csr.to_der(built_csr)
+  let assert Ok(parsed) = csr.from_der(der)
+
+  assert csr.version(parsed) == 0
+  let assert RsaPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == RsaSha256
+  assert csr.subject_alt_names(parsed) == [DnsName("rsa.example.com")]
+}
+
+pub fn from_pem_invalid_label_test() {
+  let bad_pem =
+    "-----BEGIN CERTIFICATE-----
+MIIBkTCB+wIJALH9sWPdA4KSMA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBnVu
+dXNlZDAeFw0yNTAxMDEwMDAwMDBaFw0yNjAxMDEwMDAwMDBaMBExDzANBgNVBAMM
+BnVudXNlZDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJFfsRbq/cfLmz5X9Q7B
+test
+-----END CERTIFICATE-----"
+
+  assert csr.from_pem(bad_pem) == Error(csr.InvalidPem)
+}
+
+pub fn from_der_truncated_test() {
+  let truncated = <<0x30, 0x82, 0x01, 0x00>>
+  assert csr.from_der(truncated) == Error(csr.InvalidStructure)
+}
+
+pub fn from_der_bad_signature_test() {
+  let #(private_key, _) = ec.generate_key_pair(ec.P256)
+  let subject = x509.name([x509.cn("test.example.com")])
+
+  let assert Ok(built_csr) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.sign_with_ecdsa(private_key, hash.Sha256)
+
+  let der = csr.to_der(built_csr)
+  let size = bit_array.byte_size(der)
+
+  let assert Ok(prefix) = bit_array.slice(der, 0, size - 4)
+  let corrupted = bit_array.concat([prefix, <<0xFF, 0xFF, 0xFF, 0xFF>>])
+
+  assert csr.from_der(corrupted) == Error(csr.SignatureVerificationFailed)
+}
+
+pub fn from_der_unverified_accepts_bad_signature_test() {
+  let #(private_key, _) = ec.generate_key_pair(ec.P256)
+  let subject = x509.name([x509.cn("test.example.com")])
+
+  let assert Ok(built_csr) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.sign_with_ecdsa(private_key, hash.Sha256)
+
+  let der = csr.to_der(built_csr)
+  let size = bit_array.byte_size(der)
+
+  let assert Ok(prefix) = bit_array.slice(der, 0, size - 4)
+  let corrupted = bit_array.concat([prefix, <<0xFF, 0xFF, 0xFF, 0xFF>>])
+
+  let assert Ok(parsed) = csr.from_der_unverified(corrupted)
+  assert csr.version(parsed) == 0
+}
+
+pub fn parsed_csr_subject_alt_names_test() {
+  let #(private_key, _) = ec.generate_key_pair(ec.P256)
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(x509.name([x509.cn("test")]))
+    |> csr.with_dns_name("example.com")
+    |> result.try(csr.with_dns_name(_, "www.example.com"))
+    |> result.try(csr.with_email(_, "admin@example.com"))
+
+  let assert Ok(built_csr) =
+    csr.sign_with_ecdsa(builder, private_key, hash.Sha256)
+
+  let assert Ok(parsed) = csr.from_der(csr.to_der(built_csr))
+
+  let sans = csr.subject_alt_names(parsed)
+  assert list.length(sans) == 3
+
+  assert list.contains(sans, DnsName("example.com"))
+  assert list.contains(sans, DnsName("www.example.com"))
+  assert list.contains(sans, x509.Email("admin@example.com"))
+}
+
+pub fn parsed_csr_signature_algorithm_test() {
+  let #(private_key, _) = ec.generate_key_pair(ec.P256)
+
+  let assert Ok(built_csr) =
+    csr.new()
+    |> csr.with_subject(x509.name([x509.cn("test")]))
+    |> csr.sign_with_ecdsa(private_key, hash.Sha256)
+
+  let assert Ok(parsed) = csr.from_der(csr.to_der(built_csr))
+  assert csr.signature_algorithm(parsed) == EcdsaSha256
+}
+
+/// Interop test: parse an OpenSSL-generated CSR and verify all fields
+pub fn parse_openssl_generated_csr_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/p256_csr.pem")
+  let assert Ok(parsed) = csr.from_pem(pem)
+
+  // Verify version
+  assert csr.version(parsed) == 0
+
+  assert csr.signature_algorithm(parsed) == EcdsaSha256
+
+  let assert EcPublicKey(_) = csr.public_key(parsed)
+
+  let subject_str =
+    parsed
+    |> csr.subject
+    |> x509.name_to_string
+  assert subject_str == "CN=openssl-test.example.com, O=OpenSSL Test Org, C=US"
+
+  let sans = csr.subject_alt_names(parsed)
+  assert list.length(sans) == 5
+  assert list.contains(sans, DnsName("openssl-test.example.com"))
+  assert list.contains(sans, DnsName("www.openssl-test.example.com"))
+  assert list.contains(sans, x509.Email("admin@example.com"))
+  assert list.contains(sans, x509.IpAddress(<<192, 168, 1, 100>>))
+  assert list.contains(
+    sans,
+    x509.IpAddress(<<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1>>),
+  )
+}
+
+/// Security test: Unknown SAN types should be returned as Unknown,
+/// and subsequent SANs should NOT be silently dropped.
+///
+/// This CSR has: DNS:legitimate.example.com, URI:..., DNS:also-legit.example.com
+/// The URI (tag [6] = 0x86) is not a supported type, so it should be parsed
+/// as Unknown. Critically, the DNS name AFTER the URI must still be returned.
+pub fn parse_csr_with_unknown_san_type_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/csr_with_uri.pem")
+  let assert Ok(parsed) = csr.from_pem(pem)
+
+  let sans = csr.subject_alt_names(parsed)
+
+  // Must have 3 SANs: DNS, Unknown (URI), DNS
+  assert list.length(sans) == 3
+
+  // First DNS name
+  assert list.contains(sans, DnsName("legitimate.example.com"))
+
+  // Second DNS name - this was previously dropped due to the security bug
+  assert list.contains(sans, DnsName("also-legit.example.com"))
+
+  // The URI should be returned as Unknown with tag 0x86 (context-specific [6])
+  let has_unknown =
+    list.any(sans, fn(san) {
+      case san {
+        Unknown(0x86, _) -> True
+        _ -> False
+      }
+    })
+  assert has_unknown
+}
+
+pub fn san_after_unknown_type_must_be_returned_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/csr_with_uri.pem")
+  let assert Ok(parsed) = csr.from_pem(pem)
+
+  let sans = csr.subject_alt_names(parsed)
+  assert list.length(sans) == 3
+
+  let dns_names =
+    list.filter_map(sans, fn(san) {
+      case san {
+        DnsName(name) -> Ok(name)
+        _ -> Error(Nil)
+      }
+    })
+
+  assert list.length(dns_names) == 2
+  assert list.contains(dns_names, "legitimate.example.com")
+  assert list.contains(dns_names, "also-legit.example.com")
 }

@@ -21,8 +21,13 @@
 //// ])
 //// ```
 
+import gleam/int
 import gleam/list
+import gleam/string
+import kryptos/ec
+import kryptos/eddsa
 import kryptos/internal/der
+import kryptos/rsa
 
 const oid_common_name = Oid([2, 5, 4, 3])
 
@@ -75,11 +80,35 @@ pub type SubjectAltName {
   IpAddress(BitArray)
   /// An email address (e.g., "user@example.com").
   Email(String)
+  /// An unknown GeneralName type with its raw tag byte and value.
+  /// Returned when parsing encounters an unrecognized SAN type.
+  Unknown(tag: Int, value: BitArray)
 }
 
 /// X.509 certificate extensions.
 pub type Extensions {
   Extensions(subject_alt_names: List(SubjectAltName))
+}
+
+/// A public key extracted from an X.509 structure (CSR or certificate).
+pub type PublicKey {
+  EcPublicKey(ec.PublicKey)
+  RsaPublicKey(rsa.PublicKey)
+  EdPublicKey(eddsa.PublicKey)
+}
+
+/// Signature algorithm used in X.509 structures.
+pub type SignatureAlgorithm {
+  RsaSha1
+  RsaSha256
+  RsaSha384
+  RsaSha512
+  EcdsaSha1
+  EcdsaSha256
+  EcdsaSha384
+  EcdsaSha512
+  Ed25519
+  Ed448
 }
 
 /// Builds a distinguished name from a list of attribute-value pairs.
@@ -202,10 +231,78 @@ pub fn email_address(value: String) -> #(Oid, AttributeValue) {
 ///
 /// This is an internal function for use by the csr module.
 @internal
-pub fn encode_attribute_value(value: AttributeValue) -> BitArray {
+pub fn encode_attribute_value(value: AttributeValue) -> Result(BitArray, Nil) {
   case value {
     Utf8String(s) -> der.encode_utf8_string(s)
     PrintableString(s) -> der.encode_printable_string(s)
     Ia5String(s) -> der.encode_ia5_string(s)
+  }
+}
+
+/// Creates a UTF-8 string attribute value.
+///
+/// This is an internal function for use by the csr module when parsing.
+@internal
+pub fn utf8_string(value: String) -> AttributeValue {
+  Utf8String(value)
+}
+
+/// Creates a printable string attribute value.
+///
+/// This is an internal function for use by the csr module when parsing.
+@internal
+pub fn printable_string(value: String) -> AttributeValue {
+  PrintableString(value)
+}
+
+/// Creates an IA5 string attribute value.
+///
+/// This is an internal function for use by the csr module when parsing.
+@internal
+pub fn ia5_string(value: String) -> AttributeValue {
+  Ia5String(value)
+}
+
+/// Extracts the string value from an AttributeValue.
+///
+/// Returns the underlying string regardless of encoding type
+/// (UTF8String, PrintableString, or IA5String).
+pub fn attribute_value_to_string(value: AttributeValue) -> String {
+  case value {
+    Utf8String(s) -> s
+    PrintableString(s) -> s
+    Ia5String(s) -> s
+  }
+}
+
+/// Converts a distinguished name to a human-readable string.
+///
+/// Formats the name in OpenSSL style: "CN=example.com, O=Acme Inc, C=US"
+///
+/// Known OIDs are displayed with their standard abbreviations (CN, O, OU, C, ST, L).
+/// Unknown OIDs are displayed in dotted-decimal notation (e.g., "1.2.3.4=value").
+pub fn name_to_string(name: Name) -> String {
+  let Name(rdns) = name
+  rdns
+  |> list.flat_map(fn(rdn) {
+    let Rdn(attributes) = rdn
+    list.map(attributes, fn(attr) {
+      let #(oid, value) = attr
+      oid_to_abbrev(oid) <> "=" <> attribute_value_to_string(value)
+    })
+  })
+  |> string.join(", ")
+}
+
+fn oid_to_abbrev(oid: Oid) -> String {
+  case oid {
+    Oid([2, 5, 4, 3]) -> "CN"
+    Oid([2, 5, 4, 6]) -> "C"
+    Oid([2, 5, 4, 7]) -> "L"
+    Oid([2, 5, 4, 8]) -> "ST"
+    Oid([2, 5, 4, 10]) -> "O"
+    Oid([2, 5, 4, 11]) -> "OU"
+    Oid([1, 2, 840, 113_549, 1, 9, 1]) -> "emailAddress"
+    Oid(components) -> string.join(list.map(components, int.to_string), ".")
   }
 }

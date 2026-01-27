@@ -38,14 +38,15 @@ pub fn parse_length(bytes: BitArray) -> Result(#(Int, BitArray), Nil) {
 
 /// Encode a length in DER format.
 ///
-/// Supports lengths up to 2^32 - 1 bytes.
-pub fn encode_length(len: Int) -> BitArray {
+/// Supports lengths up to 65,535 bytes (sufficient for X.509 structures).
+/// Returns Error(Nil) for lengths exceeding this limit.
+pub fn encode_length(len: Int) -> Result(BitArray, Nil) {
   case len {
-    l if l < 128 -> <<l:8>>
-    l if l < 256 -> <<0x81, l:8>>
-    l if l < 65_536 -> <<0x82, l:16>>
-    l if l < 16_777_216 -> <<0x83, l:24>>
-    l -> <<0x84, l:32>>
+    l if l < 0 -> Error(Nil)
+    l if l < 128 -> Ok(<<l:8>>)
+    l if l < 256 -> Ok(<<0x81, l:8>>)
+    l if l <= 65_535 -> Ok(<<0x82, l:16>>)
+    _ -> Error(Nil)
   }
 }
 
@@ -71,7 +72,7 @@ pub fn parse_integer(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
 /// Encode bytes as a DER INTEGER.
 ///
 /// Strips leading zeros and adds 0x00 prefix if high bit is set (to keep positive).
-pub fn encode_integer(value: BitArray) -> BitArray {
+pub fn encode_integer(value: BitArray) -> Result(BitArray, Nil) {
   let stripped = utils.strip_leading_zeros(value)
 
   let int_bytes = case stripped {
@@ -80,20 +81,14 @@ pub fn encode_integer(value: BitArray) -> BitArray {
     _ -> stripped
   }
 
-  bit_array.concat([
-    <<integer_tag>>,
-    encode_length(bit_array.byte_size(int_bytes)),
-    int_bytes,
-  ])
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(int_bytes)))
+  Ok(bit_array.concat([<<integer_tag>>, len_bytes, int_bytes]))
 }
 
 /// Wrap content in a DER SEQUENCE.
-pub fn encode_sequence(content: BitArray) -> BitArray {
-  bit_array.concat([
-    <<sequence_tag>>,
-    encode_length(bit_array.byte_size(content)),
-    content,
-  ])
+pub fn encode_sequence(content: BitArray) -> Result(BitArray, Nil) {
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<sequence_tag>>, len_bytes, content]))
 }
 
 /// Parse the content of a DER SEQUENCE, returning (inner bytes, remaining bytes).
@@ -131,32 +126,27 @@ fn reject_non_minimal_zeros(
 }
 
 /// Wrap content in a DER SET.
-pub fn encode_set(content: BitArray) -> BitArray {
-  bit_array.concat([
-    <<set_tag>>,
-    encode_length(bit_array.byte_size(content)),
-    content,
-  ])
+pub fn encode_set(content: BitArray) -> Result(BitArray, Nil) {
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<set_tag>>, len_bytes, content]))
 }
 
 /// Encode an OID (Object Identifier).
 ///
 /// OID components are encoded as: first*40 + second for the first byte,
 /// then base-128 with continuation bits for remaining components.
-pub fn encode_oid(components: List(Int)) -> BitArray {
+/// Returns Error(Nil) for invalid OIDs (fewer than 2 components).
+pub fn encode_oid(components: List(Int)) -> Result(BitArray, Nil) {
   case components {
     [first, second, ..rest] -> {
       let first_byte = first * 40 + second
       let rest_bytes = list.flat_map(rest, encode_oid_component)
       let content =
         bit_array.concat([<<first_byte:8>>, bytes_from_list(rest_bytes)])
-      bit_array.concat([
-        <<oid_tag>>,
-        encode_length(bit_array.byte_size(content)),
-        content,
-      ])
+      use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+      Ok(bit_array.concat([<<oid_tag>>, len_bytes, content]))
     }
-    _ -> <<>>
+    _ -> Error(Nil)
   }
 }
 
@@ -187,76 +177,230 @@ fn bytes_from_list(bytes: List(Int)) -> BitArray {
 }
 
 /// Encode a UTF8String.
-pub fn encode_utf8_string(value: String) -> BitArray {
+pub fn encode_utf8_string(value: String) -> Result(BitArray, Nil) {
   let content = bit_array.from_string(value)
-  bit_array.concat([
-    <<utf8_string_tag>>,
-    encode_length(bit_array.byte_size(content)),
-    content,
-  ])
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<utf8_string_tag>>, len_bytes, content]))
 }
 
 /// Encode a PrintableString (ASCII subset).
-pub fn encode_printable_string(value: String) -> BitArray {
+pub fn encode_printable_string(value: String) -> Result(BitArray, Nil) {
   let content = bit_array.from_string(value)
-  bit_array.concat([
-    <<printable_string_tag>>,
-    encode_length(bit_array.byte_size(content)),
-    content,
-  ])
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<printable_string_tag>>, len_bytes, content]))
 }
 
 /// Encode an IA5String (ASCII).
-pub fn encode_ia5_string(value: String) -> BitArray {
+pub fn encode_ia5_string(value: String) -> Result(BitArray, Nil) {
   let content = bit_array.from_string(value)
-  bit_array.concat([
-    <<ia5_string_tag>>,
-    encode_length(bit_array.byte_size(content)),
-    content,
-  ])
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<ia5_string_tag>>, len_bytes, content]))
 }
 
 /// Encode an OCTET STRING.
-pub fn encode_octet_string(value: BitArray) -> BitArray {
-  bit_array.concat([
-    <<octet_string_tag>>,
-    encode_length(bit_array.byte_size(value)),
-    value,
-  ])
+pub fn encode_octet_string(value: BitArray) -> Result(BitArray, Nil) {
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(value)))
+  Ok(bit_array.concat([<<octet_string_tag>>, len_bytes, value]))
 }
 
 /// Encode a BIT STRING.
 ///
 /// Prepends a zero byte indicating no unused bits in the final octet.
-pub fn encode_bit_string(value: BitArray) -> BitArray {
+pub fn encode_bit_string(value: BitArray) -> Result(BitArray, Nil) {
   let content = bit_array.concat([<<0x00>>, value])
-  bit_array.concat([
-    <<bit_string_tag>>,
-    encode_length(bit_array.byte_size(content)),
-    content,
-  ])
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<bit_string_tag>>, len_bytes, content]))
 }
 
 /// Encode a context-specific tag (e.g., [0], [1]).
 ///
 /// Uses constructed form (tag | 0xA0).
-pub fn encode_context_tag(tag: Int, content: BitArray) -> BitArray {
+pub fn encode_context_tag(tag: Int, content: BitArray) -> Result(BitArray, Nil) {
   let tag_byte = int.bitwise_or(0xa0, tag)
-  bit_array.concat([
-    <<tag_byte:8>>,
-    encode_length(bit_array.byte_size(content)),
-    content,
-  ])
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<tag_byte:8>>, len_bytes, content]))
 }
 
 /// Encode a context-specific primitive tag (e.g., [0], [2] for SANs).
 ///
 /// Uses primitive form (tag | 0x80).
-pub fn encode_context_primitive_tag(tag: Int, content: BitArray) -> BitArray {
+pub fn encode_context_primitive_tag(
+  tag: Int,
+  content: BitArray,
+) -> Result(BitArray, Nil) {
   let tag_byte = int.bitwise_or(0x80, tag)
-  bit_array.concat([
-    <<tag_byte:8>>,
-    encode_length(bit_array.byte_size(content)),
-    content,
-  ])
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<tag_byte:8>>, len_bytes, content]))
+}
+
+/// Parse the content of a DER SET, returning (inner bytes, remaining bytes).
+pub fn parse_set(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
+  use rest <- require_tag(bytes, set_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  parse_content(content, len)
+}
+
+/// Parse a DER BIT STRING, returning (value bytes, remaining bytes).
+///
+/// The first byte of a BIT STRING indicates unused bits; this function
+/// only accepts 0 unused bits and strips that byte from the result.
+pub fn parse_bit_string(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
+  use rest <- require_tag(bytes, bit_string_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  use <- bool.guard(when: len < 1, return: Error(Nil))
+
+  let content_size = bit_array.byte_size(content)
+  use <- bool.guard(when: content_size < len, return: Error(Nil))
+
+  case content {
+    <<0x00, value:bytes-size(len - 1), remaining:bits>> ->
+      Ok(#(value, remaining))
+    _ -> Error(Nil)
+  }
+}
+
+/// Parse a DER OCTET STRING, returning (value bytes, remaining bytes).
+pub fn parse_octet_string(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
+  use rest <- require_tag(bytes, octet_string_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  parse_content(content, len)
+}
+
+/// Parse a DER OID, returning (components list, remaining bytes).
+pub fn parse_oid(bytes: BitArray) -> Result(#(List(Int), BitArray), Nil) {
+  use rest <- require_tag(bytes, oid_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  use <- bool.guard(when: len < 1, return: Error(Nil))
+
+  let content_size = bit_array.byte_size(content)
+  use <- bool.guard(when: content_size < len, return: Error(Nil))
+
+  let assert Ok(oid_bytes) = bit_array.slice(content, 0, len)
+  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
+
+  use components <- result.try(decode_oid_components(oid_bytes))
+  Ok(#(components, remaining))
+}
+
+fn decode_oid_components(bytes: BitArray) -> Result(List(Int), Nil) {
+  case bytes {
+    <<first_byte:8, rest:bits>> -> {
+      let first = first_byte / 40
+      let second = first_byte % 40
+      use rest_components <- result.try(decode_oid_rest(rest, 0, []))
+      Ok([first, second, ..rest_components])
+    }
+    _ -> Error(Nil)
+  }
+}
+
+fn decode_oid_rest(
+  bytes: BitArray,
+  acc: Int,
+  components: List(Int),
+) -> Result(List(Int), Nil) {
+  case bytes {
+    <<>> if acc == 0 -> Ok(list.reverse(components))
+    <<>> -> Error(Nil)
+    <<byte:8, rest:bits>> -> {
+      let value =
+        int.bitwise_or(
+          int.bitwise_shift_left(acc, 7),
+          int.bitwise_and(byte, 0x7f),
+        )
+      let is_continuation = int.bitwise_and(byte, 0x80) != 0
+      case is_continuation {
+        True -> decode_oid_rest(rest, value, components)
+        False -> decode_oid_rest(rest, 0, [value, ..components])
+      }
+    }
+    _ -> Error(Nil)
+  }
+}
+
+/// Parse a DER UTF8String, returning (string value, remaining bytes).
+pub fn parse_utf8_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
+  use rest <- require_tag(bytes, utf8_string_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
+  use value <- result.try(bit_array.to_string(value_bytes))
+  Ok(#(value, remaining))
+}
+
+/// Parse a DER PrintableString, returning (string value, remaining bytes).
+pub fn parse_printable_string(
+  bytes: BitArray,
+) -> Result(#(String, BitArray), Nil) {
+  use rest <- require_tag(bytes, printable_string_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
+  use value <- result.try(bit_array.to_string(value_bytes))
+  Ok(#(value, remaining))
+}
+
+/// Parse a DER IA5String, returning (string value, remaining bytes).
+pub fn parse_ia5_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
+  use rest <- require_tag(bytes, ia5_string_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
+  use value <- result.try(bit_array.to_string(value_bytes))
+  Ok(#(value, remaining))
+}
+
+/// Parse a context-specific constructed tag (e.g., [0], [1]).
+///
+/// Returns (inner bytes, remaining bytes) if the tag matches.
+pub fn parse_context_tag(
+  bytes: BitArray,
+  tag: Int,
+) -> Result(#(BitArray, BitArray), Nil) {
+  let tag_byte = int.bitwise_or(0xa0, tag)
+  use rest <- require_tag(bytes, tag_byte)
+  use #(len, content) <- result.try(parse_length(rest))
+  parse_content(content, len)
+}
+
+/// Parse a context-specific primitive tag (e.g., [0], [2] for SANs).
+///
+/// Returns (inner bytes, remaining bytes) if the tag matches.
+pub fn parse_context_primitive_tag(
+  bytes: BitArray,
+  tag: Int,
+) -> Result(#(BitArray, BitArray), Nil) {
+  let tag_byte = int.bitwise_or(0x80, tag)
+  use rest <- require_tag(bytes, tag_byte)
+  use #(len, content) <- result.try(parse_length(rest))
+  parse_content(content, len)
+}
+
+/// Try to peek at the next tag without consuming it.
+pub fn peek_tag(bytes: BitArray) -> Result(Int, Nil) {
+  case bytes {
+    <<tag:8, _:bits>> -> Ok(tag)
+    _ -> Error(Nil)
+  }
+}
+
+/// Parse content of a given length, returning (value, remaining bytes).
+pub fn parse_content(
+  content: BitArray,
+  len: Int,
+) -> Result(#(BitArray, BitArray), Nil) {
+  let content_size = bit_array.byte_size(content)
+  use <- bool.guard(when: content_size < len, return: Error(Nil))
+  let assert Ok(inner) = bit_array.slice(content, 0, len)
+  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
+  Ok(#(inner, remaining))
+}
+
+/// Parse a TLV element, returning (tag, value, remaining bytes).
+pub fn parse_tlv(bytes: BitArray) -> Result(#(Int, BitArray, BitArray), Nil) {
+  case bytes {
+    <<tag:8, rest:bits>> -> {
+      use #(len, content) <- result.try(parse_length(rest))
+      use #(value, remaining) <- result.try(parse_content(content, len))
+      Ok(#(tag, value, remaining))
+    }
+    _ -> Error(Nil)
+  }
 }
