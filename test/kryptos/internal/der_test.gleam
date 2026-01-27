@@ -3,6 +3,496 @@ import gleam/list
 import kryptos/internal/der
 import qcheck
 
+pub fn encode_length_short_form_test() {
+  assert der.encode_length(0) == Ok(<<0>>)
+  assert der.encode_length(1) == Ok(<<1>>)
+  assert der.encode_length(127) == Ok(<<127>>)
+}
+
+pub fn encode_length_long_form_81_test() {
+  assert der.encode_length(128) == Ok(<<0x81, 128>>)
+  assert der.encode_length(255) == Ok(<<0x81, 255>>)
+}
+
+pub fn encode_length_long_form_82_test() {
+  assert der.encode_length(256) == Ok(<<0x82, 0x01, 0x00>>)
+  assert der.encode_length(65_535) == Ok(<<0x82, 0xff, 0xff>>)
+}
+
+pub fn encode_length_rejects_too_large_test() {
+  assert der.encode_length(65_536) == Error(Nil)
+  assert der.encode_length(100_000) == Error(Nil)
+}
+
+pub fn encode_length_rejects_negative_test() {
+  assert der.encode_length(-1) == Error(Nil)
+  assert der.encode_length(-100) == Error(Nil)
+}
+
+pub fn encode_length_canonical_test() {
+  assert der.encode_length(127) == Ok(<<127>>)
+  assert der.encode_length(128) == Ok(<<0x81, 128>>)
+  assert der.encode_length(255) == Ok(<<0x81, 255>>)
+  assert der.encode_length(256) == Ok(<<0x82, 0x01, 0x00>>)
+}
+
+pub fn parse_length_short_form_test() {
+  assert der.parse_length(<<0>>) == Ok(#(0, <<>>))
+  assert der.parse_length(<<1>>) == Ok(#(1, <<>>))
+  assert der.parse_length(<<127>>) == Ok(#(127, <<>>))
+  assert der.parse_length(<<100, 0xaa, 0xbb>>) == Ok(#(100, <<0xaa, 0xbb>>))
+}
+
+pub fn parse_length_long_form_128_test() {
+  assert der.parse_length(<<0x81, 128>>) == Ok(#(128, <<>>))
+  assert der.parse_length(<<0x81, 255>>) == Ok(#(255, <<>>))
+  assert der.parse_length(<<0x81, 200, 0xcc>>) == Ok(#(200, <<0xcc>>))
+}
+
+pub fn parse_length_long_form_256_test() {
+  assert der.parse_length(<<0x82, 0x01, 0x00>>) == Ok(#(256, <<>>))
+  assert der.parse_length(<<0x82, 0xff, 0xff>>) == Ok(#(65_535, <<>>))
+  assert der.parse_length(<<0x82, 0x02, 0x00, 0xdd>>) == Ok(#(512, <<0xdd>>))
+}
+
+pub fn parse_length_rejects_noncanonical_81_test() {
+  assert der.parse_length(<<0x81, 0>>) == Error(Nil)
+  assert der.parse_length(<<0x81, 127>>) == Error(Nil)
+}
+
+pub fn parse_length_rejects_noncanonical_82_test() {
+  assert der.parse_length(<<0x82, 0x00, 0x00>>) == Error(Nil)
+  assert der.parse_length(<<0x82, 0x00, 0xff>>) == Error(Nil)
+}
+
+pub fn parse_length_empty_input_test() {
+  assert der.parse_length(<<>>) == Error(Nil)
+}
+
+pub fn length_roundtrip_property_test() {
+  let gen = qcheck.bounded_int(0, 65_535)
+
+  qcheck.run(qcheck.default_config(), gen, fn(len) {
+    let assert Ok(encoded) = der.encode_length(len)
+    let result = der.parse_length(encoded)
+    assert result == Ok(#(len, <<>>))
+  })
+}
+
+pub fn encode_integer_zero_test() {
+  assert der.encode_integer(<<>>) == Ok(<<0x02, 0x01, 0x00>>)
+  assert der.encode_integer(<<0x00>>) == Ok(<<0x02, 0x01, 0x00>>)
+}
+
+pub fn encode_integer_strips_leading_zeros_test() {
+  assert der.encode_integer(<<0x00, 0x00, 0x42>>) == Ok(<<0x02, 0x01, 0x42>>)
+  assert der.encode_integer(<<0x00, 0x00, 0x00, 0x01>>)
+    == Ok(<<0x02, 0x01, 0x01>>)
+}
+
+pub fn encode_integer_adds_high_bit_padding_test() {
+  assert der.encode_integer(<<0x80>>) == Ok(<<0x02, 0x02, 0x00, 0x80>>)
+  assert der.encode_integer(<<0xff>>) == Ok(<<0x02, 0x02, 0x00, 0xff>>)
+}
+
+pub fn encode_integer_preserves_needed_zeros_test() {
+  assert der.encode_integer(<<0x00, 0x80>>) == Ok(<<0x02, 0x02, 0x00, 0x80>>)
+}
+
+pub fn encode_integer_tag_and_length_test() {
+  let assert Ok(<<0x02, _:bits>> as result) =
+    der.encode_integer(<<0x01, 0x02, 0x03>>)
+  assert result == <<0x02, 0x03, 0x01, 0x02, 0x03>>
+}
+
+pub fn encode_integer_large_value_test() {
+  let big_value = <<0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08>>
+  let result = der.encode_integer(big_value)
+  assert result
+    == Ok(<<0x02, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08>>)
+}
+
+pub fn parse_integer_single_byte_test() {
+  assert der.parse_integer(<<0x02, 0x01, 0x00>>) == Ok(#(<<0x00>>, <<>>))
+  assert der.parse_integer(<<0x02, 0x01, 0x7f>>) == Ok(#(<<0x7f>>, <<>>))
+  assert der.parse_integer(<<0x02, 0x01, 0x42>>) == Ok(#(<<0x42>>, <<>>))
+}
+
+pub fn parse_integer_high_bit_padding_test() {
+  assert der.parse_integer(<<0x02, 0x02, 0x00, 0x80>>)
+    == Ok(#(<<0x00, 0x80>>, <<>>))
+  assert der.parse_integer(<<0x02, 0x02, 0x00, 0xff>>)
+    == Ok(#(<<0x00, 0xff>>, <<>>))
+}
+
+pub fn parse_integer_rejects_empty_test() {
+  assert der.parse_integer(<<0x02, 0x00>>) == Error(Nil)
+}
+
+pub fn parse_integer_rejects_nonminimal_zeros_test() {
+  assert der.parse_integer(<<0x02, 0x02, 0x00, 0x7f>>) == Error(Nil)
+  assert der.parse_integer(<<0x02, 0x02, 0x00, 0x00>>) == Error(Nil)
+}
+
+pub fn parse_integer_preserves_remaining_test() {
+  assert der.parse_integer(<<0x02, 0x01, 0x42, 0xaa, 0xbb>>)
+    == Ok(#(<<0x42>>, <<0xaa, 0xbb>>))
+}
+
+pub fn parse_integer_wrong_tag_test() {
+  assert der.parse_integer(<<0x03, 0x01, 0x42>>) == Error(Nil)
+}
+
+pub fn parse_integer_truncated_test() {
+  assert der.parse_integer(<<0x02, 0x05, 0x42, 0x43>>) == Error(Nil)
+}
+
+pub fn integer_roundtrip_property_test() {
+  let gen = qcheck.byte_aligned_bit_array()
+
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(50),
+    gen,
+    fn(bytes) {
+      let assert Ok(encoded) = der.encode_integer(bytes)
+      let result = der.parse_integer(encoded)
+      let assert Ok(#(_value, remaining)) = result
+      assert remaining == <<>>
+    },
+  )
+}
+
+pub fn encode_sequence_empty_test() {
+  assert der.encode_sequence(<<>>) == Ok(<<0x30, 0x00>>)
+}
+
+pub fn encode_sequence_with_content_test() {
+  assert der.encode_sequence(<<0x01, 0x02, 0x03>>)
+    == Ok(<<0x30, 0x03, 0x01, 0x02, 0x03>>)
+}
+
+pub fn encode_sequence_length_encoding_test() {
+  let content = bit_array.concat(list.repeat(<<0xaa>>, 130))
+  let assert Ok(<<0x30, _:bits>> as result) = der.encode_sequence(content)
+  assert result == bit_array.concat([<<0x30, 0x81, 130>>, content])
+}
+
+pub fn parse_sequence_valid_test() {
+  let bytes = <<0x30, 0x03, 0x01, 0x02, 0x03>>
+  assert der.parse_sequence(bytes) == Ok(#(<<0x01, 0x02, 0x03>>, <<>>))
+}
+
+pub fn parse_sequence_empty_test() {
+  let bytes = <<0x30, 0x00>>
+  assert der.parse_sequence(bytes) == Ok(#(<<>>, <<>>))
+}
+
+pub fn parse_sequence_wrong_tag_test() {
+  let bytes = <<0x31, 0x03, 0x01, 0x02, 0x03>>
+  assert der.parse_sequence(bytes) == Error(Nil)
+}
+
+pub fn parse_sequence_truncated_test() {
+  let bytes = <<0x30, 0x05, 0x01, 0x02>>
+  assert der.parse_sequence(bytes) == Error(Nil)
+}
+
+pub fn parse_sequence_with_remaining_test() {
+  let bytes = <<0x30, 0x02, 0xaa, 0xbb, 0xcc, 0xdd>>
+  assert der.parse_sequence(bytes) == Ok(#(<<0xaa, 0xbb>>, <<0xcc, 0xdd>>))
+}
+
+pub fn sequence_roundtrip_property_test() {
+  let gen = qcheck.byte_aligned_bit_array()
+
+  qcheck.run(qcheck.default_config(), gen, fn(content) {
+    let assert Ok(encoded) = der.encode_sequence(content)
+    let result = der.parse_sequence(encoded)
+    assert result == Ok(#(content, <<>>))
+  })
+}
+
+pub fn sequence_large_content_test() {
+  let content = bit_array.concat(list.repeat(<<0xaa>>, 1000))
+  let assert Ok(encoded) = der.encode_sequence(content)
+  let assert Ok(#(parsed, <<>>)) = der.parse_sequence(encoded)
+  assert parsed == content
+}
+
+pub fn encode_set_tag_test() {
+  assert der.encode_set(<<0x01, 0x02>>) == Ok(<<0x31, 0x02, 0x01, 0x02>>)
+}
+
+pub fn encode_set_empty_test() {
+  assert der.encode_set(<<>>) == Ok(<<0x31, 0x00>>)
+}
+
+pub fn parse_set_valid_test() {
+  let bytes = <<0x31, 0x03, 0x01, 0x02, 0x03>>
+  assert der.parse_set(bytes) == Ok(#(<<0x01, 0x02, 0x03>>, <<>>))
+}
+
+pub fn parse_set_empty_test() {
+  let bytes = <<0x31, 0x00>>
+  assert der.parse_set(bytes) == Ok(#(<<>>, <<>>))
+}
+
+pub fn parse_set_wrong_tag_test() {
+  let bytes = <<0x30, 0x03, 0x01, 0x02, 0x03>>
+  assert der.parse_set(bytes) == Error(Nil)
+}
+
+pub fn set_roundtrip_property_test() {
+  let gen = qcheck.byte_aligned_bit_array()
+
+  qcheck.run(qcheck.default_config(), gen, fn(content) {
+    let assert Ok(encoded) = der.encode_set(content)
+    let result = der.parse_set(encoded)
+    assert result == Ok(#(content, <<>>))
+  })
+}
+
+pub fn encode_bit_string_prepends_zero_test() {
+  let result = der.encode_bit_string(<<0xaa, 0xbb, 0xcc>>)
+  assert result == Ok(<<0x03, 0x04, 0x00, 0xaa, 0xbb, 0xcc>>)
+}
+
+pub fn encode_bit_string_tag_test() {
+  let assert Ok(<<0x03, _:bits>>) = der.encode_bit_string(<<0x42>>)
+}
+
+pub fn encode_bit_string_length_test() {
+  let result = der.encode_bit_string(<<0x01, 0x02, 0x03>>)
+  assert result == Ok(<<0x03, 0x04, 0x00, 0x01, 0x02, 0x03>>)
+}
+
+pub fn encode_bit_string_empty_test() {
+  let result = der.encode_bit_string(<<>>)
+  assert result == Ok(<<0x03, 0x01, 0x00>>)
+}
+
+pub fn parse_bit_string_valid_test() {
+  let bytes = <<0x03, 0x04, 0x00, 0xaa, 0xbb, 0xcc>>
+  assert der.parse_bit_string(bytes) == Ok(#(<<0xaa, 0xbb, 0xcc>>, <<>>))
+}
+
+pub fn parse_bit_string_rejects_nonzero_unused_test() {
+  let bytes = <<0x03, 0x04, 0x01, 0xaa, 0xbb, 0xcc>>
+  assert der.parse_bit_string(bytes) == Error(Nil)
+}
+
+pub fn parse_bit_string_rejects_empty_test() {
+  let bytes = <<0x03, 0x00>>
+  assert der.parse_bit_string(bytes) == Error(Nil)
+}
+
+pub fn parse_bit_string_preserves_remaining_test() {
+  let bytes = <<0x03, 0x03, 0x00, 0xaa, 0xbb, 0xcc, 0xdd>>
+  assert der.parse_bit_string(bytes) == Ok(#(<<0xaa, 0xbb>>, <<0xcc, 0xdd>>))
+}
+
+pub fn parse_bit_string_wrong_tag_test() {
+  let bytes = <<0x04, 0x04, 0x00, 0xaa, 0xbb, 0xcc>>
+  assert der.parse_bit_string(bytes) == Error(Nil)
+}
+
+pub fn parse_bit_string_empty_content_test() {
+  let bytes = <<0x03, 0x01, 0x00>>
+  assert der.parse_bit_string(bytes) == Ok(#(<<>>, <<>>))
+}
+
+pub fn bit_string_roundtrip_property_test() {
+  let gen = qcheck.byte_aligned_bit_array()
+
+  qcheck.run(qcheck.default_config(), gen, fn(content) {
+    let assert Ok(encoded) = der.encode_bit_string(content)
+    let result = der.parse_bit_string(encoded)
+    assert result == Ok(#(content, <<>>))
+  })
+}
+
+pub fn encode_octet_string_tag_test() {
+  let assert Ok(<<0x04, _:bits>>) = der.encode_octet_string(<<0x42>>)
+}
+
+pub fn encode_octet_string_empty_test() {
+  assert der.encode_octet_string(<<>>) == Ok(<<0x04, 0x00>>)
+}
+
+pub fn encode_octet_string_content_test() {
+  assert der.encode_octet_string(<<0xaa, 0xbb, 0xcc>>)
+    == Ok(<<0x04, 0x03, 0xaa, 0xbb, 0xcc>>)
+}
+
+pub fn parse_octet_string_valid_test() {
+  let bytes = <<0x04, 0x03, 0xaa, 0xbb, 0xcc>>
+  assert der.parse_octet_string(bytes) == Ok(#(<<0xaa, 0xbb, 0xcc>>, <<>>))
+}
+
+pub fn parse_octet_string_empty_test() {
+  let bytes = <<0x04, 0x00>>
+  assert der.parse_octet_string(bytes) == Ok(#(<<>>, <<>>))
+}
+
+pub fn parse_octet_string_wrong_tag_test() {
+  let bytes = <<0x03, 0x03, 0xaa, 0xbb, 0xcc>>
+  assert der.parse_octet_string(bytes) == Error(Nil)
+}
+
+pub fn parse_octet_string_with_remaining_test() {
+  let bytes = <<0x04, 0x02, 0xaa, 0xbb, 0xcc, 0xdd>>
+  assert der.parse_octet_string(bytes) == Ok(#(<<0xaa, 0xbb>>, <<0xcc, 0xdd>>))
+}
+
+pub fn parse_octet_string_truncated_test() {
+  let bytes = <<0x04, 0x05, 0xaa, 0xbb>>
+  assert der.parse_octet_string(bytes) == Error(Nil)
+}
+
+pub fn octet_string_roundtrip_property_test() {
+  let gen = qcheck.byte_aligned_bit_array()
+
+  qcheck.run(qcheck.default_config(), gen, fn(content) {
+    let assert Ok(encoded) = der.encode_octet_string(content)
+    let result = der.parse_octet_string(encoded)
+    assert result == Ok(#(content, <<>>))
+  })
+}
+
+pub fn encode_utf8_string_tag_test() {
+  let assert Ok(<<0x0c, _:bits>>) = der.encode_utf8_string("test")
+}
+
+pub fn encode_utf8_string_content_test() {
+  assert der.encode_utf8_string("hi") == Ok(<<0x0c, 0x02, 0x68, 0x69>>)
+}
+
+pub fn encode_utf8_string_unicode_test() {
+  let result = der.encode_utf8_string("🔑")
+  assert result == Ok(<<0x0c, 0x04, 0xf0, 0x9f, 0x94, 0x91>>)
+}
+
+pub fn parse_utf8_string_valid_test() {
+  let bytes = <<0x0c, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f>>
+  assert der.parse_utf8_string(bytes) == Ok(#("hello", <<>>))
+}
+
+pub fn parse_utf8_string_unicode_test() {
+  let bytes = <<0x0c, 0x04, 0xf0, 0x9f, 0x94, 0x91>>
+  assert der.parse_utf8_string(bytes) == Ok(#("🔑", <<>>))
+}
+
+pub fn parse_utf8_string_empty_test() {
+  let bytes = <<0x0c, 0x00>>
+  assert der.parse_utf8_string(bytes) == Ok(#("", <<>>))
+}
+
+pub fn parse_utf8_string_invalid_utf8_test() {
+  let bytes = <<0x0c, 0x02, 0xff, 0xfe>>
+  assert der.parse_utf8_string(bytes) == Error(Nil)
+}
+
+pub fn parse_utf8_string_with_remaining_test() {
+  let bytes = <<0x0c, 0x02, 0x68, 0x69, 0xaa, 0xbb>>
+  assert der.parse_utf8_string(bytes) == Ok(#("hi", <<0xaa, 0xbb>>))
+}
+
+pub fn utf8_string_roundtrip_property_test() {
+  let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
+
+  qcheck.run(qcheck.default_config(), gen, fn(s) {
+    let assert Ok(encoded) = der.encode_utf8_string(s)
+    let result = der.parse_utf8_string(encoded)
+    assert result == Ok(#(s, <<>>))
+  })
+}
+
+pub fn encode_printable_string_tag_test() {
+  let assert Ok(<<0x13, _:bits>>) = der.encode_printable_string("test")
+}
+
+pub fn parse_printable_string_valid_test() {
+  let bytes = <<0x13, 0x04, 0x54, 0x65, 0x73, 0x74>>
+  assert der.parse_printable_string(bytes) == Ok(#("Test", <<>>))
+}
+
+pub fn parse_printable_string_empty_test() {
+  let bytes = <<0x13, 0x00>>
+  assert der.parse_printable_string(bytes) == Ok(#("", <<>>))
+}
+
+pub fn printable_string_roundtrip_property_test() {
+  let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
+
+  qcheck.run(qcheck.default_config(), gen, fn(s) {
+    let assert Ok(encoded) = der.encode_printable_string(s)
+    let result = der.parse_printable_string(encoded)
+    assert result == Ok(#(s, <<>>))
+  })
+}
+
+pub fn encode_ia5_string_tag_test() {
+  let assert Ok(<<0x16, _:bits>>) = der.encode_ia5_string("test")
+}
+
+pub fn parse_ia5_string_valid_test() {
+  let bytes = <<0x16, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f>>
+  assert der.parse_ia5_string(bytes) == Ok(#("hello", <<>>))
+}
+
+pub fn parse_ia5_string_empty_test() {
+  let bytes = <<0x16, 0x00>>
+  assert der.parse_ia5_string(bytes) == Ok(#("", <<>>))
+}
+
+pub fn ia5_string_roundtrip_property_test() {
+  let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
+
+  qcheck.run(qcheck.default_config(), gen, fn(s) {
+    let assert Ok(encoded) = der.encode_ia5_string(s)
+    let result = der.parse_ia5_string(encoded)
+    assert result == Ok(#(s, <<>>))
+  })
+}
+
+pub fn encode_string_empty_test() {
+  assert der.encode_utf8_string("") == Ok(<<0x0c, 0x00>>)
+  assert der.encode_printable_string("") == Ok(<<0x13, 0x00>>)
+  assert der.encode_ia5_string("") == Ok(<<0x16, 0x00>>)
+}
+
+pub fn encode_oid_first_byte_test() {
+  let result = der.encode_oid([1, 2])
+  assert result == Ok(<<0x06, 0x01, 0x2a>>)
+}
+
+pub fn encode_oid_small_components_test() {
+  let result = der.encode_oid([2, 5, 4, 3])
+  assert result == Ok(<<0x06, 0x03, 0x55, 0x04, 0x03>>)
+}
+
+pub fn encode_oid_large_component_test() {
+  let result = der.encode_oid([1, 2, 840])
+  assert result == Ok(<<0x06, 0x03, 0x2a, 0x86, 0x48>>)
+}
+
+pub fn encode_oid_very_large_component_test() {
+  let result = der.encode_oid([1, 2, 840, 113_549])
+  assert result == Ok(<<0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d>>)
+}
+
+pub fn encode_oid_tag_test() {
+  let assert Ok(<<0x06, _:bits>>) = der.encode_oid([1, 2, 3])
+}
+
+pub fn encode_oid_empty_returns_error_test() {
+  assert der.encode_oid([]) == Error(Nil)
+}
+
+pub fn encode_oid_single_component_returns_error_test() {
+  assert der.encode_oid([1]) == Error(Nil)
+}
+
 pub fn parse_oid_simple_test() {
   let bytes = <<0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d>>
   let result = der.parse_oid(bytes)
@@ -61,39 +551,6 @@ pub fn parse_oid_empty_test() {
   assert result == Error(Nil)
 }
 
-pub fn encode_oid_first_byte_test() {
-  let result = der.encode_oid([1, 2])
-  assert result == Ok(<<0x06, 0x01, 0x2a>>)
-}
-
-pub fn encode_oid_small_components_test() {
-  let result = der.encode_oid([2, 5, 4, 3])
-  assert result == Ok(<<0x06, 0x03, 0x55, 0x04, 0x03>>)
-}
-
-pub fn encode_oid_large_component_test() {
-  let result = der.encode_oid([1, 2, 840])
-  assert result == Ok(<<0x06, 0x03, 0x2a, 0x86, 0x48>>)
-}
-
-pub fn encode_oid_very_large_component_test() {
-  let result = der.encode_oid([1, 2, 840, 113_549])
-  assert result == Ok(<<0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d>>)
-}
-
-pub fn encode_oid_tag_test() {
-  let assert Ok(result) = der.encode_oid([1, 2, 3])
-  assert Ok(0x06) == der.peek_tag(result)
-}
-
-pub fn encode_oid_empty_returns_error_test() {
-  assert der.encode_oid([]) == Error(Nil)
-}
-
-pub fn encode_oid_single_component_returns_error_test() {
-  assert der.encode_oid([1]) == Error(Nil)
-}
-
 pub fn oid_roundtrip_property_test() {
   let gen =
     qcheck.tuple2(
@@ -117,461 +574,17 @@ pub fn oid_roundtrip_property_test() {
   )
 }
 
-pub fn parse_length_short_form_test() {
-  assert der.parse_length(<<0>>) == Ok(#(0, <<>>))
-  assert der.parse_length(<<1>>) == Ok(#(1, <<>>))
-  assert der.parse_length(<<127>>) == Ok(#(127, <<>>))
-  assert der.parse_length(<<100, 0xaa, 0xbb>>) == Ok(#(100, <<0xaa, 0xbb>>))
-}
-
-pub fn parse_length_long_form_128_test() {
-  assert der.parse_length(<<0x81, 128>>) == Ok(#(128, <<>>))
-  assert der.parse_length(<<0x81, 255>>) == Ok(#(255, <<>>))
-  assert der.parse_length(<<0x81, 200, 0xcc>>) == Ok(#(200, <<0xcc>>))
-}
-
-pub fn parse_length_long_form_256_test() {
-  assert der.parse_length(<<0x82, 0x01, 0x00>>) == Ok(#(256, <<>>))
-  assert der.parse_length(<<0x82, 0xff, 0xff>>) == Ok(#(65_535, <<>>))
-  assert der.parse_length(<<0x82, 0x02, 0x00, 0xdd>>) == Ok(#(512, <<0xdd>>))
-}
-
-pub fn parse_length_rejects_noncanonical_81_test() {
-  assert der.parse_length(<<0x81, 0>>) == Error(Nil)
-  assert der.parse_length(<<0x81, 127>>) == Error(Nil)
-}
-
-pub fn parse_length_rejects_noncanonical_82_test() {
-  assert der.parse_length(<<0x82, 0x00, 0x00>>) == Error(Nil)
-  assert der.parse_length(<<0x82, 0x00, 0xff>>) == Error(Nil)
-}
-
-pub fn parse_length_empty_input_test() {
-  assert der.parse_length(<<>>) == Error(Nil)
-}
-
-pub fn encode_length_short_form_test() {
-  assert der.encode_length(0) == Ok(<<0>>)
-  assert der.encode_length(1) == Ok(<<1>>)
-  assert der.encode_length(127) == Ok(<<127>>)
-}
-
-pub fn encode_length_long_form_81_test() {
-  assert der.encode_length(128) == Ok(<<0x81, 128>>)
-  assert der.encode_length(255) == Ok(<<0x81, 255>>)
-}
-
-pub fn encode_length_long_form_82_test() {
-  assert der.encode_length(256) == Ok(<<0x82, 0x01, 0x00>>)
-  assert der.encode_length(65_535) == Ok(<<0x82, 0xff, 0xff>>)
-}
-
-pub fn encode_length_rejects_too_large_test() {
-  assert der.encode_length(65_536) == Error(Nil)
-  assert der.encode_length(100_000) == Error(Nil)
-}
-
-pub fn encode_length_rejects_negative_test() {
-  assert der.encode_length(-1) == Error(Nil)
-  assert der.encode_length(-100) == Error(Nil)
-}
-
-pub fn encode_length_canonical_test() {
-  assert der.encode_length(127) == Ok(<<127>>)
-  assert der.encode_length(128) == Ok(<<0x81, 128>>)
-  assert der.encode_length(255) == Ok(<<0x81, 255>>)
-  assert der.encode_length(256) == Ok(<<0x82, 0x01, 0x00>>)
-}
-
-pub fn length_roundtrip_property_test() {
-  let gen = qcheck.bounded_int(0, 65_535)
-
-  qcheck.run(qcheck.default_config(), gen, fn(len) {
-    let assert Ok(encoded) = der.encode_length(len)
-    let result = der.parse_length(encoded)
-    assert result == Ok(#(len, <<>>))
-  })
-}
-
-pub fn parse_integer_single_byte_test() {
-  assert der.parse_integer(<<0x02, 0x01, 0x00>>) == Ok(#(<<0x00>>, <<>>))
-  assert der.parse_integer(<<0x02, 0x01, 0x7f>>) == Ok(#(<<0x7f>>, <<>>))
-  assert der.parse_integer(<<0x02, 0x01, 0x42>>) == Ok(#(<<0x42>>, <<>>))
-}
-
-pub fn parse_integer_high_bit_padding_test() {
-  assert der.parse_integer(<<0x02, 0x02, 0x00, 0x80>>)
-    == Ok(#(<<0x00, 0x80>>, <<>>))
-  assert der.parse_integer(<<0x02, 0x02, 0x00, 0xff>>)
-    == Ok(#(<<0x00, 0xff>>, <<>>))
-}
-
-pub fn parse_integer_rejects_empty_test() {
-  assert der.parse_integer(<<0x02, 0x00>>) == Error(Nil)
-}
-
-pub fn parse_integer_rejects_nonminimal_zeros_test() {
-  assert der.parse_integer(<<0x02, 0x02, 0x00, 0x7f>>) == Error(Nil)
-  assert der.parse_integer(<<0x02, 0x02, 0x00, 0x00>>) == Error(Nil)
-}
-
-pub fn parse_integer_preserves_remaining_test() {
-  assert der.parse_integer(<<0x02, 0x01, 0x42, 0xaa, 0xbb>>)
-    == Ok(#(<<0x42>>, <<0xaa, 0xbb>>))
-}
-
-pub fn parse_integer_wrong_tag_test() {
-  assert der.parse_integer(<<0x03, 0x01, 0x42>>) == Error(Nil)
-}
-
-pub fn parse_integer_truncated_test() {
-  assert der.parse_integer(<<0x02, 0x05, 0x42, 0x43>>) == Error(Nil)
-}
-
-pub fn encode_integer_zero_test() {
-  assert der.encode_integer(<<>>) == Ok(<<0x02, 0x01, 0x00>>)
-  assert der.encode_integer(<<0x00>>) == Ok(<<0x02, 0x01, 0x00>>)
-}
-
-pub fn encode_integer_strips_leading_zeros_test() {
-  assert der.encode_integer(<<0x00, 0x00, 0x42>>) == Ok(<<0x02, 0x01, 0x42>>)
-  assert der.encode_integer(<<0x00, 0x00, 0x00, 0x01>>)
-    == Ok(<<0x02, 0x01, 0x01>>)
-}
-
-pub fn encode_integer_adds_high_bit_padding_test() {
-  assert der.encode_integer(<<0x80>>) == Ok(<<0x02, 0x02, 0x00, 0x80>>)
-  assert der.encode_integer(<<0xff>>) == Ok(<<0x02, 0x02, 0x00, 0xff>>)
-}
-
-pub fn encode_integer_preserves_needed_zeros_test() {
-  assert der.encode_integer(<<0x00, 0x80>>) == Ok(<<0x02, 0x02, 0x00, 0x80>>)
-}
-
-pub fn encode_integer_tag_and_length_test() {
-  let assert Ok(result) = der.encode_integer(<<0x01, 0x02, 0x03>>)
-  assert Ok(0x02) == der.peek_tag(result)
-  assert result == <<0x02, 0x03, 0x01, 0x02, 0x03>>
-}
-
-pub fn encode_integer_large_value_test() {
-  let big_value = <<0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08>>
-  let result = der.encode_integer(big_value)
-  assert result
-    == Ok(<<0x02, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08>>)
-}
-
-pub fn integer_roundtrip_property_test() {
-  let gen = qcheck.byte_aligned_bit_array()
-
-  qcheck.run(
-    qcheck.default_config() |> qcheck.with_test_count(50),
-    gen,
-    fn(bytes) {
-      let assert Ok(encoded) = der.encode_integer(bytes)
-      let result = der.parse_integer(encoded)
-      let assert Ok(#(_value, remaining)) = result
-      assert remaining == <<>>
-    },
-  )
-}
-
-pub fn parse_sequence_valid_test() {
-  let bytes = <<0x30, 0x03, 0x01, 0x02, 0x03>>
-  assert der.parse_sequence(bytes) == Ok(#(<<0x01, 0x02, 0x03>>, <<>>))
-}
-
-pub fn parse_sequence_empty_test() {
-  let bytes = <<0x30, 0x00>>
-  assert der.parse_sequence(bytes) == Ok(#(<<>>, <<>>))
-}
-
-pub fn parse_sequence_wrong_tag_test() {
-  let bytes = <<0x31, 0x03, 0x01, 0x02, 0x03>>
-  assert der.parse_sequence(bytes) == Error(Nil)
-}
-
-pub fn parse_sequence_truncated_test() {
-  let bytes = <<0x30, 0x05, 0x01, 0x02>>
-  assert der.parse_sequence(bytes) == Error(Nil)
-}
-
-pub fn parse_sequence_with_remaining_test() {
-  let bytes = <<0x30, 0x02, 0xaa, 0xbb, 0xcc, 0xdd>>
-  assert der.parse_sequence(bytes) == Ok(#(<<0xaa, 0xbb>>, <<0xcc, 0xdd>>))
-}
-
-pub fn parse_set_valid_test() {
-  let bytes = <<0x31, 0x03, 0x01, 0x02, 0x03>>
-  assert der.parse_set(bytes) == Ok(#(<<0x01, 0x02, 0x03>>, <<>>))
-}
-
-pub fn parse_set_empty_test() {
-  let bytes = <<0x31, 0x00>>
-  assert der.parse_set(bytes) == Ok(#(<<>>, <<>>))
-}
-
-pub fn parse_set_wrong_tag_test() {
-  let bytes = <<0x30, 0x03, 0x01, 0x02, 0x03>>
-  assert der.parse_set(bytes) == Error(Nil)
-}
-
-pub fn encode_sequence_empty_test() {
-  assert der.encode_sequence(<<>>) == Ok(<<0x30, 0x00>>)
-}
-
-pub fn encode_sequence_with_content_test() {
-  assert der.encode_sequence(<<0x01, 0x02, 0x03>>)
-    == Ok(<<0x30, 0x03, 0x01, 0x02, 0x03>>)
-}
-
-pub fn encode_sequence_length_encoding_test() {
-  let content = bit_array.concat(list.repeat(<<0xaa>>, 130))
-  let assert Ok(result) = der.encode_sequence(content)
-  assert Ok(0x30) == der.peek_tag(result)
-  assert result == bit_array.concat([<<0x30, 0x81, 130>>, content])
-}
-
-pub fn encode_set_tag_test() {
-  assert der.encode_set(<<0x01, 0x02>>) == Ok(<<0x31, 0x02, 0x01, 0x02>>)
-}
-
-pub fn encode_set_empty_test() {
-  assert der.encode_set(<<>>) == Ok(<<0x31, 0x00>>)
-}
-
-pub fn sequence_roundtrip_property_test() {
-  let gen = qcheck.byte_aligned_bit_array()
-
-  qcheck.run(qcheck.default_config(), gen, fn(content) {
-    let assert Ok(encoded) = der.encode_sequence(content)
-    let result = der.parse_sequence(encoded)
-    assert result == Ok(#(content, <<>>))
-  })
-}
-
-pub fn set_roundtrip_property_test() {
-  let gen = qcheck.byte_aligned_bit_array()
-
-  qcheck.run(qcheck.default_config(), gen, fn(content) {
-    let assert Ok(encoded) = der.encode_set(content)
-    let result = der.parse_set(encoded)
-    assert result == Ok(#(content, <<>>))
-  })
-}
-
-pub fn parse_bit_string_valid_test() {
-  let bytes = <<0x03, 0x04, 0x00, 0xaa, 0xbb, 0xcc>>
-  assert der.parse_bit_string(bytes) == Ok(#(<<0xaa, 0xbb, 0xcc>>, <<>>))
-}
-
-pub fn parse_bit_string_rejects_nonzero_unused_test() {
-  let bytes = <<0x03, 0x04, 0x01, 0xaa, 0xbb, 0xcc>>
-  assert der.parse_bit_string(bytes) == Error(Nil)
-}
-
-pub fn parse_bit_string_rejects_empty_test() {
-  let bytes = <<0x03, 0x00>>
-  assert der.parse_bit_string(bytes) == Error(Nil)
-}
-
-pub fn parse_bit_string_preserves_remaining_test() {
-  let bytes = <<0x03, 0x03, 0x00, 0xaa, 0xbb, 0xcc, 0xdd>>
-  assert der.parse_bit_string(bytes) == Ok(#(<<0xaa, 0xbb>>, <<0xcc, 0xdd>>))
-}
-
-pub fn parse_bit_string_wrong_tag_test() {
-  let bytes = <<0x04, 0x04, 0x00, 0xaa, 0xbb, 0xcc>>
-  assert der.parse_bit_string(bytes) == Error(Nil)
-}
-
-pub fn parse_bit_string_empty_content_test() {
-  let bytes = <<0x03, 0x01, 0x00>>
-  assert der.parse_bit_string(bytes) == Ok(#(<<>>, <<>>))
-}
-
-pub fn encode_bit_string_prepends_zero_test() {
-  let result = der.encode_bit_string(<<0xaa, 0xbb, 0xcc>>)
-  assert result == Ok(<<0x03, 0x04, 0x00, 0xaa, 0xbb, 0xcc>>)
-}
-
-pub fn encode_bit_string_tag_test() {
-  let assert Ok(result) = der.encode_bit_string(<<0x42>>)
-  assert Ok(0x03) == der.peek_tag(result)
-}
-
-pub fn encode_bit_string_length_test() {
-  let result = der.encode_bit_string(<<0x01, 0x02, 0x03>>)
-  assert result == Ok(<<0x03, 0x04, 0x00, 0x01, 0x02, 0x03>>)
-}
-
-pub fn encode_bit_string_empty_test() {
-  let result = der.encode_bit_string(<<>>)
-  assert result == Ok(<<0x03, 0x01, 0x00>>)
-}
-
-pub fn bit_string_roundtrip_property_test() {
-  let gen = qcheck.byte_aligned_bit_array()
-
-  qcheck.run(qcheck.default_config(), gen, fn(content) {
-    let assert Ok(encoded) = der.encode_bit_string(content)
-    let result = der.parse_bit_string(encoded)
-    assert result == Ok(#(content, <<>>))
-  })
-}
-
-pub fn parse_octet_string_valid_test() {
-  let bytes = <<0x04, 0x03, 0xaa, 0xbb, 0xcc>>
-  assert der.parse_octet_string(bytes) == Ok(#(<<0xaa, 0xbb, 0xcc>>, <<>>))
-}
-
-pub fn parse_octet_string_empty_test() {
-  let bytes = <<0x04, 0x00>>
-  assert der.parse_octet_string(bytes) == Ok(#(<<>>, <<>>))
-}
-
-pub fn parse_octet_string_wrong_tag_test() {
-  let bytes = <<0x03, 0x03, 0xaa, 0xbb, 0xcc>>
-  assert der.parse_octet_string(bytes) == Error(Nil)
-}
-
-pub fn parse_octet_string_with_remaining_test() {
-  let bytes = <<0x04, 0x02, 0xaa, 0xbb, 0xcc, 0xdd>>
-  assert der.parse_octet_string(bytes) == Ok(#(<<0xaa, 0xbb>>, <<0xcc, 0xdd>>))
-}
-
-pub fn parse_octet_string_truncated_test() {
-  let bytes = <<0x04, 0x05, 0xaa, 0xbb>>
-  assert der.parse_octet_string(bytes) == Error(Nil)
-}
-
-pub fn encode_octet_string_tag_test() {
-  let assert Ok(result) = der.encode_octet_string(<<0x42>>)
-  assert Ok(0x04) == der.peek_tag(result)
-}
-
-pub fn encode_octet_string_empty_test() {
-  assert der.encode_octet_string(<<>>) == Ok(<<0x04, 0x00>>)
-}
-
-pub fn encode_octet_string_content_test() {
-  assert der.encode_octet_string(<<0xaa, 0xbb, 0xcc>>)
-    == Ok(<<0x04, 0x03, 0xaa, 0xbb, 0xcc>>)
-}
-
-pub fn octet_string_roundtrip_property_test() {
-  let gen = qcheck.byte_aligned_bit_array()
-
-  qcheck.run(qcheck.default_config(), gen, fn(content) {
-    let assert Ok(encoded) = der.encode_octet_string(content)
-    let result = der.parse_octet_string(encoded)
-    assert result == Ok(#(content, <<>>))
-  })
-}
-
-pub fn parse_utf8_string_valid_test() {
-  let bytes = <<0x0c, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f>>
-  assert der.parse_utf8_string(bytes) == Ok(#("hello", <<>>))
-}
-
-pub fn parse_utf8_string_unicode_test() {
-  let bytes = <<0x0c, 0x04, 0xf0, 0x9f, 0x94, 0x91>>
-  assert der.parse_utf8_string(bytes) == Ok(#("🔑", <<>>))
-}
-
-pub fn parse_utf8_string_empty_test() {
-  let bytes = <<0x0c, 0x00>>
-  assert der.parse_utf8_string(bytes) == Ok(#("", <<>>))
-}
-
-pub fn parse_utf8_string_invalid_utf8_test() {
-  let bytes = <<0x0c, 0x02, 0xff, 0xfe>>
-  assert der.parse_utf8_string(bytes) == Error(Nil)
-}
-
-pub fn parse_utf8_string_with_remaining_test() {
-  let bytes = <<0x0c, 0x02, 0x68, 0x69, 0xaa, 0xbb>>
-  assert der.parse_utf8_string(bytes) == Ok(#("hi", <<0xaa, 0xbb>>))
-}
-
-pub fn parse_printable_string_valid_test() {
-  let bytes = <<0x13, 0x04, 0x54, 0x65, 0x73, 0x74>>
-  assert der.parse_printable_string(bytes) == Ok(#("Test", <<>>))
-}
-
-pub fn parse_printable_string_empty_test() {
-  let bytes = <<0x13, 0x00>>
-  assert der.parse_printable_string(bytes) == Ok(#("", <<>>))
-}
-
-pub fn parse_ia5_string_valid_test() {
-  let bytes = <<0x16, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f>>
-  assert der.parse_ia5_string(bytes) == Ok(#("hello", <<>>))
-}
-
-pub fn parse_ia5_string_empty_test() {
-  let bytes = <<0x16, 0x00>>
-  assert der.parse_ia5_string(bytes) == Ok(#("", <<>>))
-}
-
-pub fn encode_utf8_string_tag_test() {
-  let assert Ok(result) = der.encode_utf8_string("test")
-  assert Ok(0x0c) == der.peek_tag(result)
-}
-
-pub fn encode_utf8_string_content_test() {
-  assert der.encode_utf8_string("hi") == Ok(<<0x0c, 0x02, 0x68, 0x69>>)
-}
-
-pub fn encode_utf8_string_unicode_test() {
-  let result = der.encode_utf8_string("🔑")
-  assert result == Ok(<<0x0c, 0x04, 0xf0, 0x9f, 0x94, 0x91>>)
-}
-
-pub fn encode_printable_string_tag_test() {
-  let assert Ok(result) = der.encode_printable_string("test")
-  assert Ok(0x13) == der.peek_tag(result)
-}
-
-pub fn encode_ia5_string_tag_test() {
-  let assert Ok(result) = der.encode_ia5_string("test")
-  assert Ok(0x16) == der.peek_tag(result)
-}
-
-pub fn encode_string_empty_test() {
-  assert der.encode_utf8_string("") == Ok(<<0x0c, 0x00>>)
-  assert der.encode_printable_string("") == Ok(<<0x13, 0x00>>)
-  assert der.encode_ia5_string("") == Ok(<<0x16, 0x00>>)
-}
-
-pub fn utf8_string_roundtrip_property_test() {
-  let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
-
-  qcheck.run(qcheck.default_config(), gen, fn(s) {
-    let assert Ok(encoded) = der.encode_utf8_string(s)
-    let result = der.parse_utf8_string(encoded)
-    assert result == Ok(#(s, <<>>))
-  })
-}
-
-pub fn printable_string_roundtrip_property_test() {
-  let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
-
-  qcheck.run(qcheck.default_config(), gen, fn(s) {
-    let assert Ok(encoded) = der.encode_printable_string(s)
-    let result = der.parse_printable_string(encoded)
-    assert result == Ok(#(s, <<>>))
-  })
-}
-
-pub fn ia5_string_roundtrip_property_test() {
-  let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
-
-  qcheck.run(qcheck.default_config(), gen, fn(s) {
-    let assert Ok(encoded) = der.encode_ia5_string(s)
-    let result = der.parse_ia5_string(encoded)
-    assert result == Ok(#(s, <<>>))
-  })
+pub fn encode_context_tag_test() {
+  assert der.encode_context_tag(0, <<0x01, 0x02>>)
+    == Ok(<<0xa0, 0x02, 0x01, 0x02>>)
+  assert der.encode_context_tag(1, <<0xaa>>) == Ok(<<0xa1, 0x01, 0xaa>>)
+  assert der.encode_context_tag(3, <<>>) == Ok(<<0xa3, 0x00>>)
+}
+
+pub fn encode_context_tag_content_test() {
+  let content = <<0xde, 0xad, 0xbe, 0xef>>
+  let result = der.encode_context_tag(5, content)
+  assert result == Ok(<<0xa5, 0x04, 0xde, 0xad, 0xbe, 0xef>>)
 }
 
 pub fn parse_context_tag_0_test() {
@@ -600,54 +613,15 @@ pub fn parse_context_tag_with_remaining_test() {
     == Ok(#(<<0xaa, 0xbb>>, <<0xcc, 0xdd>>))
 }
 
-pub fn parse_context_primitive_tag_test() {
-  let bytes = <<0x82, 0x03, 0x01, 0x02, 0x03>>
-  assert der.parse_context_primitive_tag(bytes, 2)
-    == Ok(#(<<0x01, 0x02, 0x03>>, <<>>))
-}
-
-pub fn parse_context_primitive_tag_0_test() {
-  let bytes = <<0x80, 0x02, 0xaa, 0xbb>>
-  assert der.parse_context_primitive_tag(bytes, 0)
-    == Ok(#(<<0xaa, 0xbb>>, <<>>))
-}
-
-pub fn parse_context_primitive_tag_wrong_tag_test() {
-  let bytes = <<0x80, 0x02, 0xaa, 0xbb>>
-  assert der.parse_context_primitive_tag(bytes, 1) == Error(Nil)
-}
-
 pub fn parse_context_tag_form_mismatch_test() {
+  // Primitive tag (0x80) should not match constructed parser
   let bytes = <<0x80, 0x02, 0xaa, 0xbb>>
   assert der.parse_context_tag(bytes, 0) == Error(Nil)
-
-  let bytes2 = <<0xa0, 0x02, 0xaa, 0xbb>>
-  assert der.parse_context_primitive_tag(bytes2, 0) == Error(Nil)
-}
-
-pub fn encode_context_tag_test() {
-  assert der.encode_context_tag(0, <<0x01, 0x02>>)
-    == Ok(<<0xa0, 0x02, 0x01, 0x02>>)
-  assert der.encode_context_tag(1, <<0xaa>>) == Ok(<<0xa1, 0x01, 0xaa>>)
-  assert der.encode_context_tag(3, <<>>) == Ok(<<0xa3, 0x00>>)
-}
-
-pub fn encode_context_primitive_tag_test() {
-  assert der.encode_context_primitive_tag(0, <<0x01, 0x02>>)
-    == Ok(<<0x80, 0x02, 0x01, 0x02>>)
-  assert der.encode_context_primitive_tag(2, <<0xaa>>)
-    == Ok(<<0x82, 0x01, 0xaa>>)
-}
-
-pub fn encode_context_tag_content_test() {
-  let content = <<0xde, 0xad, 0xbe, 0xef>>
-  let result = der.encode_context_tag(5, content)
-  assert result == Ok(<<0xa5, 0x04, 0xde, 0xad, 0xbe, 0xef>>)
 }
 
 pub fn context_tag_roundtrip_property_test() {
   let gen =
-    qcheck.tuple2(qcheck.bounded_int(0, 15), qcheck.byte_aligned_bit_array())
+    qcheck.tuple2(qcheck.bounded_int(0, 30), qcheck.byte_aligned_bit_array())
 
   qcheck.run(qcheck.default_config(), gen, fn(input) {
     let #(tag, content) = input
@@ -657,26 +631,11 @@ pub fn context_tag_roundtrip_property_test() {
   })
 }
 
-pub fn context_primitive_tag_roundtrip_property_test() {
-  let gen =
-    qcheck.tuple2(qcheck.bounded_int(0, 15), qcheck.byte_aligned_bit_array())
-
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(tag, content) = input
-    let assert Ok(encoded) = der.encode_context_primitive_tag(tag, content)
-    let result = der.parse_context_primitive_tag(encoded, tag)
-    assert result == Ok(#(content, <<>>))
-  })
-}
-
-pub fn peek_tag_valid_test() {
-  assert der.peek_tag(<<0x30, 0x00>>) == Ok(0x30)
-  assert der.peek_tag(<<0x02, 0x01, 0x42>>) == Ok(0x02)
-  assert der.peek_tag(<<0xff>>) == Ok(0xff)
-}
-
-pub fn peek_tag_empty_test() {
-  assert der.peek_tag(<<>>) == Error(Nil)
+pub fn encode_context_primitive_tag_test() {
+  assert der.encode_context_primitive_tag(0, <<0x01, 0x02>>)
+    == Ok(<<0x80, 0x02, 0x01, 0x02>>)
+  assert der.encode_context_primitive_tag(2, <<0xaa>>)
+    == Ok(<<0x82, 0x01, 0xaa>>)
 }
 
 pub fn parse_content_valid_test() {
