@@ -41,6 +41,12 @@ pub type HashAlgorithm {
   Sha3x384
   /// SHA3-512 (512-bit output)
   Sha3x512
+  /// SHAKE128 extendable-output function (128-bit security).
+  /// The output_length parameter specifies the desired digest length in bytes.
+  Shake128(output_length: Int)
+  /// SHAKE256 extendable-output function (256-bit security).
+  /// The output_length parameter specifies the desired digest length in bytes.
+  Shake256(output_length: Int)
 }
 
 @internal
@@ -59,6 +65,8 @@ pub fn algorithm_name(algorithm: HashAlgorithm) -> String {
     Sha3x256 -> "sha3-256"
     Sha3x384 -> "sha3-384"
     Sha3x512 -> "sha3-512"
+    Shake128(_) -> "shake128"
+    Shake256(_) -> "shake256"
   }
 }
 
@@ -84,6 +92,8 @@ pub fn byte_size(algorithm: HashAlgorithm) -> Int {
     Sha3x256 -> 32
     Sha3x384 -> 48
     Sha3x512 -> 64
+    Shake128(len) -> len
+    Shake256(len) -> len
   }
 }
 
@@ -117,7 +127,7 @@ pub fn new(algorithm: HashAlgorithm) -> Result(Hasher, Nil)
 ///
 /// ## Returns
 /// The updated hasher.
-@external(erlang, "crypto", "hash_update")
+@external(erlang, "kryptos_ffi", "hash_update")
 @external(javascript, "../kryptos_ffi.mjs", "hashUpdate")
 pub fn update(hasher: Hasher, data: BitArray) -> Hasher
 
@@ -130,7 +140,7 @@ pub fn update(hasher: Hasher, data: BitArray) -> Hasher
 ///
 /// ## Returns
 /// A `BitArray` containing the computed hash digest.
-@external(erlang, "crypto", "hash_final")
+@external(erlang, "kryptos_ffi", "hash_final")
 @external(javascript, "../kryptos_ffi.mjs", "hashFinal")
 pub fn final(hasher: Hasher) -> BitArray
 

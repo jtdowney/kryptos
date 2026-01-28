@@ -83,10 +83,29 @@ export function constantTimeEqual(a, b) {
 // Hash Functions
 // =============================================================================
 
+import {
+  HashAlgorithm$isShake128,
+  HashAlgorithm$isShake256,
+  HashAlgorithm$Shake128$0,
+  HashAlgorithm$Shake256$0,
+} from "./kryptos/hash.mjs";
+
+function getXofOutputLength(algorithm) {
+  if (HashAlgorithm$isShake128(algorithm)) {
+    return HashAlgorithm$Shake128$0(algorithm);
+  }
+  if (HashAlgorithm$isShake256(algorithm)) {
+    return HashAlgorithm$Shake256$0(algorithm);
+  }
+  return null;
+}
+
 export function hashNew(algorithm) {
   try {
     const name = hashAlgorithmName(algorithm);
-    return Result$Ok(crypto.createHash(name));
+    const outputLength = getXofOutputLength(algorithm);
+    const options = outputLength !== null ? { outputLength } : undefined;
+    return Result$Ok(crypto.createHash(name, options));
   } catch {
     return Result$Error(undefined);
   }

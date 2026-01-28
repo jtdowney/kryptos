@@ -57,6 +57,8 @@
     eddsa_sign/2,
     eddsa_verify/3,
     hash_new/1,
+    hash_update/2,
+    hash_final/1,
     hmac_new/2,
     mod_pow/3,
     pbkdf2_derive/5,
@@ -164,9 +166,29 @@ hash_algorithm_name(sha3x384) ->
     sha3_384;
 hash_algorithm_name(sha3x512) ->
     sha3_512;
+hash_algorithm_name({shake128, _OutputLength}) ->
+    shake128;
+hash_algorithm_name({shake256, _OutputLength}) ->
+    shake256;
 hash_algorithm_name(Name) ->
     Name.
 
+hash_new({shake128, OutputLength}) ->
+    try
+        _ = crypto:hash_xof(shake128, <<>>, 8),
+        {ok, {xof, shake128, [], OutputLength}}
+    catch
+        _:_ ->
+            {error, nil}
+    end;
+hash_new({shake256, OutputLength}) ->
+    try
+        _ = crypto:hash_xof(shake256, <<>>, 8),
+        {ok, {xof, shake256, [], OutputLength}}
+    catch
+        _:_ ->
+            {error, nil}
+    end;
 hash_new(Algorithm) ->
     try
         Name = hash_algorithm_name(Algorithm),
@@ -175,6 +197,17 @@ hash_new(Algorithm) ->
         _:_ ->
             {error, nil}
     end.
+
+hash_update({xof, Algorithm, AccData, OutputLength}, Data) ->
+    {xof, Algorithm, [Data | AccData], OutputLength};
+hash_update(State, Data) ->
+    crypto:hash_update(State, Data).
+
+hash_final({xof, Algorithm, AccData, OutputLength}) ->
+    AllData = lists:reverse(AccData),
+    crypto:hash_xof(Algorithm, AllData, OutputLength * 8);
+hash_final(State) ->
+    crypto:hash_final(State).
 
 %%------------------------------------------------------------------------------
 %% HMAC

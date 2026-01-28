@@ -52,6 +52,14 @@ pub fn digest_table_test() {
       hash.Sha3x512,
       "4C33F4D13255A63B30E242B785CDDEDD11E581E99C78C7C7DA18C5118AFEC348E37BBF9BC928A2C82C8F726719633F0FB2CD428868323BD319830A9B800E18D1",
     ),
+    #(
+      hash.Shake128(32),
+      "415C144C084403C9AA91655C353FFF04991ADAB9EB0173D9FB87103515CE882B",
+    ),
+    #(
+      hash.Shake256(64),
+      "0916821296B1AE740E882054DA8E1B86ACC10CB5D78D0BE64BE4705EE176284F4AF5DA1A26927B99C850468E186789C79EED650F03D7068EC38E30EAC01B0870",
+    ),
   ]
   |> list.filter(fn(pair) { hash.is_supported(pair.0) })
   |> list.each(fn(pair) {
@@ -121,15 +129,44 @@ pub fn hash_deterministic_property_test() {
 }
 
 pub fn is_supported_sha256_test() {
-  assert hash.is_supported(hash.Sha256) == True
+  assert hash.is_supported(hash.Sha256)
+}
+
+pub fn shake_output_length_property_test() {
+  let gen =
+    qcheck.tuple3(
+      qcheck.from_generators(qcheck.return(hash.Shake128), [
+        qcheck.return(hash.Shake256),
+      ]),
+      qcheck.bounded_int(1, 256),
+      qcheck.byte_aligned_bit_array(),
+    )
+
+  qcheck.run(qcheck.default_config(), gen, fn(input) {
+    let #(algorithm_fn, output_length, data) = input
+    let algorithm = algorithm_fn(output_length)
+    let assert Ok(digest) = crypto.hash(algorithm, data)
+    assert bit_array.byte_size(digest) == output_length
+  })
 }
 
 pub fn is_supported_matches_new_test() {
-  // is_supported should return True iff new() succeeds
   [
-    hash.Blake2b, hash.Blake2s, hash.Md5, hash.Sha1, hash.Sha256, hash.Sha384,
-    hash.Sha512, hash.Sha512x224, hash.Sha512x256, hash.Sha3x224, hash.Sha3x256,
-    hash.Sha3x384, hash.Sha3x512,
+    hash.Blake2b,
+    hash.Blake2s,
+    hash.Md5,
+    hash.Sha1,
+    hash.Sha256,
+    hash.Sha384,
+    hash.Sha512,
+    hash.Sha512x224,
+    hash.Sha512x256,
+    hash.Sha3x224,
+    hash.Sha3x256,
+    hash.Sha3x384,
+    hash.Sha3x512,
+    hash.Shake128(32),
+    hash.Shake256(64),
   ]
   |> list.each(fn(alg) {
     let supported = hash.is_supported(alg)
