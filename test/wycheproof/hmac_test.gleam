@@ -101,10 +101,12 @@ pub fn wycheproof_hmac_sha512_test() {
 
 pub fn wycheproof_hmac_sha512_224_test() {
   use <- unitest.tag("wycheproof")
+  use <- unitest.guard(hash.is_supported(hash.Sha512x224))
   run_wycheproof_tests("hmac_sha512_224_test.json", hash.Sha512x224)
 }
 
 pub fn wycheproof_hmac_sha512_256_test() {
   use <- unitest.tag("wycheproof")
+  use <- unitest.guard(hash.is_supported(hash.Sha512x256))
   run_wycheproof_tests("hmac_sha512_256_test.json", hash.Sha512x256)
 }
