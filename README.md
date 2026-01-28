@@ -41,7 +41,7 @@ gleam add kryptos
 
 | Module                                                       | Algorithms                                              |
 | ------------------------------------------------------------ | ------------------------------------------------------- |
-| [hash](https://hexdocs.pm/kryptos/kryptos/hash.html)         | SHA-1, SHA-2, SHA-3, SHAKE, BLAKE2                             |
+| [hash](https://hexdocs.pm/kryptos/kryptos/hash.html)         | SHA-1, SHA-2, SHA-3, SHAKE, BLAKE2                      |
 | [hmac](https://hexdocs.pm/kryptos/kryptos/hmac.html)         | All hash algorithms                                     |
 | [aead](https://hexdocs.pm/kryptos/kryptos/aead.html)         | AES-GCM, AES-CCM, ChaCha20-Poly1305, XChaCha20-Poly1305 |
 | [block](https://hexdocs.pm/kryptos/kryptos/block.html)       | AES-128, AES-192, AES-256, AES Key Wrap (RFC 3394)      |

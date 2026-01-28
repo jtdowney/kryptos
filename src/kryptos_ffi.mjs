@@ -33,7 +33,13 @@ import {
   Curve$Ed448,
   key_size as eddsaKeySize,
 } from "./kryptos/eddsa.mjs";
-import { algorithm_name as hashAlgorithmName } from "./kryptos/hash.mjs";
+import {
+  HashAlgorithm$isShake128,
+  HashAlgorithm$isShake256,
+  HashAlgorithm$Shake128$0,
+  HashAlgorithm$Shake256$0,
+  algorithm_name as hashAlgorithmName,
+} from "./kryptos/hash.mjs";
 import {
   EncryptPadding$isEncryptPkcs1v15,
   EncryptPadding$isOaep,
@@ -82,13 +88,6 @@ export function constantTimeEqual(a, b) {
 // =============================================================================
 // Hash Functions
 // =============================================================================
-
-import {
-  HashAlgorithm$isShake128,
-  HashAlgorithm$isShake256,
-  HashAlgorithm$Shake128$0,
-  HashAlgorithm$Shake256$0,
-} from "./kryptos/hash.mjs";
 
 function getXofOutputLength(algorithm) {
   if (HashAlgorithm$isShake128(algorithm)) {
