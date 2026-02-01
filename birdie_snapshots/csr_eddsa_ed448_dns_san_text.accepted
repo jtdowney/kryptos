@@ -1,0 +1,26 @@
+---
+version: 1.5.4
+title: csr eddsa ed448 dns san text
+file: ./test/kryptos/x509/csr_test.gleam
+test_name: csr_eddsa_ed448_dns_san_verified_by_openssl_test
+---
+Certificate Request:
+    Data:
+        Version: 1 (0x0)
+        Subject: CN=ed448.example.com, O=Ed448 Corp, C=US
+        Subject Public Key Info:
+            Public Key Algorithm: ED448
+                ED448 Public-Key:
+                pub:
+                    71:7f:f5:51:99:92:56:91:a3:4d:6d:8c:bb:21:00:
+                    b1:83:bb:62:7f:c7:19:7c:b9:28:21:8d:b7:95:85:
+                    b5:d3:a7:63:4e:2e:f4:c6:cc:6f:2d:ca:78:e9:6d:
+                    7d:dc:3d:54:9c:03:de:52:2f:42:6d:00
+        Attributes:
+            Requested Extensions:
+                X509v3 Subject Alternative Name: 
+                    DNS:ed448.example.com
+    Signature Algorithm: ED448
+    Signature Value:
+        [MASKED]
+

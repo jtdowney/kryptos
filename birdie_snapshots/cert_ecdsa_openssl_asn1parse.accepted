@@ -1,0 +1,73 @@
+---
+version: 1.5.4
+title: cert ecdsa openssl asn1parse
+file: ./test/kryptos/x509/certificate_test.gleam
+test_name: cert_ecdsa_verified_by_openssl_test
+---
+   N:d=0  hl=N l= NNN cons: SEQUENCE          
+   N:d=1  hl=N l= NNN cons:  SEQUENCE          
+   N:d=2  hl=N l= NNN cons:   cont [ 0 ]        
+   N:d=3  hl=N l= NNN prim:    INTEGER           :02
+   N:d=2  hl=N l= NNN prim:   INTEGER           :[MASKED]
+   N:d=2  hl=N l= NNN cons:   SEQUENCE          
+   N:d=3  hl=N l= NNN prim:    OBJECT            :ecdsa-with-SHA256
+   N:d=2  hl=N l= NNN cons:   SEQUENCE          
+   N:d=3  hl=N l= NNN cons:    SET               
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :commonName
+   N:d=5  hl=N l= NNN prim:      UTF8STRING        :example.com
+   N:d=3  hl=N l= NNN cons:    SET               
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :organizationName
+   N:d=5  hl=N l= NNN prim:      UTF8STRING        :Acme Inc
+   N:d=3  hl=N l= NNN cons:    SET               
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :countryName
+   N:d=5  hl=N l= NNN prim:      PRINTABLESTRING   :US
+   N:d=2  hl=N l= NNN cons:   SEQUENCE          
+   N:d=3  hl=N l= NNN prim:    UTCTIME           :700101000000Z
+   N:d=3  hl=N l= NNN prim:    UTCTIME           :710101000000Z
+   N:d=2  hl=N l= NNN cons:   SEQUENCE          
+   N:d=3  hl=N l= NNN cons:    SET               
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :commonName
+   N:d=5  hl=N l= NNN prim:      UTF8STRING        :example.com
+   N:d=3  hl=N l= NNN cons:    SET               
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :organizationName
+   N:d=5  hl=N l= NNN prim:      UTF8STRING        :Acme Inc
+   N:d=3  hl=N l= NNN cons:    SET               
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :countryName
+   N:d=5  hl=N l= NNN prim:      PRINTABLESTRING   :US
+   N:d=2  hl=N l= NNN cons:   SEQUENCE          
+   N:d=3  hl=N l= NNN cons:    SEQUENCE          
+   N:d=4  hl=N l= NNN prim:     OBJECT            :id-ecPublicKey
+   N:d=4  hl=N l= NNN prim:     OBJECT            :prime256v1
+   N:d=3  hl=N l= NNN prim:    BIT STRING        
+   N:d=2  hl=N l= NNN cons:   cont [ 3 ]        
+   N:d=3  hl=N l= NNN cons:    SEQUENCE          
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :X509v3 Basic Constraints
+   N:d=5  hl=N l= NNN prim:      BOOLEAN           :255
+   N:d=5  hl=N l= NNN prim:      OCTET STRING      [HEX DUMP]:3000
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :X509v3 Key Usage
+   N:d=5  hl=N l= NNN prim:      BOOLEAN           :255
+   N:d=5  hl=N l= NNN prim:      OCTET STRING      [HEX DUMP]:03020780
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :X509v3 Extended Key Usage
+   N:d=5  hl=N l= NNN prim:      OCTET STRING      [HEX DUMP]:300A06082B06010505070301
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :X509v3 Subject Alternative Name
+   N:d=5  hl=N l= NNN prim:      OCTET STRING      [HEX DUMP]:301E820B6578616D706C652E636F6D820F7777772E6578616D706C652E636F6D
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :X509v3 Subject Key Identifier
+   N:d=5  hl=N l= NNN prim:      OCTET STRING      [HEX DUMP]:0414982A68F532B351B442B29DCEF3BD144C030173BB
+   N:d=4  hl=N l= NNN cons:     SEQUENCE          
+   N:d=5  hl=N l= NNN prim:      OBJECT            :X509v3 Authority Key Identifier
+   N:d=5  hl=N l= NNN prim:      OCTET STRING      [HEX DUMP]:30168014982A68F532B351B442B29DCEF3BD144C030173BB
+   N:d=1  hl=N l= NNN cons:  SEQUENCE          
+   N:d=2  hl=N l= NNN prim:   OBJECT            :ecdsa-with-SHA256
+   N:d=1  hl=N l= NNN prim:  BIT STRING        
+

@@ -2,42 +2,23 @@ import birdie
 import gleam/bit_array
 import gleam/int
 import gleam/list
-import gleam/regexp
 import gleam/result
 import gleam/string
 import kryptos/ec
+import kryptos/eddsa
 import kryptos/hash
 import kryptos/rsa
 import kryptos/x509.{
-  DnsName, EcPublicKey, EcdsaSha256, RsaPublicKey, RsaSha256, Unknown,
+  DnsName, EcPublicKey, EcdsaSha256, Ed25519, Ed448, EdPublicKey, RsaPublicKey,
+  RsaSha256, Unknown,
 }
 import kryptos/x509/csr
+import kryptos/x509/test_helpers.{
+  mask_dynamic_values, mask_signature, normalize_subject,
+}
 import qcheck
 import shellout
 import simplifile
-
-fn mask_dynamic_values(output: String) -> String {
-  let assert Ok(offset_re) = regexp.from_string("^ *\\d+:")
-  let lines = string.split(output, "\n")
-  let masked_lines =
-    list.map(lines, fn(line) { regexp.replace(offset_re, line, "   N:") })
-
-  let output = string.join(masked_lines, "\n")
-  let assert Ok(len_re) = regexp.from_string("hl=\\d l= *\\d+")
-  regexp.replace(len_re, output, "hl=N l= NNN")
-}
-
-fn mask_signature(output: String) -> String {
-  let assert Ok(sig_re) =
-    regexp.from_string("(Signature Value:\\n)((?:\\s+[0-9a-f:]+\\n?)+)")
-  regexp.replace(sig_re, output, "Signature Value:\n        [MASKED]\n")
-}
-
-/// Normalize Subject line formatting across OpenSSL versions
-/// OpenSSL 3.0.x uses "CN = foo" while 3.6.x uses "CN=foo"
-fn normalize_subject(output: String) -> String {
-  string.replace(output, " = ", "=")
-}
 
 fn contains_subsequence(haystack: BitArray, needle: BitArray) -> Bool {
   let needle_size = bit_array.byte_size(needle)
@@ -108,6 +89,44 @@ pub fn csr_rsa_produces_valid_der_test() {
   let assert <<0x30, _:bits>> = der
 }
 
+pub fn csr_eddsa_ed25519_produces_valid_der_test() {
+  let #(private_key, _) = eddsa.generate_key_pair(eddsa.Ed25519)
+  let subject = x509.name([x509.cn("test.example.com")])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("test.example.com")
+
+  let assert Ok(my_csr) = csr.sign_with_eddsa(builder, private_key)
+
+  let pem = csr.to_pem(my_csr)
+  assert string.starts_with(pem, "-----BEGIN CERTIFICATE REQUEST-----")
+  assert string.contains(pem, "-----END CERTIFICATE REQUEST-----")
+
+  let der = csr.to_der(my_csr)
+  let assert <<0x30, _:bits>> = der
+}
+
+pub fn csr_eddsa_ed448_produces_valid_der_test() {
+  let #(private_key, _) = eddsa.generate_key_pair(eddsa.Ed448)
+  let subject = x509.name([x509.cn("test.example.com")])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("test.example.com")
+
+  let assert Ok(my_csr) = csr.sign_with_eddsa(builder, private_key)
+
+  let pem = csr.to_pem(my_csr)
+  assert string.starts_with(pem, "-----BEGIN CERTIFICATE REQUEST-----")
+  assert string.contains(pem, "-----END CERTIFICATE REQUEST-----")
+
+  let der = csr.to_der(my_csr)
+  let assert <<0x30, _:bits>> = der
+}
+
 pub fn ipv4_parsing_property_test() {
   let gen =
     qcheck.tuple4(
@@ -166,6 +185,23 @@ pub fn unsupported_hash_algorithm_returns_error_test() {
     |> csr.sign_with_ecdsa(ec_key, hash.Sha512x256)
 
   assert result == Error(Nil)
+}
+
+pub fn from_der_trailing_bytes_rejected_test() {
+  let #(private_key, _) = ec.generate_key_pair(ec.P256)
+  let subject = x509.name([x509.cn("trailing.example.com")])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("trailing.example.com")
+
+  let assert Ok(my_csr) = csr.sign_with_ecdsa(builder, private_key, hash.Sha256)
+
+  let valid_der = csr.to_der(my_csr)
+  let der_with_trailing = bit_array.concat([valid_der, <<0xaa, 0xbb, 0xcc>>])
+
+  assert csr.from_der(der_with_trailing) == Error(csr.InvalidStructure)
 }
 
 pub fn pem_lines_wrap_at_64_characters_test() {
@@ -322,6 +358,88 @@ pub fn csr_rsa_dns_san_verified_by_openssl_test() {
   |> mask_signature
   |> normalize_subject
   |> birdie.snap(title: "csr rsa dns san text")
+}
+
+// TODO: enable on javascript when shellout is fixed
+// https://github.com/tynanbe/shellout/pull/14
+@target(erlang)
+pub fn csr_eddsa_ed25519_dns_san_verified_by_openssl_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/ed25519_pkcs8.pem")
+  let assert Ok(#(private_key, _)) = eddsa.from_pem(pem)
+
+  let subject =
+    x509.name([
+      x509.cn("ed25519.example.com"),
+      x509.organization("EdDSA Corp"),
+      x509.country("US"),
+    ])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("ed25519.example.com")
+
+  let assert Ok(my_csr) = csr.sign_with_eddsa(builder, private_key)
+  let csr_pem = csr.to_pem(my_csr)
+
+  let cmd = "echo '" <> csr_pem <> "' | openssl asn1parse -i"
+  let assert Ok(output) =
+    shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
+
+  birdie.snap(
+    mask_dynamic_values(output),
+    title: "csr eddsa ed25519 dns san openssl output",
+  )
+
+  let text_cmd = "echo '" <> csr_pem <> "' | openssl req -text -noout"
+  let assert Ok(text_output) =
+    shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
+
+  text_output
+  |> mask_signature
+  |> normalize_subject
+  |> birdie.snap(title: "csr eddsa ed25519 dns san text")
+}
+
+// TODO: enable on javascript when shellout is fixed
+// https://github.com/tynanbe/shellout/pull/14
+@target(erlang)
+pub fn csr_eddsa_ed448_dns_san_verified_by_openssl_test() {
+  let assert Ok(pem) = simplifile.read("test/fixtures/ed448_pkcs8.pem")
+  let assert Ok(#(private_key, _)) = eddsa.from_pem(pem)
+
+  let subject =
+    x509.name([
+      x509.cn("ed448.example.com"),
+      x509.organization("Ed448 Corp"),
+      x509.country("US"),
+    ])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("ed448.example.com")
+
+  let assert Ok(my_csr) = csr.sign_with_eddsa(builder, private_key)
+  let csr_pem = csr.to_pem(my_csr)
+
+  let cmd = "echo '" <> csr_pem <> "' | openssl asn1parse -i"
+  let assert Ok(output) =
+    shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
+
+  birdie.snap(
+    mask_dynamic_values(output),
+    title: "csr eddsa ed448 dns san openssl output",
+  )
+
+  let text_cmd = "echo '" <> csr_pem <> "' | openssl req -text -noout"
+  let assert Ok(text_output) =
+    shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
+
+  text_output
+  |> mask_signature
+  |> normalize_subject
+  |> birdie.snap(title: "csr eddsa ed448 dns san text")
 }
 
 // TODO: enable on javascript when shellout is fixed
@@ -540,6 +658,46 @@ pub fn rsa_csr_roundtrip_test() {
   assert csr.subject_alt_names(parsed) == [DnsName("rsa.example.com")]
 }
 
+pub fn eddsa_ed25519_csr_roundtrip_test() {
+  let #(private_key, _) = eddsa.generate_key_pair(eddsa.Ed25519)
+  let subject = x509.name([x509.cn("ed25519.example.com")])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("ed25519.example.com")
+
+  let assert Ok(built_csr) = csr.sign_with_eddsa(builder, private_key)
+
+  let der = csr.to_der(built_csr)
+  let assert Ok(parsed) = csr.from_der(der)
+
+  assert csr.version(parsed) == 0
+  let assert EdPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == Ed25519
+  assert csr.subject_alt_names(parsed) == [DnsName("ed25519.example.com")]
+}
+
+pub fn eddsa_ed448_csr_roundtrip_test() {
+  let #(private_key, _) = eddsa.generate_key_pair(eddsa.Ed448)
+  let subject = x509.name([x509.cn("ed448.example.com")])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("ed448.example.com")
+
+  let assert Ok(built_csr) = csr.sign_with_eddsa(builder, private_key)
+
+  let der = csr.to_der(built_csr)
+  let assert Ok(parsed) = csr.from_der(der)
+
+  assert csr.version(parsed) == 0
+  let assert EdPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == Ed448
+  assert csr.subject_alt_names(parsed) == [DnsName("ed448.example.com")]
+}
+
 pub fn from_pem_invalid_label_test() {
   let bad_pem =
     "-----BEGIN CERTIFICATE-----
@@ -680,15 +838,8 @@ pub fn parse_csr_with_unknown_san_type_test() {
   // Second DNS name - this was previously dropped due to the security bug
   assert list.contains(sans, DnsName("also-legit.example.com"))
 
-  // The URI should be returned as Unknown with tag 0x86 (context-specific [6])
-  let has_unknown =
-    list.any(sans, fn(san) {
-      case san {
-        Unknown(0x86, _) -> True
-        _ -> False
-      }
-    })
-  assert has_unknown
+  let expected_uri_bytes = <<"https://example.com/path":utf8>>
+  assert list.contains(sans, Unknown(0x86, expected_uri_bytes))
 }
 
 pub fn san_after_unknown_type_must_be_returned_test() {

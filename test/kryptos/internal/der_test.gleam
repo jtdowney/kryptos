@@ -1,5 +1,7 @@
 import gleam/bit_array
 import gleam/list
+import gleam/time/calendar
+import gleam/time/timestamp
 import kryptos/internal/der
 import qcheck
 
@@ -411,6 +413,40 @@ pub fn encode_printable_string_tag_test() {
   let assert Ok(<<0x13, _:bits>>) = der.encode_printable_string("test")
 }
 
+pub fn encode_printable_string_valid_chars_test() {
+  assert der.encode_printable_string("") == Ok(<<0x13, 0x00>>)
+  let assert Ok(_) = der.encode_printable_string("ABC")
+  let assert Ok(_) = der.encode_printable_string("abc")
+  let assert Ok(_) = der.encode_printable_string("012")
+  let assert Ok(_) = der.encode_printable_string(" ")
+  let assert Ok(_) = der.encode_printable_string("'")
+  let assert Ok(_) = der.encode_printable_string("()")
+  let assert Ok(_) = der.encode_printable_string("+,-./:=?")
+  let assert Ok(_) = der.encode_printable_string("US")
+  let assert Ok(_) = der.encode_printable_string("GB")
+}
+
+pub fn encode_printable_string_invalid_chars_test() {
+  assert der.encode_printable_string("@") == Error(Nil)
+  assert der.encode_printable_string("#") == Error(Nil)
+  assert der.encode_printable_string("!") == Error(Nil)
+  assert der.encode_printable_string("*") == Error(Nil)
+  assert der.encode_printable_string("&") == Error(Nil)
+  assert der.encode_printable_string("$") == Error(Nil)
+  assert der.encode_printable_string("%") == Error(Nil)
+  assert der.encode_printable_string("^") == Error(Nil)
+  assert der.encode_printable_string("_") == Error(Nil)
+  assert der.encode_printable_string("<>") == Error(Nil)
+  assert der.encode_printable_string("[") == Error(Nil)
+  assert der.encode_printable_string("]") == Error(Nil)
+  assert der.encode_printable_string("{") == Error(Nil)
+  assert der.encode_printable_string("}") == Error(Nil)
+  assert der.encode_printable_string("é") == Error(Nil)
+  assert der.encode_printable_string("ñ") == Error(Nil)
+  assert der.encode_printable_string("US@") == Error(Nil)
+  assert der.encode_printable_string("hello!") == Error(Nil)
+}
+
 pub fn parse_printable_string_valid_test() {
   let bytes = <<0x13, 0x04, 0x54, 0x65, 0x73, 0x74>>
   assert der.parse_printable_string(bytes) == Ok(#("Test", <<>>))
@@ -422,7 +458,20 @@ pub fn parse_printable_string_empty_test() {
 }
 
 pub fn printable_string_roundtrip_property_test() {
-  let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
+  let printable_string_rest = [
+    // A-Z (except 'A' which is first)
+    66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84,
+    85, 86, 87, 88, 89, 90,
+    // a-z
+    97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112,
+    113, 114, 115, 116, 117, 118, 119, 120, 121, 122,
+    // 0-9
+    48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+    // Special chars: space, '()+,-./:=?
+    32, 39, 40, 41, 43, 44, 45, 46, 47, 58, 61, 63,
+  ]
+  let gen =
+    qcheck.string_from(qcheck.codepoint_from_ints(65, printable_string_rest))
 
   qcheck.run(qcheck.default_config(), gen, fn(s) {
     let assert Ok(encoded) = der.encode_printable_string(s)
@@ -459,6 +508,28 @@ pub fn encode_string_empty_test() {
   assert der.encode_utf8_string("") == Ok(<<0x0c, 0x00>>)
   assert der.encode_printable_string("") == Ok(<<0x13, 0x00>>)
   assert der.encode_ia5_string("") == Ok(<<0x16, 0x00>>)
+}
+
+pub fn parse_bool_valid_test() {
+  assert der.parse_bool(<<0x01, 0x01, 0xff>>) == Ok(#(True, <<>>))
+  assert der.parse_bool(<<0x01, 0x01, 0x00>>) == Ok(#(False, <<>>))
+  assert der.parse_bool(<<0x01, 0x01, 0x01>>) == Ok(#(True, <<>>))
+}
+
+pub fn parse_bool_with_remaining_test() {
+  assert der.parse_bool(<<0x01, 0x01, 0xff, 0xaa, 0xbb>>)
+    == Ok(#(True, <<0xaa, 0xbb>>))
+}
+
+pub fn parse_bool_invalid_test() {
+  assert der.parse_bool(<<0x02, 0x01, 0xff>>) == Error(Nil)
+  assert der.parse_bool(<<0x01, 0x02, 0xff, 0x00>>) == Error(Nil)
+  assert der.parse_bool(<<>>) == Error(Nil)
+}
+
+pub fn bool_roundtrip_test() {
+  let assert Ok(#(True, <<>>)) = der.parse_bool(der.encode_bool(True))
+  let assert Ok(#(False, <<>>)) = der.parse_bool(der.encode_bool(False))
 }
 
 pub fn encode_oid_first_byte_test() {
@@ -543,6 +614,48 @@ pub fn parse_oid_sha256_test() {
   >>
   let result = der.parse_oid(bytes)
   assert result == Ok(#([2, 16, 840, 1, 101, 3, 4, 2, 1], <<>>))
+}
+
+pub fn encode_oid_large_first_component_180_test() {
+  let result = der.encode_oid([2, 100])
+  assert result == Ok(<<0x06, 0x02, 0x81, 0x34>>)
+}
+
+pub fn parse_oid_large_first_component_180_test() {
+  let bytes = <<0x06, 0x02, 0x81, 0x34>>
+  let result = der.parse_oid(bytes)
+  assert result == Ok(#([2, 100], <<>>))
+}
+
+pub fn encode_oid_large_first_component_1079_test() {
+  let result = der.encode_oid([2, 999])
+  assert result == Ok(<<0x06, 0x02, 0x88, 0x37>>)
+}
+
+pub fn parse_oid_large_first_component_1079_test() {
+  let bytes = <<0x06, 0x02, 0x88, 0x37>>
+  let result = der.parse_oid(bytes)
+  assert result == Ok(#([2, 999], <<>>))
+}
+
+pub fn oid_large_first_component_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple2(
+      qcheck.bounded_int(40, 10_000),
+      qcheck.list_from(qcheck.bounded_int(0, 100_000)),
+    )
+
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(50),
+    gen,
+    fn(input) {
+      let #(second, rest) = input
+      let components = [2, second, ..rest]
+      let assert Ok(encoded) = der.encode_oid(components)
+      let result = der.parse_oid(encoded)
+      assert result == Ok(#(components, <<>>))
+    },
+  )
 }
 
 pub fn parse_oid_empty_test() {
@@ -753,4 +866,151 @@ pub fn bit_string_containing_sequence_test() {
   let assert Ok(#(bit_content, <<>>)) = der.parse_bit_string(bit_str)
   let assert Ok(#(seq_content, <<>>)) = der.parse_sequence(bit_content)
   assert seq_content == <<0x01, 0x02, 0x03>>
+}
+
+pub fn parse_utc_time_test() {
+  let input = <<0x17, 13, "250615143000Z":utf8>>
+  let assert Ok(#(ts, <<>>)) = der.parse_utc_time(input)
+  let expected = make_timestamp(2025, 6, 15, 14, 30, 0)
+  assert ts == expected
+}
+
+pub fn encode_generalized_time_test() {
+  let ts = make_timestamp(2050, 12, 31, 23, 59, 59)
+  let assert Ok(encoded) = der.encode_generalized_time(ts)
+  assert encoded == <<0x18, 15, "20501231235959Z":utf8>>
+}
+
+pub fn parse_generalized_time_test() {
+  let input = <<0x18, 15, "20501231235959Z":utf8>>
+  let assert Ok(#(ts, <<>>)) = der.parse_generalized_time(input)
+  let expected = make_timestamp(2050, 12, 31, 23, 59, 59)
+  assert ts == expected
+}
+
+pub fn utc_time_handles_y2k_window_test() {
+  let input_2000 = <<0x17, 13, "000101000000Z":utf8>>
+  let assert Ok(#(ts_2000, _)) = der.parse_utc_time(input_2000)
+  let expected_2000 = make_timestamp(2000, 1, 1, 0, 0, 0)
+  assert ts_2000 == expected_2000
+
+  let input_1999 = <<0x17, 13, "991231235959Z":utf8>>
+  let assert Ok(#(ts_1999, _)) = der.parse_utc_time(input_1999)
+  let expected_1999 = make_timestamp(1999, 12, 31, 23, 59, 59)
+  assert ts_1999 == expected_1999
+}
+
+pub fn utc_time_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple6(
+      qcheck.bounded_int(1950, 2049),
+      qcheck.bounded_int(1, 12),
+      qcheck.bounded_int(1, 28),
+      qcheck.bounded_int(0, 23),
+      qcheck.bounded_int(0, 59),
+      qcheck.bounded_int(0, 59),
+    )
+
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(50),
+    gen,
+    fn(input) {
+      let #(year, month, day, hour, minute, second) = input
+      let ts = make_timestamp(year, month, day, hour, minute, second)
+      let assert Ok(encoded) = der.encode_timestamp(ts)
+      let assert Ok(#(parsed_ts, <<>>)) = der.parse_utc_time(encoded)
+      assert parsed_ts == ts
+    },
+  )
+}
+
+pub fn generalized_time_roundtrip_property_test() {
+  let gen =
+    qcheck.tuple6(
+      qcheck.bounded_int(1, 9999),
+      qcheck.bounded_int(1, 12),
+      qcheck.bounded_int(1, 28),
+      qcheck.bounded_int(0, 23),
+      qcheck.bounded_int(0, 59),
+      qcheck.bounded_int(0, 59),
+    )
+
+  qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(50),
+    gen,
+    fn(input) {
+      let #(year, month, day, hour, minute, second) = input
+      let ts = make_timestamp(year, month, day, hour, minute, second)
+      let assert Ok(encoded) = der.encode_generalized_time(ts)
+      let assert Ok(#(parsed_ts, <<>>)) = der.parse_generalized_time(encoded)
+      assert parsed_ts == ts
+    },
+  )
+}
+
+pub fn parse_utc_time_with_remaining_test() {
+  let input = <<0x17, 13, "250615143000Z":utf8, 0xaa, 0xbb>>
+  let assert Ok(#(ts, remaining)) = der.parse_utc_time(input)
+  let expected = make_timestamp(2025, 6, 15, 14, 30, 0)
+  assert ts == expected
+  assert remaining == <<0xaa, 0xbb>>
+}
+
+pub fn parse_generalized_time_with_remaining_test() {
+  let input = <<0x18, 15, "20501231235959Z":utf8, 0xcc, 0xdd>>
+  let assert Ok(#(ts, remaining)) = der.parse_generalized_time(input)
+  let expected = make_timestamp(2050, 12, 31, 23, 59, 59)
+  assert ts == expected
+  assert remaining == <<0xcc, 0xdd>>
+}
+
+pub fn parse_utc_time_wrong_tag_test() {
+  let input = <<0x18, 13, "250615143000Z":utf8>>
+  assert der.parse_utc_time(input) == Error(Nil)
+}
+
+pub fn parse_generalized_time_wrong_tag_test() {
+  let input = <<0x17, 15, "20501231235959Z":utf8>>
+  assert der.parse_generalized_time(input) == Error(Nil)
+}
+
+pub fn parse_utc_time_invalid_length_test() {
+  let input = <<0x17, 12, "25061514300Z":utf8>>
+  assert der.parse_utc_time(input) == Error(Nil)
+}
+
+pub fn parse_generalized_time_invalid_length_test() {
+  let input = <<0x18, 14, "2050123123595Z":utf8>>
+  assert der.parse_generalized_time(input) == Error(Nil)
+}
+
+pub fn parse_utc_time_missing_z_suffix_test() {
+  let input = <<0x17, 13, "2506151430001":utf8>>
+  assert der.parse_utc_time(input) == Error(Nil)
+}
+
+pub fn parse_generalized_time_missing_z_suffix_test() {
+  let input = <<0x18, 15, "205012312359591":utf8>>
+  assert der.parse_generalized_time(input) == Error(Nil)
+}
+
+fn make_timestamp(
+  year: Int,
+  month: Int,
+  day: Int,
+  hour: Int,
+  minute: Int,
+  second: Int,
+) -> timestamp.Timestamp {
+  let assert Ok(m) = calendar.month_from_int(month)
+  timestamp.from_calendar(
+    calendar.Date(year:, month: m, day:),
+    calendar.TimeOfDay(
+      hours: hour,
+      minutes: minute,
+      seconds: second,
+      nanoseconds: 0,
+    ),
+    calendar.utc_offset,
+  )
 }

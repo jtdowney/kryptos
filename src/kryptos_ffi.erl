@@ -444,8 +444,10 @@ oid_to_curve({1, 3, 101, 111}) ->
 %% OTP 28: atom ecPrivkeyVer1
 ec_private_key_version() ->
     case is_otp_28_or_later() of
-        true -> ecPrivkeyVer1;
-        false -> 1
+        true ->
+            ecPrivkeyVer1;
+        false ->
+            1
     end.
 
 ec_curve_name(p256) ->
@@ -744,11 +746,14 @@ extract_ec_curve_oid(DerBytes) when is_binary(DerBytes) ->
     try
         OID = public_key:der_decode('EcpkParameters', DerBytes),
         case OID of
-            {namedCurve, ActualOID} -> {ok, ActualOID};
-            _ -> error
+            {namedCurve, ActualOID} ->
+                {ok, ActualOID};
+            _ ->
+                error
         end
     catch
-        _:_ -> error
+        _:_ ->
+            error
     end;
 extract_ec_curve_oid(_) ->
     error.
@@ -1487,10 +1492,30 @@ eddsa_import_private_key_der(DerBytes) ->
 
 eddsa_import_private_key_from_der(DerBytes) ->
     case public_key:der_decode('PrivateKeyInfo', DerBytes) of
+        {'PrivateKeyInfo', _, {_, OID, _}, WrappedKey, _} ->
+            eddsa_import_from_decoded(OID, WrappedKey);
+        {'PrivateKeyInfo', _, {_, OID, _}, WrappedKey, _, _} ->
+            eddsa_import_from_decoded(OID, WrappedKey);
         #'ECPrivateKey'{privateKey = PrivateBytes, parameters = {namedCurve, OID}} ->
             Curve = oid_to_curve(OID),
             case Curve of
                 _ when Curve =:= ed25519; Curve =:= ed448 ->
+                    {PubKey, PrivKey} = crypto:generate_key(eddsa, Curve, PrivateBytes),
+                    {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
+                _ ->
+                    {error, nil}
+            end;
+        _ ->
+            {error, nil}
+    end.
+
+eddsa_import_from_decoded(OID, WrappedKey) ->
+    Curve = oid_to_curve(OID),
+    case Curve of
+        _ when Curve =:= ed25519; Curve =:= ed448 ->
+            KeySize = kryptos@eddsa:key_size(Curve),
+            case WrappedKey of
+                <<4, KeySize, PrivateBytes:KeySize/binary>> ->
                     {PubKey, PrivKey} = crypto:generate_key(eddsa, Curve, PrivateBytes),
                     {ok, {{PrivKey, Curve}, {PubKey, Curve}}};
                 _ ->
@@ -1542,13 +1567,7 @@ eddsa_import_public_key_from_der(DerBytes) ->
 
 eddsa_export_private_key_pem({KeyBytes, Curve}) ->
     try
-        ECPrivKey =
-            #'ECPrivateKey'{
-                version = 1,
-                privateKey = KeyBytes,
-                parameters = {namedCurve, curve_to_oid(Curve)}
-            },
-        Der = public_key:der_encode('PrivateKeyInfo', ECPrivKey),
+        Der = eddsa_private_key_to_der(KeyBytes, Curve),
         {ok, public_key:pem_encode([{'PrivateKeyInfo', Der, not_encrypted}])}
     catch
         _:_ ->
@@ -1557,17 +1576,25 @@ eddsa_export_private_key_pem({KeyBytes, Curve}) ->
 
 eddsa_export_private_key_der({KeyBytes, Curve}) ->
     try
-        ECPrivKey =
-            #'ECPrivateKey'{
-                version = 1,
-                privateKey = KeyBytes,
-                parameters = {namedCurve, curve_to_oid(Curve)}
-            },
-        {ok, public_key:der_encode('PrivateKeyInfo', ECPrivKey)}
+        {ok, eddsa_private_key_to_der(KeyBytes, Curve)}
     catch
         _:_ ->
             {error, nil}
     end.
+
+eddsa_private_key_to_der(KeyBytes, Curve) ->
+    KeySize = kryptos@eddsa:key_size(Curve),
+    WrappedKey = <<4, KeySize, KeyBytes/binary>>,
+    OID = curve_to_oid(Curve),
+    AlgId = {'AlgorithmIdentifier', OID, asn1_NOVALUE},
+    PrivKeyInfo =
+        case is_otp_28_or_later() of
+            true ->
+                {'OneAsymmetricKey', 0, AlgId, WrappedKey, asn1_NOVALUE, asn1_NOVALUE};
+            false ->
+                {'PrivateKeyInfo', v1, AlgId, WrappedKey, asn1_NOVALUE}
+        end,
+    public_key:der_encode('PrivateKeyInfo', PrivKeyInfo).
 
 eddsa_export_public_key_pem({PubBytes, Curve}) ->
     try

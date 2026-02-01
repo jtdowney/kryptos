@@ -1,0 +1,25 @@
+---
+version: 1.5.4
+title: csr eddsa ed25519 dns san text
+file: ./test/kryptos/x509/csr_test.gleam
+test_name: csr_eddsa_ed25519_dns_san_verified_by_openssl_test
+---
+Certificate Request:
+    Data:
+        Version: 1 (0x0)
+        Subject: CN=ed25519.example.com, O=EdDSA Corp, C=US
+        Subject Public Key Info:
+            Public Key Algorithm: ED25519
+                ED25519 Public-Key:
+                pub:
+                    83:2d:eb:0d:06:56:ae:39:7c:71:b6:b2:24:12:ad:
+                    7a:f3:e5:32:11:4a:85:2f:4d:85:07:f1:d8:4c:5a:
+                    5b:d9
+        Attributes:
+            Requested Extensions:
+                X509v3 Subject Alternative Name: 
+                    DNS:ed25519.example.com
+    Signature Algorithm: ED25519
+    Signature Value:
+        [MASKED]
+

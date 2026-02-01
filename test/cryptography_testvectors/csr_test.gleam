@@ -4,24 +4,16 @@ import filepath
 import gleam/bit_array
 import gleam/list
 import kryptos/x509.{
-  type Oid, DnsName, EcPublicKey, EcdsaSha256, Oid, RsaPublicKey, RsaSha1,
-  RsaSha256,
+  DnsName, EcPublicKey, EcdsaSha256, Oid, RsaPublicKey, RsaSha1, RsaSha256,
 }
 import kryptos/x509/csr
+import kryptos/x509/test_helpers.{count_oid, has_attr_oid, has_oid}
 import simplifile
 
-const vectors_dir = "test/fixtures/cryptography_vectors/x509/requests"
+const vectors_dir = "test/cryptography_testvectors/vectors/x509/requests"
 
 fn vector_path(filename: String) -> String {
   filepath.join(vectors_dir, filename)
-}
-
-fn has_oid(items: List(#(Oid, BitArray)), target: List(Int)) -> Bool {
-  list.any(items, fn(item) { item.0 == Oid(target) })
-}
-
-fn count_oid(items: List(#(Oid, BitArray)), target: List(Int)) -> Int {
-  list.count(items, fn(item) { item.0 == Oid(target) })
 }
 
 pub fn parse_rsa_sha256_pem_test() {
@@ -126,7 +118,7 @@ pub fn parse_challenge_pem_test() {
 
   assert csr.version(parsed) == 0
   let assert RsaPublicKey(_) = csr.public_key(parsed)
-  assert has_oid(csr.attributes(parsed), [1, 2, 840, 113_549, 1, 9, 7])
+  assert has_attr_oid(csr.attributes(parsed), [1, 2, 840, 113_549, 1, 9, 7])
 }
 
 pub fn parse_challenge_unstructured_pem_test() {
@@ -138,8 +130,8 @@ pub fn parse_challenge_unstructured_pem_test() {
   let assert RsaPublicKey(_) = csr.public_key(parsed)
 
   let attrs = csr.attributes(parsed)
-  assert has_oid(attrs, [1, 2, 840, 113_549, 1, 9, 7])
-  assert has_oid(attrs, [1, 2, 840, 113_549, 1, 9, 2])
+  assert has_attr_oid(attrs, [1, 2, 840, 113_549, 1, 9, 7])
+  assert has_attr_oid(attrs, [1, 2, 840, 113_549, 1, 9, 2])
 }
 
 pub fn parse_basic_constraints_pem_unverified_test() {

@@ -1,15 +1,24 @@
-//// X.509 certificate types and utilities.
+//// X.509 certificate and CSR types and utilities.
 ////
-//// This module provides types for building X.509 distinguished names and
-//// extensions. Use these with the `x509/csr` module to generate Certificate
-//// Signing Requests.
+//// This module provides foundational types and helpers for working with X.509
+//// public key infrastructure. It includes:
 ////
-//// Distinguished names identify subjects in X.509 certificates. They consist
-//// of attribute-value pairs like Common Name (CN), Organization (O), and
-//// Country (C). This module provides helper functions to construct these
-//// attributes in a type-safe way.
+//// - **Distinguished Names**: Type-safe construction of subject/issuer names
+//// - **Extensions**: Subject Alternative Names, Basic Constraints, Key Usage, etc.
+//// - **Public Keys**: Unified representation for RSA, ECDSA, EdDSA, and XDH keys
+//// - **Signature Algorithms**: Common signing algorithms for certificates and CSRs
+//// - **Certificate Fields**: Validity periods, authority key identifiers
 ////
-//// ## Example
+//// Use this module with:
+//// - `x509/csr` for creating and parsing Certificate Signing Requests
+//// - `x509/certificate` for parsing and working with X.509 certificates
+////
+//// ## Distinguished Names
+////
+//// Distinguished names (DNs) identify subjects and issuers in X.509 structures.
+//// They consist of attribute-value pairs like Common Name (CN), Organization (O),
+//// and Country (C). Helper functions provide type-safe construction with correct
+//// ASN.1 string encodings:
 ////
 //// ```gleam
 //// import kryptos/x509
@@ -17,17 +26,37 @@
 //// let subject = x509.name([
 ////   x509.cn("example.com"),
 ////   x509.organization("Acme Inc"),
+////   x509.organizational_unit("Engineering"),
+////   x509.locality("San Francisco"),
+////   x509.state("California"),
 ////   x509.country("US"),
+//// ])
+//// ```
+////
+//// ## Extensions
+////
+//// Subject Alternative Names (SANs) specify additional identities:
+////
+//// ```gleam
+//// import kryptos/x509.{DnsName, Email, IpAddress}
+////
+//// let extensions = x509.Extensions([
+////   DnsName("www.example.com"),
+////   DnsName("api.example.com"),
+////   Email("admin@example.com"),
 //// ])
 //// ```
 
 import gleam/int
 import gleam/list
+import gleam/option.{type Option}
 import gleam/string
+import gleam/time/timestamp.{type Timestamp}
 import kryptos/ec
 import kryptos/eddsa
 import kryptos/internal/der
 import kryptos/rsa
+import kryptos/xdh
 
 const oid_common_name = Oid([2, 5, 4, 3])
 
@@ -53,7 +82,7 @@ pub type Name {
   Name(rdns: List(Rdn))
 }
 
-/// A Relative Distinguished Name, containing one or more attribute-value pairs.
+/// A Relative Distinguished Name (RDN), containing one or more attribute-value pairs.
 pub type Rdn {
   Rdn(attributes: List(#(Oid, AttributeValue)))
 }
@@ -64,11 +93,8 @@ pub type Rdn {
 /// encoding requirements (e.g., PrintableString for country codes,
 /// IA5String for email addresses).
 pub opaque type AttributeValue {
-  /// UTF-8 encoded string (most common for CN, O, OU, L, ST).
   Utf8String(String)
-  /// ASCII subset string (required for country codes per X.520).
   PrintableString(String)
-  /// ASCII string (required for emailAddress per PKCS#9/RFC 2985).
   Ia5String(String)
 }
 
@@ -92,30 +118,101 @@ pub type Extensions {
 
 /// A public key extracted from an X.509 structure (CSR or certificate).
 pub type PublicKey {
+  /// An elliptic-curve public key (e.g., P-256, P-384).
   EcPublicKey(ec.PublicKey)
+  /// An RSA public key.
   RsaPublicKey(rsa.PublicKey)
+  /// An EdDSA public key (Ed25519 or Ed448).
   EdPublicKey(eddsa.PublicKey)
+  /// An XDH public key (e.g., Curve25519 or Curve448).
+  XdhPublicKey(xdh.PublicKey)
 }
 
 /// Signature algorithm used in X.509 structures.
 pub type SignatureAlgorithm {
+  /// RSA with SHA-1, suitable for legacy systems.
   RsaSha1
+  /// RSA with SHA-256
   RsaSha256
+  /// RSA with SHA-384
   RsaSha384
+  /// RSA with SHA-512
   RsaSha512
+  /// ECDSA with SHA-1, for legacy elliptic curve systems.
   EcdsaSha1
+  /// ECDSA with SHA-256
   EcdsaSha256
+  /// ECDSA with SHA-384
   EcdsaSha384
+  /// ECDSA with SHA-512
   EcdsaSha512
+  /// Edwards-Curve Digital Signature Algorithm using Ed25519
   Ed25519
+  /// Edwards-Curve Digital Signature Algorithm using Ed448
   Ed448
+}
+
+/// Basic Constraints extension - indicates if cert is a CA.
+pub type BasicConstraints {
+  BasicConstraints(ca: Bool, path_len_constraint: Option(Int))
+}
+
+/// Key Usage flags for certificates.
+pub type KeyUsage {
+  /// Verify digital signatures (other than certificates and CRLs).
+  DigitalSignature
+  /// Verify signatures for non-repudiation services (also called contentCommitment).
+  NonRepudiation
+  /// Encipher private or secret keys (e.g., RSA key transport).
+  KeyEncipherment
+  /// Directly encrypt raw user data (without key agreement).
+  DataEncipherment
+  /// Key agreement protocols (e.g., Diffie-Hellman).
+  KeyAgreement
+  /// Verify signatures on public key certificates (CA certificates).
+  KeyCertSign
+  /// Verify signatures on certificate revocation lists.
+  CrlSign
+  /// With KeyAgreement, may only encipher data during key agreement.
+  EncipherOnly
+  /// With KeyAgreement, may only decipher data during key agreement.
+  DecipherOnly
+}
+
+/// Extended Key Usage purposes.
+pub type ExtendedKeyUsage {
+  /// TLS server authentication.
+  ServerAuth
+  /// TLS client authentication.
+  ClientAuth
+  /// Signing downloadable executable code.
+  CodeSigning
+  /// Email protection (S/MIME signing and encryption).
+  EmailProtection
+  /// Signing OCSP responses.
+  OcspSigning
+}
+
+/// Certificate validity period from not before to not after (inclusive).
+pub type Validity {
+  Validity(not_before: Timestamp, not_after: Timestamp)
+}
+
+/// Authority Key Identifier extension. Identifies the public key used to
+/// verify the certificate's signature.
+pub type AuthorityKeyIdentifier {
+  AuthorityKeyIdentifier(
+    key_identifier: Option(BitArray),
+    authority_cert_issuer: Option(List(SubjectAltName)),
+    authority_cert_serial_number: Option(BitArray),
+  )
 }
 
 /// Builds a distinguished name from a list of attribute-value pairs.
 ///
 /// Creates a Name with each attribute in its own Relative Distinguished Name
 /// (RDN). This produces the standard X.509 format where attributes are
-/// displayed as "CN = x, O = y" rather than multi-valued RDNs.
+/// displayed as "CN = x, O = y".
 ///
 /// ## Parameters
 /// - `attributes`: A list of OID and value tuples (use helper functions like
@@ -210,7 +307,6 @@ pub fn locality(value: String) -> #(Oid, AttributeValue) {
 
 /// Creates an Email Address attribute.
 ///
-/// Uses IA5String encoding as required by PKCS#9 (RFC 2985).
 /// Note: emailAddress in the DN is deprecated; prefer using
 /// Subject Alternative Names via `csr.with_email` instead.
 ///
@@ -227,9 +323,6 @@ pub fn email_address(value: String) -> #(Oid, AttributeValue) {
   #(oid_email_address, Ia5String(value))
 }
 
-/// Encodes an AttributeValue to its DER representation.
-///
-/// This is an internal function for use by the csr module.
 @internal
 pub fn encode_attribute_value(value: AttributeValue) -> Result(BitArray, Nil) {
   case value {
@@ -239,25 +332,16 @@ pub fn encode_attribute_value(value: AttributeValue) -> Result(BitArray, Nil) {
   }
 }
 
-/// Creates a UTF-8 string attribute value.
-///
-/// This is an internal function for use by the csr module when parsing.
 @internal
 pub fn utf8_string(value: String) -> AttributeValue {
   Utf8String(value)
 }
 
-/// Creates a printable string attribute value.
-///
-/// This is an internal function for use by the csr module when parsing.
 @internal
 pub fn printable_string(value: String) -> AttributeValue {
   PrintableString(value)
 }
 
-/// Creates an IA5 string attribute value.
-///
-/// This is an internal function for use by the csr module when parsing.
 @internal
 pub fn ia5_string(value: String) -> AttributeValue {
   Ia5String(value)
