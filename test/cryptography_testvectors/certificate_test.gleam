@@ -512,7 +512,7 @@ pub fn parse_san_dirname_pem_test() {
   assert certificate.version(parsed) == 2
   let sans = certificate.subject_alt_names(parsed)
   assert list.length(sans) == 1
-  let assert [x509.Unknown(0xA4, _)] = sans
+  let assert [x509.DirectoryName(_)] = sans
 }
 
 pub fn parse_san_empty_hostname_pem_test() {
@@ -530,14 +530,14 @@ pub fn parse_san_idna_names_pem_test() {
   let sans = certificate.subject_alt_names(parsed)
   assert list.contains(sans, Email("email@xn--80ato2c.cryptography"))
   assert list.contains(sans, DnsName("xn--80ato2c.cryptography"))
-  let has_uri_unknown =
+  let has_uri =
     list.any(sans, fn(san) {
       case san {
-        x509.Unknown(0x86, _) -> True
+        x509.Uri(_) -> True
         _ -> False
       }
     })
-  assert has_uri_unknown
+  assert has_uri
   assert list.length(sans) == 3
 }
 
@@ -553,6 +553,9 @@ pub fn parse_san_other_name_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
+  let sans = certificate.subject_alt_names(parsed)
+  assert list.length(sans) == 1
+  let assert [x509.OtherName(x509.Oid([1, 2, 3, 4]), _value)] = sans
 }
 
 pub fn parse_san_registered_id_pem_test() {
@@ -560,6 +563,9 @@ pub fn parse_san_registered_id_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
+  let sans = certificate.subject_alt_names(parsed)
+  assert list.length(sans) == 1
+  let assert [x509.RegisteredId(x509.Oid([1, 2, 3, 4]))] = sans
 }
 
 pub fn parse_san_rfc822_idna_pem_test() {

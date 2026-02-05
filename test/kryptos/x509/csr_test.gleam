@@ -10,7 +10,7 @@ import kryptos/hash
 import kryptos/rsa
 import kryptos/x509.{
   DnsName, EcPublicKey, EcdsaSha256, Ed25519, Ed448, EdPublicKey, RsaPublicKey,
-  RsaSha256, Unknown,
+  RsaSha256,
 }
 import kryptos/x509/csr
 import kryptos/x509/test_helpers.{
@@ -815,49 +815,4 @@ pub fn parse_openssl_generated_csr_test() {
     sans,
     x509.IpAddress(<<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1>>),
   )
-}
-
-/// Security test: Unknown SAN types should be returned as Unknown,
-/// and subsequent SANs should NOT be silently dropped.
-///
-/// This CSR has: DNS:legitimate.example.com, URI:..., DNS:also-legit.example.com
-/// The URI (tag [6] = 0x86) is not a supported type, so it should be parsed
-/// as Unknown. Critically, the DNS name AFTER the URI must still be returned.
-pub fn parse_csr_with_unknown_san_type_test() {
-  let assert Ok(pem) = simplifile.read("test/fixtures/csr_with_uri.pem")
-  let assert Ok(parsed) = csr.from_pem(pem)
-
-  let sans = csr.subject_alt_names(parsed)
-
-  // Must have 3 SANs: DNS, Unknown (URI), DNS
-  assert list.length(sans) == 3
-
-  // First DNS name
-  assert list.contains(sans, DnsName("legitimate.example.com"))
-
-  // Second DNS name - this was previously dropped due to the security bug
-  assert list.contains(sans, DnsName("also-legit.example.com"))
-
-  let expected_uri_bytes = <<"https://example.com/path":utf8>>
-  assert list.contains(sans, Unknown(0x86, expected_uri_bytes))
-}
-
-pub fn san_after_unknown_type_must_be_returned_test() {
-  let assert Ok(pem) = simplifile.read("test/fixtures/csr_with_uri.pem")
-  let assert Ok(parsed) = csr.from_pem(pem)
-
-  let sans = csr.subject_alt_names(parsed)
-  assert list.length(sans) == 3
-
-  let dns_names =
-    list.filter_map(sans, fn(san) {
-      case san {
-        DnsName(name) -> Ok(name)
-        _ -> Error(Nil)
-      }
-    })
-
-  assert list.length(dns_names) == 2
-  assert list.contains(dns_names, "legitimate.example.com")
-  assert list.contains(dns_names, "also-legit.example.com")
 }

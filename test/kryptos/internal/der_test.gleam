@@ -510,6 +510,92 @@ pub fn encode_string_empty_test() {
   assert der.encode_ia5_string("") == Ok(<<0x16, 0x00>>)
 }
 
+pub fn parse_teletex_string_ascii_test() {
+  let bytes = <<0x14, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f>>
+  assert der.parse_teletex_string(bytes) == Ok(#("hello", <<>>))
+}
+
+pub fn parse_teletex_string_latin1_test() {
+  // Latin-1 character é (0xe9) should convert to UTF-8
+  let bytes = <<0x14, 0x04, 0x63, 0x61, 0x66, 0xe9>>
+  assert der.parse_teletex_string(bytes) == Ok(#("café", <<>>))
+}
+
+pub fn parse_teletex_string_empty_test() {
+  let bytes = <<0x14, 0x00>>
+  assert der.parse_teletex_string(bytes) == Ok(#("", <<>>))
+}
+
+pub fn parse_teletex_string_with_remaining_test() {
+  let bytes = <<0x14, 0x02, 0x68, 0x69, 0xaa, 0xbb>>
+  assert der.parse_teletex_string(bytes) == Ok(#("hi", <<0xaa, 0xbb>>))
+}
+
+pub fn parse_teletex_string_wrong_tag_test() {
+  let bytes = <<0x0c, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f>>
+  assert der.parse_teletex_string(bytes) == Error(Nil)
+}
+
+pub fn parse_bmp_string_ascii_test() {
+  let bytes = <<0x1e, 0x04, 0x00, 0x68, 0x00, 0x69>>
+  assert der.parse_bmp_string(bytes) == Ok(#("hi", <<>>))
+}
+
+pub fn parse_bmp_string_unicode_test() {
+  let bytes = <<0x1e, 0x02, 0x20, 0xac>>
+  assert der.parse_bmp_string(bytes) == Ok(#("€", <<>>))
+}
+
+pub fn parse_bmp_string_empty_test() {
+  let bytes = <<0x1e, 0x00>>
+  assert der.parse_bmp_string(bytes) == Ok(#("", <<>>))
+}
+
+pub fn parse_bmp_string_odd_length_rejected_test() {
+  let bytes = <<0x1e, 0x03, 0x00, 0x68, 0x00>>
+  assert der.parse_bmp_string(bytes) == Error(Nil)
+}
+
+pub fn parse_bmp_string_with_remaining_test() {
+  let bytes = <<0x1e, 0x04, 0x00, 0x68, 0x00, 0x69, 0xcc, 0xdd>>
+  assert der.parse_bmp_string(bytes) == Ok(#("hi", <<0xcc, 0xdd>>))
+}
+
+pub fn parse_bmp_string_wrong_tag_test() {
+  let bytes = <<0x0c, 0x04, 0x00, 0x68, 0x00, 0x69>>
+  assert der.parse_bmp_string(bytes) == Error(Nil)
+}
+
+pub fn parse_universal_string_ascii_test() {
+  let bytes = <<0x1c, 0x04, 0x00, 0x00, 0x00, 0x41>>
+  assert der.parse_universal_string(bytes) == Ok(#("A", <<>>))
+}
+
+pub fn parse_universal_string_unicode_test() {
+  let bytes = <<0x1c, 0x04, 0x00, 0x01, 0xf5, 0x11>>
+  assert der.parse_universal_string(bytes) == Ok(#("🔑", <<>>))
+}
+
+pub fn parse_universal_string_empty_test() {
+  let bytes = <<0x1c, 0x00>>
+  assert der.parse_universal_string(bytes) == Ok(#("", <<>>))
+}
+
+pub fn parse_universal_string_not_multiple_of_4_rejected_test() {
+  let bytes = <<0x1c, 0x03, 0x00, 0x00, 0x00>>
+  assert der.parse_universal_string(bytes) == Error(Nil)
+}
+
+pub fn parse_universal_string_with_remaining_test() {
+  let bytes = <<0x1c, 0x04, 0x00, 0x00, 0x00, 0x41, 0xee, 0xff>>
+  assert der.parse_universal_string(bytes) == Ok(#("A", <<0xee, 0xff>>))
+}
+
+pub fn parse_universal_string_wrong_tag_test() {
+  let bytes = <<0x0c, 0x04, 0x00, 0x00, 0x00, 0x41>>
+  assert der.parse_universal_string(bytes) == Error(Nil)
+}
+
 pub fn parse_bool_valid_test() {
   assert der.parse_bool(<<0x01, 0x01, 0xff>>) == Ok(#(True, <<>>))
   assert der.parse_bool(<<0x01, 0x01, 0x00>>) == Ok(#(False, <<>>))

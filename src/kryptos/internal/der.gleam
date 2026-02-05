@@ -23,11 +23,17 @@ const utf8_string_tag = 0x0c
 
 const printable_string_tag = 0x13
 
+const teletex_string_tag = 0x14
+
 const ia5_string_tag = 0x16
 
 const utc_time_tag = 0x17
 
 const generalized_time_tag = 0x18
+
+const universal_string_tag = 0x1c
+
+const bmp_string_tag = 0x1e
 
 const sequence_tag = 0x30
 
@@ -315,6 +321,46 @@ pub fn parse_ia5_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
   Ok(#(value, remaining))
 }
 
+/// Parse a DER TeletexString (T61String), returning (string value, remaining bytes).
+///
+/// TeletexString uses ISO 8859-1 (Latin-1) encoding, where each byte represents
+/// one character. This is a decode-only function for legacy certificate compatibility.
+pub fn parse_teletex_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
+  use rest <- require_tag(bytes, teletex_string_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
+  use value <- result.try(latin1_to_utf8(value_bytes))
+  Ok(#(value, remaining))
+}
+
+/// Parse a DER BMPString, returning (string value, remaining bytes).
+///
+/// BMPString uses UCS-2 big-endian encoding (2 bytes per character).
+/// This is a decode-only function for legacy certificate compatibility.
+pub fn parse_bmp_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
+  use rest <- require_tag(bytes, bmp_string_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  use <- bool.guard(when: len % 2 != 0, return: Error(Nil))
+  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
+  use value <- result.try(ucs2_to_utf8(value_bytes))
+  Ok(#(value, remaining))
+}
+
+/// Parse a DER UniversalString, returning (string value, remaining bytes).
+///
+/// UniversalString uses UCS-4 big-endian encoding (4 bytes per character).
+/// This is a decode-only function for legacy certificate compatibility.
+pub fn parse_universal_string(
+  bytes: BitArray,
+) -> Result(#(String, BitArray), Nil) {
+  use rest <- require_tag(bytes, universal_string_tag)
+  use #(len, content) <- result.try(parse_length(rest))
+  use <- bool.guard(when: len % 4 != 0, return: Error(Nil))
+  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
+  use value <- result.try(ucs4_to_utf8(value_bytes))
+  Ok(#(value, remaining))
+}
+
 /// Encode a DER Timestamp, returning a BitArray.
 pub fn encode_timestamp(timestamp: Timestamp) -> Result(BitArray, Nil) {
   let #(date, _time) = timestamp.to_calendar(timestamp, calendar.utc_offset)
@@ -582,7 +628,10 @@ fn encode_oid_component_base128(value: Int, acc: List(Int)) -> List(Int) {
   }
 }
 
-fn decode_oid_components(bytes: BitArray) -> Result(List(Int), Nil) {
+/// Decode raw OID content bytes (without tag/length prefix) into components.
+///
+/// Used for implicitly tagged OIDs where the tag/length have already been stripped.
+pub fn decode_oid_components(bytes: BitArray) -> Result(List(Int), Nil) {
   use #(first_value, rest) <- result.try(decode_first_oid_component(bytes, 0))
 
   let first = case first_value {
@@ -636,6 +685,85 @@ fn decode_oid_rest(
       case is_continuation {
         True -> decode_oid_rest(rest, value, components)
         False -> decode_oid_rest(rest, 0, [value, ..components])
+      }
+    }
+    _ -> Error(Nil)
+  }
+}
+
+/// Convert ISO 8859-1 (Latin-1) bytes to a UTF-8 string.
+///
+/// Each byte in Latin-1 represents a single Unicode codepoint (0x00-0xFF),
+/// which maps directly to Unicode.
+fn latin1_to_utf8(bytes: BitArray) -> Result(String, Nil) {
+  latin1_to_utf8_loop(bytes, [])
+  |> result.map(fn(codepoints) {
+    codepoints |> list.reverse |> string.from_utf_codepoints
+  })
+}
+
+fn latin1_to_utf8_loop(
+  bytes: BitArray,
+  acc: List(UtfCodepoint),
+) -> Result(List(UtfCodepoint), Nil) {
+  case bytes {
+    <<>> -> Ok(acc)
+    <<byte:8, rest:bits>> -> {
+      case string.utf_codepoint(byte) {
+        Ok(cp) -> latin1_to_utf8_loop(rest, [cp, ..acc])
+        Error(_) -> Error(Nil)
+      }
+    }
+    _ -> Error(Nil)
+  }
+}
+
+/// Convert UCS-2 big-endian bytes to a UTF-8 string.
+///
+/// Each 2-byte unit represents a Unicode codepoint in the Basic Multilingual Plane.
+fn ucs2_to_utf8(bytes: BitArray) -> Result(String, Nil) {
+  ucs2_to_utf8_loop(bytes, [])
+  |> result.map(fn(codepoints) {
+    codepoints |> list.reverse |> string.from_utf_codepoints
+  })
+}
+
+fn ucs2_to_utf8_loop(
+  bytes: BitArray,
+  acc: List(UtfCodepoint),
+) -> Result(List(UtfCodepoint), Nil) {
+  case bytes {
+    <<>> -> Ok(acc)
+    <<codepoint:16-big, rest:bits>> -> {
+      case string.utf_codepoint(codepoint) {
+        Ok(cp) -> ucs2_to_utf8_loop(rest, [cp, ..acc])
+        Error(_) -> Error(Nil)
+      }
+    }
+    _ -> Error(Nil)
+  }
+}
+
+/// Convert UCS-4 big-endian bytes to a UTF-8 string.
+///
+/// Each 4-byte unit represents a Unicode codepoint.
+fn ucs4_to_utf8(bytes: BitArray) -> Result(String, Nil) {
+  ucs4_to_utf8_loop(bytes, [])
+  |> result.map(fn(codepoints) {
+    codepoints |> list.reverse |> string.from_utf_codepoints
+  })
+}
+
+fn ucs4_to_utf8_loop(
+  bytes: BitArray,
+  acc: List(UtfCodepoint),
+) -> Result(List(UtfCodepoint), Nil) {
+  case bytes {
+    <<>> -> Ok(acc)
+    <<codepoint:32-big, rest:bits>> -> {
+      case string.utf_codepoint(codepoint) {
+        Ok(cp) -> ucs4_to_utf8_loop(rest, [cp, ..acc])
+        Error(_) -> Error(Nil)
       }
     }
     _ -> Error(Nil)

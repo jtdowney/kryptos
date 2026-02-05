@@ -38,12 +38,13 @@
 //// Subject Alternative Names (SANs) specify additional identities:
 ////
 //// ```gleam
-//// import kryptos/x509.{DnsName, Email, IpAddress}
+//// import kryptos/x509.{DnsName, Email, IpAddress, Uri}
 ////
 //// let extensions = x509.Extensions([
 ////   DnsName("www.example.com"),
 ////   DnsName("api.example.com"),
 ////   Email("admin@example.com"),
+////   Uri("https://example.com/cps"),
 //// ])
 //// ```
 
@@ -106,6 +107,14 @@ pub type SubjectAltName {
   IpAddress(BitArray)
   /// An email address (e.g., "user@example.com").
   Email(String)
+  /// A Uniform Resource Identifier (e.g., "https://example.com/path").
+  Uri(String)
+  /// A distinguished name, used when a certificate identifies a directory entity.
+  DirectoryName(Name)
+  /// A registered OID identifying a name form (e.g., for hardware modules).
+  RegisteredId(Oid)
+  /// An application-specific name form with an OID type and raw value.
+  OtherName(oid: Oid, value: BitArray)
   /// An unknown GeneralName type with its raw tag byte and value.
   /// Returned when parsing encounters an unrecognized SAN type.
   Unknown(tag: Int, value: BitArray)

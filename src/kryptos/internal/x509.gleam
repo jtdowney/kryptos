@@ -201,9 +201,24 @@ fn parse_attribute_value(
       use #(s, rest) <- result.try(der.parse_printable_string(bytes))
       Ok(#(x509.printable_string(s), rest))
     }
+    <<0x14, _:bits>> -> {
+      // TeletexString - normalize to UTF8String
+      use #(s, rest) <- result.try(der.parse_teletex_string(bytes))
+      Ok(#(x509.utf8_string(s), rest))
+    }
     <<0x16, _:bits>> -> {
       use #(s, rest) <- result.try(der.parse_ia5_string(bytes))
       Ok(#(x509.ia5_string(s), rest))
+    }
+    <<0x1c, _:bits>> -> {
+      // UniversalString - normalize to UTF8String
+      use #(s, rest) <- result.try(der.parse_universal_string(bytes))
+      Ok(#(x509.utf8_string(s), rest))
+    }
+    <<0x1e, _:bits>> -> {
+      // BMPString - normalize to UTF8String
+      use #(s, rest) <- result.try(der.parse_bmp_string(bytes))
+      Ok(#(x509.utf8_string(s), rest))
     }
     _ -> Error(Nil)
   }
@@ -335,15 +350,41 @@ pub fn parse_general_name(
   use #(tag, value, rest) <- result.try(der.parse_tlv(bytes))
 
   case tag {
+    // [0] otherName - SEQUENCE { type-id OID, [0] value ANY }
+    0xa0 -> {
+      use #(oid_components, after_oid) <- result.try(der.parse_oid(value))
+      use #(other_value, _) <- result.try(der.parse_context_tag(after_oid, 0))
+      Ok(#(x509.OtherName(x509.Oid(oid_components), other_value), rest))
+    }
+    // [1] rfc822Name (email)
     0x81 -> {
       bit_array.to_string(value)
       |> result.map(fn(s) { #(x509.Email(s), rest) })
     }
+    // [2] dNSName
     0x82 -> {
       bit_array.to_string(value)
       |> result.map(fn(s) { #(x509.DnsName(s), rest) })
     }
+    // [4] directoryName - explicit Name (SEQUENCE of RDNs)
+    0xa4 -> {
+      use #(name_content, _) <- result.try(der.parse_sequence(value))
+      use name <- result.try(parse_name(name_content))
+      Ok(#(x509.DirectoryName(name), rest))
+    }
+    // [6] uniformResourceIdentifier (URI)
+    0x86 -> {
+      bit_array.to_string(value)
+      |> result.map(fn(s) { #(x509.Uri(s), rest) })
+    }
+    // [7] iPAddress
     0x87 -> Ok(#(x509.IpAddress(value), rest))
+    // [8] registeredID - implicit OID
+    0x88 -> {
+      // The value contains raw OID content bytes (without tag/length)
+      use oid_components <- result.try(der.decode_oid_components(value))
+      Ok(#(x509.RegisteredId(x509.Oid(oid_components)), rest))
+    }
     _ ->
       case is_critical {
         True -> Error(Nil)
@@ -354,7 +395,9 @@ pub fn parse_general_name(
 
 /// Encode a single Subject Alternative Name entry to DER format.
 ///
-/// Produces a context-specific tagged value for DNS names, email addresses, and IP addresses.
+/// Produces a context-specific tagged value for supported GeneralName types:
+/// DNS names, email addresses, IP addresses, URIs, directory names,
+/// registered IDs, and otherName entries.
 /// Returns Error(Nil) for Unknown SAN types.
 pub fn encode_general_name(san: x509.SubjectAltName) -> Result(BitArray, Nil) {
   case san {
@@ -363,6 +406,24 @@ pub fn encode_general_name(san: x509.SubjectAltName) -> Result(BitArray, Nil) {
     x509.Email(email) ->
       der.encode_context_primitive_tag(1, bit_array.from_string(email))
     x509.IpAddress(ip) -> der.encode_context_primitive_tag(7, ip)
+    x509.Uri(uri) ->
+      der.encode_context_primitive_tag(6, bit_array.from_string(uri))
+    x509.DirectoryName(name) -> {
+      use encoded_name <- result.try(encode_name(name))
+      der.encode_context_tag(4, encoded_name)
+    }
+    x509.RegisteredId(x509.Oid(components)) -> {
+      use oid_encoded <- result.try(der.encode_oid(components))
+      // Extract just the OID content (skip tag and length) for implicit tagging
+      use #(_, oid_content, _) <- result.try(der.parse_tlv(oid_encoded))
+      der.encode_context_primitive_tag(8, oid_content)
+    }
+    x509.OtherName(x509.Oid(oid_components), value) -> {
+      use oid_encoded <- result.try(der.encode_oid(oid_components))
+      use value_tagged <- result.try(der.encode_context_tag(0, value))
+      let content = bit_array.concat([oid_encoded, value_tagged])
+      der.encode_context_tag(0, content)
+    }
     x509.Unknown(_, _) -> Error(Nil)
   }
 }
