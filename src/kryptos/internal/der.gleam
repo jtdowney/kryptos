@@ -108,14 +108,16 @@ pub fn encode_integer(value: BitArray) -> Result(BitArray, Nil) {
 
 /// Encode a non-negative Int as a DER INTEGER.
 ///
-/// Returns Error(Nil) for negative values.
+/// Supports values from 0 to 0xFFFFFFFF (4 bytes).
+/// Returns Error(Nil) for negative values or values exceeding 32 bits.
 pub fn encode_small_int(n: Int) -> Result(BitArray, Nil) {
   case n {
     _ if n < 0 -> Error(Nil)
     _ if n < 0x100 -> encode_integer(<<n:8>>)
     _ if n < 0x10000 -> encode_integer(<<n:16>>)
     _ if n < 0x1000000 -> encode_integer(<<n:24>>)
-    _ -> encode_integer(<<n:32>>)
+    _ if n < 0x1_0000_0000 -> encode_integer(<<n:32>>)
+    _ -> Error(Nil)
   }
 }
 

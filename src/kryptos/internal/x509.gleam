@@ -35,6 +35,11 @@ const oid_ed25519 = x509.Oid([1, 3, 101, 112])
 
 const oid_ed448 = x509.Oid([1, 3, 101, 113])
 
+type PemError {
+  PemNotFound
+  PemMalformed
+}
+
 pub type SigAlgInfo {
   SigAlgInfo(oid: x509.Oid, include_null_params: Bool)
 }
@@ -506,7 +511,9 @@ pub fn decode_pem_all(
 ) -> Result(List(BitArray), Nil) {
   let lines = string.split(pem, "\n")
   let lines = list.map(lines, string.trim)
-  let blocks = extract_all_pem_bodies(lines, begin_marker, end_marker, [])
+  use blocks <- result.try(
+    extract_all_pem_bodies(lines, begin_marker, end_marker, []),
+  )
   list.try_map(blocks, fn(body_lines) {
     let body = string.join(body_lines, "")
     bit_array.base64_decode(body)
@@ -518,9 +525,10 @@ fn extract_all_pem_bodies(
   begin_marker: String,
   end_marker: String,
   acc: List(List(String)),
-) -> List(List(String)) {
+) -> Result(List(List(String)), Nil) {
   case extract_pem_body(lines, False, [], begin_marker, end_marker) {
-    Error(_) -> list.reverse(acc)
+    Error(PemNotFound) -> Ok(list.reverse(acc))
+    Error(PemMalformed) -> Error(Nil)
     Ok(#(body, remaining)) ->
       extract_all_pem_bodies(remaining, begin_marker, end_marker, [body, ..acc])
   }
@@ -532,9 +540,10 @@ fn extract_pem_body(
   acc: List(String),
   begin_marker: String,
   end_marker: String,
-) -> Result(#(List(String), List(String)), Nil) {
+) -> Result(#(List(String), List(String)), PemError) {
   case lines, in_body {
-    [], _ -> Error(Nil)
+    [], False -> Error(PemNotFound)
+    [], True -> Error(PemMalformed)
     [line, ..rest], False -> {
       case string.starts_with(line, begin_marker) {
         True -> extract_pem_body(rest, True, acc, begin_marker, end_marker)

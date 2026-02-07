@@ -81,6 +81,52 @@ pub fn length_roundtrip_property_test() {
   })
 }
 
+pub fn encode_small_int_single_byte_values_test() {
+  assert der.encode_small_int(0) == Ok(<<0x02, 0x01, 0x00>>)
+  assert der.encode_small_int(1) == Ok(<<0x02, 0x01, 0x01>>)
+  assert der.encode_small_int(127) == Ok(<<0x02, 0x01, 0x7f>>)
+}
+
+pub fn encode_small_int_high_bit_padding_test() {
+  assert der.encode_small_int(128) == Ok(<<0x02, 0x02, 0x00, 0x80>>)
+  assert der.encode_small_int(255) == Ok(<<0x02, 0x02, 0x00, 0xff>>)
+}
+
+pub fn encode_small_int_multibyte_boundaries_test() {
+  assert der.encode_small_int(256) == Ok(<<0x02, 0x02, 0x01, 0x00>>)
+  assert der.encode_small_int(0xffff) == Ok(<<0x02, 0x03, 0x00, 0xff, 0xff>>)
+  assert der.encode_small_int(0x10000) == Ok(<<0x02, 0x03, 0x01, 0x00, 0x00>>)
+  assert der.encode_small_int(0x1000000)
+    == Ok(<<0x02, 0x04, 0x01, 0x00, 0x00, 0x00>>)
+}
+
+pub fn encode_small_int_max_accepted_test() {
+  assert der.encode_small_int(0xffff_ffff)
+    == Ok(<<0x02, 0x05, 0x00, 0xff, 0xff, 0xff, 0xff>>)
+}
+
+pub fn encode_small_int_rejects_negative_test() {
+  assert der.encode_small_int(-1) == Error(Nil)
+  assert der.encode_small_int(-100) == Error(Nil)
+}
+
+pub fn encode_small_int_rejects_overflow_test() {
+  assert der.encode_small_int(0x1_0000_0000) == Error(Nil)
+  assert der.encode_small_int(0x1_0000_0001) == Error(Nil)
+  assert der.encode_small_int(0xffff_ffff_ffff) == Error(Nil)
+}
+
+pub fn encode_small_int_roundtrip_property_test() {
+  let gen = qcheck.bounded_int(0, 0xffff_ffff)
+
+  qcheck.run(qcheck.default_config(), gen, fn(n) {
+    let assert Ok(encoded) = der.encode_small_int(n)
+    let assert Ok(#(parsed_bytes, <<>>)) = der.parse_integer(encoded)
+    let assert Ok(re_encoded) = der.encode_integer(parsed_bytes)
+    assert re_encoded == encoded
+  })
+}
+
 pub fn encode_integer_zero_test() {
   assert der.encode_integer(<<>>) == Ok(<<0x02, 0x01, 0x00>>)
   assert der.encode_integer(<<0x00>>) == Ok(<<0x02, 0x01, 0x00>>)
