@@ -22,7 +22,7 @@ packages = [
   { name = "glexer", version = "2.3.1", build_tools = ["gleam"], requirements = ["gleam_stdlib", "splitter"], otp_app = "glexer", source = "hex", outer_checksum = "41D8D2E855AEA87ADC94B7AF26A5FEA3C90268D4CF2CCBBD64FD6863714EE085" },
   { name = "global_value", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "global_value", source = "hex", outer_checksum = "23F74C91A7B819C43ABCCBF49DAD5BB8799D81F2A3736BA9A534BD47F309FF4F" },
   { name = "justin", version = "1.0.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "justin", source = "hex", outer_checksum = "7FA0C6DB78640C6DC5FBFD59BF3456009F3F8B485BF6825E97E1EB44E9A1E2CD" },
-  { name = "prng", version = "5.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "prng", source = "hex", outer_checksum = "35D059FE57E44681CF9A0C533870D64124254CFE7548D461977786CCBC186AC3" },
+  { name = "prng", version = "5.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "prng", source = "hex", outer_checksum = "29DA88BCFB54D06DD1472951DF101E9524878056D139DA2616B04350B403CE10" },
   { name = "qcheck", version = "1.0.4", build_tools = ["gleam"], requirements = ["exception", "gleam_regexp", "gleam_stdlib", "gleam_yielder", "prng"], otp_app = "qcheck", source = "hex", outer_checksum = "BD9B18C1602FBC667E3E139ED270458F8C743ED791F892CC90989CE10478C4FA" },
   { name = "rank", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "rank", source = "hex", outer_checksum = "5660E361F0E49CBB714CC57CC4C89C63415D8986F05B2DA0C719D5642FAD91C9" },
   { name = "repeatedly", version = "2.1.2", build_tools = ["gleam"], requirements = [], otp_app = "repeatedly", source = "hex", outer_checksum = "93AE1938DDE0DC0F7034F32C1BF0D4E89ACEBA82198A1FE21F604E849DA5F589" },
@@ -35,7 +35,7 @@ packages = [
   { name = "tobble", version = "2.0.2", build_tools = ["gleam"], requirements = ["gleam_stdlib", "gleam_yielder", "string_width"], otp_app = "tobble", source = "hex", outer_checksum = "95E7656A560964E4627ADD148675FB5808F8F5D262CAB1DF0F6375B85487CDBA" },
   { name = "tom", version = "2.0.1", build_tools = ["gleam"], requirements = ["gleam_stdlib", "gleam_time"], otp_app = "tom", source = "hex", outer_checksum = "90791DA4AACE637E30081FE77049B8DB850FBC8CACC31515376BCC4E59BE1DD2" },
   { name = "trie_again", version = "1.1.4", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "trie_again", source = "hex", outer_checksum = "E3BD66B4E126EF567EA8C4944EAB216413392ADF6C16C36047AF79EE5EF13466" },
-  { name = "unitest", version = "1.4.3", build_tools = ["gleam"], requirements = ["argv", "clip", "envoy", "glance", "gleam_community_ansi", "gleam_stdlib", "gleam_time", "prng", "simplifile", "spinner", "tobble"], otp_app = "unitest", source = "hex", outer_checksum = "BDB3B004A997243A68BA1524689664A8F80B645CBB15F6225AF366965C7FE00D" },
+  { name = "unitest", version = "1.5.0", build_tools = ["gleam"], requirements = ["argv", "clip", "envoy", "glance", "gleam_community_ansi", "gleam_stdlib", "gleam_time", "prng", "simplifile", "spinner", "tobble"], otp_app = "unitest", source = "hex", outer_checksum = "8F626975864030765ED0D86A379B25DB592F82276EDAA98B1F0A0D7552204F54" },
 ]
 
 [requirements]
