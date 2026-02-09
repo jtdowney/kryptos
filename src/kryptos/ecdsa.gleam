@@ -81,6 +81,17 @@ pub fn verify(
 ///
 /// ## Returns
 /// An R||S format signature (2 * coordinate_size bytes).
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/ec
+/// import kryptos/ecdsa
+/// import kryptos/hash
+///
+/// let #(private_key, _public_key) = ec.generate_key_pair(ec.P256)
+/// let signature = ecdsa.sign_rs(private_key, <<"hello":utf8>>, hash.Sha256)
+/// ```
 pub fn sign_rs(
   private_key: PrivateKey,
   message: BitArray,
@@ -105,6 +116,20 @@ pub fn sign_rs(
 ///
 /// ## Returns
 /// `True` if the signature is valid, `False` otherwise.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/ec
+/// import kryptos/ecdsa
+/// import kryptos/hash
+///
+/// let #(private_key, public_key) = ec.generate_key_pair(ec.P256)
+/// let message = <<"hello":utf8>>
+/// let signature = ecdsa.sign_rs(private_key, message, hash.Sha256)
+/// let valid = ecdsa.verify_rs(public_key, message, signature, hash.Sha256)
+/// // valid == True
+/// ```
 pub fn verify_rs(
   public_key: PublicKey,
   message: BitArray,
@@ -130,6 +155,18 @@ pub fn verify_rs(
 /// ## Returns
 /// `Ok(rs_signature)` on success, `Error(Nil)` if the DER is malformed
 /// or contains trailing garbage.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/ec
+/// import kryptos/ecdsa
+/// import kryptos/hash
+///
+/// let #(private_key, _public_key) = ec.generate_key_pair(ec.P256)
+/// let der_sig = ecdsa.sign(private_key, <<"hello":utf8>>, hash.Sha256)
+/// let assert Ok(rs_sig) = ecdsa.der_to_rs(der_sig, ec.P256)
+/// ```
 pub fn der_to_rs(der_sig: BitArray, curve: Curve) -> Result(BitArray, Nil) {
   let coord_size = ec.coordinate_size(curve)
 
@@ -168,6 +205,18 @@ pub fn der_to_rs(der_sig: BitArray, curve: Curve) -> Result(BitArray, Nil) {
 ///
 /// ## Returns
 /// `Ok(der_signature)` on success, `Error(Nil)` if input length is invalid.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/ec
+/// import kryptos/ecdsa
+/// import kryptos/hash
+///
+/// let #(private_key, _public_key) = ec.generate_key_pair(ec.P256)
+/// let rs_sig = ecdsa.sign_rs(private_key, <<"hello":utf8>>, hash.Sha256)
+/// let assert Ok(der_sig) = ecdsa.rs_to_der(rs_sig, ec.P256)
+/// ```
 pub fn rs_to_der(rs: BitArray, curve: Curve) -> Result(BitArray, Nil) {
   let coord_size = ec.coordinate_size(curve)
 

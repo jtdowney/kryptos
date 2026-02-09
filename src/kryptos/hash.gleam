@@ -111,8 +111,8 @@ pub type Hasher
 /// - `algorithm`: The hash algorithm to use
 ///
 /// ## Returns
-/// - `Ok(Hasher)` - A new hasher ready to accept input data
-/// - `Error(Nil)` - If the hash algorithm is not supported by the runtime
+/// `Ok(Hasher)` on success, `Error(Nil)` if the hash algorithm is not
+/// supported by the runtime.
 @external(erlang, "kryptos_ffi", "hash_new")
 @external(javascript, "../kryptos_ffi.mjs", "hashNew")
 pub fn new(algorithm: HashAlgorithm) -> Result(Hasher, Nil)
@@ -123,7 +123,7 @@ pub fn new(algorithm: HashAlgorithm) -> Result(Hasher, Nil)
 ///
 /// ## Parameters
 /// - `hasher`: The hasher to update
-/// - `input`: The data to add to the hash
+/// - `data`: The data to add to the hash
 ///
 /// ## Returns
 /// The updated hasher.

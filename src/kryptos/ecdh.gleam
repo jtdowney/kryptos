@@ -38,8 +38,8 @@ import kryptos/ec.{type PrivateKey, type PublicKey}
 /// - `peer_public_key`: The other party's public key
 ///
 /// ## Returns
-/// - `Ok(BitArray)` - The shared secret (x-coordinate of the EC point)
-/// - `Error(Nil)` - If keys use different curves or another error occurs
+/// `Ok(BitArray)` containing the shared secret on success, `Error(Nil)`
+/// if the keys use different curves or another error occurs.
 @external(erlang, "kryptos_ffi", "ecdh_compute_shared_secret")
 @external(javascript, "../kryptos_ffi.mjs", "ecdhComputeSharedSecret")
 pub fn compute_shared_secret(

@@ -40,8 +40,11 @@ pub type Curve {
 
 /// Returns the key size in bytes for the given curve.
 ///
-/// - X25519: 32 bytes
-/// - X448: 56 bytes
+/// ## Parameters
+/// - `curve`: The XDH curve
+///
+/// ## Returns
+/// The key size in bytes (32 for X25519, 56 for X448).
 pub fn key_size(curve: Curve) -> Int {
   case curve {
     X25519 -> 32

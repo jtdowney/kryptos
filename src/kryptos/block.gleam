@@ -70,13 +70,13 @@ pub opaque type CipherContext {
   Ctr(cipher: BlockCipher, nonce: BitArray)
 }
 
-/// Returns the key size in bytes for a block cipher.
+/// Returns the key size in bits for a block cipher.
 ///
 /// ## Parameters
 /// - `cipher`: The block cipher to get the key size for
 ///
 /// ## Returns
-/// The key size in bytes (16, 24, or 32 for AES).
+/// The key size in bits (128, 192, or 256 for AES).
 pub fn key_size(cipher: BlockCipher) -> Int {
   case cipher {
     Aes(key_size:, ..) -> key_size
@@ -184,6 +184,18 @@ pub fn cbc(cipher: BlockCipher, iv iv: BitArray) -> Result(CipherContext, Nil) {
 /// ## Returns
 /// - `Ok(CipherContext)` if the nonce is exactly 16 bytes
 /// - `Error(Nil)` if the nonce size is incorrect
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/block
+/// import kryptos/crypto
+///
+/// let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
+/// let assert Ok(ctx) = block.ctr(cipher, nonce: crypto.random_bytes(16))
+/// let assert Ok(ciphertext) = block.encrypt(ctx, <<"secret":utf8>>)
+/// let assert Ok(plaintext) = block.decrypt(ctx, ciphertext)
+/// ```
 pub fn ctr(
   cipher: BlockCipher,
   nonce nonce: BitArray,

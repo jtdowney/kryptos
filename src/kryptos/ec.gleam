@@ -46,6 +46,13 @@ pub type Curve {
 /// Returns the coordinate size in bytes for the given curve.
 ///
 /// This is the size of each coordinate (x or y) in an EC point.
+///
+/// ## Parameters
+/// - `curve`: The elliptic curve
+///
+/// ## Returns
+/// The coordinate size in bytes (32 for P256/Secp256k1, 48 for P384,
+/// 66 for P521).
 pub fn coordinate_size(curve: Curve) -> Int {
   case curve {
     P256 | Secp256k1 -> 32
@@ -162,6 +169,16 @@ pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
 /// ## Returns
 /// `Ok(public_key)` on success, `Error(Nil)` if the format is invalid
 /// or the point is not on the curve.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/ec
+///
+/// let #(_private_key, public_key) = ec.generate_key_pair(ec.P256)
+/// let point = ec.public_key_to_raw_point(public_key)
+/// let assert Ok(imported) = ec.public_key_from_raw_point(ec.P256, point)
+/// ```
 @external(erlang, "kryptos_ffi", "ec_public_key_from_raw_point")
 @external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyFromRawPoint")
 pub fn public_key_from_raw_point(
@@ -257,6 +274,15 @@ pub fn public_key_curve(key: PublicKey) -> Curve
 ///
 /// ## Returns
 /// The raw private scalar bytes.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/ec
+///
+/// let #(private_key, _public_key) = ec.generate_key_pair(ec.P256)
+/// let scalar = ec.to_bytes(private_key)
+/// ```
 @external(erlang, "kryptos_ffi", "ec_private_key_to_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "ecPrivateKeyToBytes")
 pub fn to_bytes(key: PrivateKey) -> BitArray
@@ -273,6 +299,16 @@ pub fn to_bytes(key: PrivateKey) -> BitArray
 ///
 /// ## Returns
 /// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if invalid.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/ec
+///
+/// let #(private_key, _public_key) = ec.generate_key_pair(ec.P256)
+/// let scalar = ec.to_bytes(private_key)
+/// let assert Ok(#(imported, _pub)) = ec.from_bytes(ec.P256, scalar)
+/// ```
 @external(erlang, "kryptos_ffi", "ec_private_key_from_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "ecPrivateKeyFromBytes")
 pub fn from_bytes(

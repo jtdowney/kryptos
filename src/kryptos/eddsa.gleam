@@ -35,8 +35,11 @@ pub type Curve {
 
 /// Returns the key size in bytes for the given curve.
 ///
-/// - Ed25519: 32 bytes
-/// - Ed448: 57 bytes
+/// ## Parameters
+/// - `curve`: The EdDSA curve
+///
+/// ## Returns
+/// The key size in bytes (32 for Ed25519, 57 for Ed448).
 pub fn key_size(curve: Curve) -> Int {
   case curve {
     Ed25519 -> 32

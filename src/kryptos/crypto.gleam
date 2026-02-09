@@ -1,5 +1,10 @@
 //// The crypto module provides cryptographic primitives.
 ////
+//// - **One-shot hashing** via `hash()` and **HMAC** via `hmac()`
+//// - **Key derivation**: HKDF (RFC 5869), PBKDF2 (RFC 8018), Concat KDF (NIST SP 800-56A)
+//// - **Random bytes** via `random_bytes()` and **UUID v4** via `random_uuid()`
+//// - **Constant-time comparison** via `constant_time_equal()`
+////
 //// ## Example
 ////
 //// ```gleam
@@ -30,8 +35,17 @@ import kryptos/internal/subtle
 /// - `data`: The data to hash
 ///
 /// ## Returns
-/// - `Ok(BitArray)` - The computed hash digest
-/// - `Error(Nil)` - If the hash algorithm is not supported by the runtime
+/// `Ok(BitArray)` containing the hash digest, or `Error(Nil)` if the hash
+/// algorithm is not supported by the runtime.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/crypto
+/// import kryptos/hash
+///
+/// let assert Ok(digest) = crypto.hash(hash.Sha256, <<"hello":utf8>>)
+/// ```
 pub fn hash(algorithm: HashAlgorithm, data: BitArray) -> Result(BitArray, Nil) {
   use hasher <- result.try(hash.new(algorithm))
   hasher
@@ -48,8 +62,17 @@ pub fn hash(algorithm: HashAlgorithm, data: BitArray) -> Result(BitArray, Nil) {
 /// - `data`: The data to authenticate
 ///
 /// ## Returns
-/// - `Ok(BitArray)` - The computed message authentication code
-/// - `Error(Nil)` - If the hash algorithm is not supported
+/// `Ok(BitArray)` containing the message authentication code, or
+/// `Error(Nil)` if the hash algorithm is not supported.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/crypto
+/// import kryptos/hash
+///
+/// let assert Ok(mac) = crypto.hmac(hash.Sha256, key: <<"secret":utf8>>, data: <<"hello":utf8>>)
+/// ```
 pub fn hmac(
   algorithm: HashAlgorithm,
   key key: BitArray,
@@ -76,8 +99,22 @@ pub fn hmac(
 /// - `length`: Desired output length in bytes (max: 255 * hash_length)
 ///
 /// ## Returns
-/// - `Ok(BitArray)` - The derived key material of the requested length
-/// - `Error(Nil)` - If the algorithm is not supported or length exceeds maximum
+/// `Ok(BitArray)` containing the derived key material of the requested
+/// length, or `Error(Nil)` if the algorithm is not supported or length
+/// exceeds the maximum.
+///
+/// ## Example
+///
+/// ```gleam
+/// import gleam/option
+/// import kryptos/crypto
+/// import kryptos/hash
+///
+/// let ikm = crypto.random_bytes(32)
+/// let salt = option.Some(crypto.random_bytes(16))
+/// let assert Ok(derived) =
+///   crypto.hkdf(hash.Sha256, input: ikm, salt:, info: <<"app":utf8>>, length: 32)
+/// ```
 pub fn hkdf(
   algorithm: HashAlgorithm,
   input ikm: BitArray,
@@ -112,8 +149,20 @@ pub fn hkdf(
 /// - `length`: Desired output length in bytes (max: 255 * hash_length)
 ///
 /// ## Returns
-/// - `Ok(BitArray)` - The derived key material of the requested length
-/// - `Error(Nil)` - If the algorithm is not supported or length is invalid
+/// `Ok(BitArray)` containing the derived key material of the requested
+/// length, or `Error(Nil)` if the algorithm is not supported or length
+/// is invalid.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/crypto
+/// import kryptos/hash
+///
+/// let secret = crypto.random_bytes(32)
+/// let assert Ok(derived) =
+///   crypto.concat_kdf(hash.Sha256, secret:, info: <<"context":utf8>>, length: 32)
+/// ```
 pub fn concat_kdf(
   algorithm: HashAlgorithm,
   secret secret: BitArray,
@@ -157,6 +206,11 @@ fn concat_kdf_supported_hash(algorithm: HashAlgorithm) -> Bool {
 /// PBKDF2 applies a pseudorandom function (HMAC) to derive keys from passwords.
 /// It is designed to be computationally expensive to resist brute-force attacks.
 ///
+/// **Note:** For password hashing in production applications, consider using
+/// [Argus](https://github.com/Pevensie/argus) which provides Argon2 an
+/// algorithm specifically designed for password storage. PBKDF2 is primarily
+/// useful for interoperability with systems that require it.
+///
 /// ## Parameters
 /// - `algorithm`: The hash algorithm to use for HMAC (must be HMAC-compatible).
 ///   SHA-256 or stronger is recommended; MD5 and SHA-1 are weak for password hashing.
@@ -166,8 +220,26 @@ fn concat_kdf_supported_hash(algorithm: HashAlgorithm) -> Bool {
 /// - `length`: Desired output length in bytes
 ///
 /// ## Returns
-/// - `Ok(BitArray)` - The derived key material of the requested length
-/// - `Error(Nil)` - If the algorithm is not supported, iterations <= 0, or length <= 0
+/// `Ok(BitArray)` containing the derived key material of the requested
+/// length, or `Error(Nil)` if the algorithm is not supported,
+/// iterations <= 0, or length <= 0.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/crypto
+/// import kryptos/hash
+///
+/// let salt = crypto.random_bytes(16)
+/// let assert Ok(derived) =
+///   crypto.pbkdf2(
+///     hash.Sha256,
+///     password: <<"hunter2":utf8>>,
+///     salt:,
+///     iterations: 100_000,
+///     length: 32,
+///   )
+/// ```
 pub fn pbkdf2(
   algorithm: HashAlgorithm,
   password password: BitArray,

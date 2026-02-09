@@ -71,8 +71,8 @@ pub fn gcm(cipher: BlockCipher) -> AeadContext {
 /// - `nonce_size`: The nonce size in bytes (1-64)
 ///
 /// ## Returns
-/// - `Ok(AeadContext)` if the nonce size is valid
-/// - `Error(Nil)` if the nonce size is out of range
+/// `Ok(AeadContext)` if the nonce size is valid, `Error(Nil)` if the
+/// nonce size is out of range.
 pub fn gcm_with_nonce_size(
   cipher: BlockCipher,
   nonce_size: Int,
@@ -109,8 +109,8 @@ pub fn ccm(cipher: BlockCipher) -> AeadContext {
 /// - `tag_size`: Authentication tag size in bytes (4, 6, 8, 10, 12, 14, or 16)
 ///
 /// ## Returns
-/// - `Ok(AeadContext)` if the sizes are valid
-/// - `Error(Nil)` if any size is out of range
+/// `Ok(AeadContext)` if the sizes are valid, `Error(Nil)` if any size
+/// is out of range.
 pub fn ccm_with_sizes(
   cipher: BlockCipher,
   nonce_size nonce_size: Int,
@@ -133,8 +133,8 @@ pub fn ccm_with_sizes(
 /// - `key`: A 32-byte (256-bit) key
 ///
 /// ## Returns
-/// - `Ok(AeadContext)` if the key is exactly 32 bytes
-/// - `Error(Nil)` if the key size is incorrect
+/// `Ok(AeadContext)` if the key is exactly 32 bytes, `Error(Nil)` if the
+/// key size is incorrect.
 pub fn chacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
   case bit_array.byte_size(key) == 32 {
     True -> Ok(ChaCha20Poly1305(key))
@@ -152,8 +152,8 @@ pub fn chacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
 /// - `key`: A 32-byte (256-bit) key
 ///
 /// ## Returns
-/// - `Ok(AeadContext)` if the key is exactly 32 bytes
-/// - `Error(Nil)` if the key size is incorrect
+/// `Ok(AeadContext)` if the key is exactly 32 bytes, `Error(Nil)` if the
+/// key size is incorrect.
 pub fn xchacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
   case bit_array.byte_size(key) == 32 {
     True -> Ok(XChaCha20Poly1305(key))
@@ -167,7 +167,10 @@ pub fn xchacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
 /// - `ctx`: The AEAD context
 ///
 /// ## Returns
-/// The nonce size in bytes (12 for AES-GCM and ChaCha20-Poly1305, 24 for XChaCha20-Poly1305).
+/// The nonce size in bytes. Default 12 for GCM (configurable 1-64 via
+/// `gcm_with_nonce_size`), 13 for CCM (configurable 7-13 via
+/// `ccm_with_sizes`), 12 for ChaCha20-Poly1305, or 24 for
+/// XChaCha20-Poly1305.
 pub fn nonce_size(ctx: AeadContext) -> Int {
   case ctx {
     Gcm(nonce_size:, ..) -> nonce_size
@@ -183,7 +186,9 @@ pub fn nonce_size(ctx: AeadContext) -> Int {
 /// - `ctx`: The AEAD context
 ///
 /// ## Returns
-/// The tag size in bytes (16 for AES-GCM)
+/// The tag size in bytes. 16 for GCM, ChaCha20-Poly1305, and
+/// XChaCha20-Poly1305. Configurable 4-16 (even values) for CCM via
+/// `ccm_with_sizes`.
 pub fn tag_size(ctx: AeadContext) -> Int {
   case ctx {
     Gcm(..) -> 16
@@ -202,8 +207,8 @@ pub fn tag_size(ctx: AeadContext) -> Int {
 /// - `plaintext`: The data to encrypt
 ///
 /// ## Returns
-/// - `Ok(#(ciphertext, tag))` with the encrypted data and authentication tag
-/// - `Error(Nil)` if the nonce size is incorrect
+/// `Ok(#(ciphertext, tag))` with the encrypted data and authentication tag,
+/// or `Error(Nil)` if the nonce size is incorrect.
 pub fn seal(
   ctx: AeadContext,
   nonce nonce: BitArray,
@@ -224,8 +229,8 @@ pub fn seal(
 /// - `additional_data`: Data to authenticate but not encrypt
 ///
 /// ## Returns
-/// - `Ok(#(ciphertext, tag))` with the encrypted data and authentication tag
-/// - `Error(Nil)` if the nonce size is incorrect or empty
+/// `Ok(#(ciphertext, tag))` with the encrypted data and authentication tag,
+/// or `Error(Nil)` if the nonce size is incorrect or empty.
 pub fn seal_with_aad(
   ctx: AeadContext,
   nonce nonce: BitArray,
@@ -264,8 +269,22 @@ fn do_seal(
 /// - `ciphertext`: The encrypted data
 ///
 /// ## Returns
-/// - `Ok(plaintext)` if authentication succeeds
-/// - `Error(Nil)` if authentication fails or nonce size is incorrect
+/// `Ok(plaintext)` if authentication succeeds, `Error(Nil)` if
+/// authentication fails or nonce size is incorrect.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/aead
+/// import kryptos/block
+/// import kryptos/crypto
+///
+/// let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
+/// let ctx = aead.gcm(cipher)
+/// let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+/// let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext: <<"secret":utf8>>)
+/// let assert Ok(plaintext) = aead.open(ctx, nonce:, tag:, ciphertext:)
+/// ```
 pub fn open(
   ctx: AeadContext,
   nonce nonce: BitArray,
@@ -287,8 +306,25 @@ pub fn open(
 /// - `additional_data`: The same AAD used during encryption
 ///
 /// ## Returns
-/// - `Ok(plaintext)` if authentication succeeds
-/// - `Error(Nil)` if authentication fails, AAD mismatch, or nonce size is incorrect/empty
+/// `Ok(plaintext)` if authentication succeeds, `Error(Nil)` if
+/// authentication fails, AAD mismatch, or nonce size is incorrect/empty.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/aead
+/// import kryptos/block
+/// import kryptos/crypto
+///
+/// let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
+/// let ctx = aead.gcm(cipher)
+/// let nonce = crypto.random_bytes(aead.nonce_size(ctx))
+/// let aad = <<"header":utf8>>
+/// let assert Ok(#(ciphertext, tag)) =
+///   aead.seal_with_aad(ctx, nonce:, plaintext: <<"secret":utf8>>, additional_data: aad)
+/// let assert Ok(plaintext) =
+///   aead.open_with_aad(ctx, nonce:, tag:, ciphertext:, additional_data: aad)
+/// ```
 pub fn open_with_aad(
   ctx: AeadContext,
   nonce nonce: BitArray,

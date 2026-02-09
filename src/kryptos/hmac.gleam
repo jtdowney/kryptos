@@ -53,8 +53,8 @@ pub type Hmac
 /// - `key`: The secret key for authentication
 ///
 /// ## Returns
-/// - `Ok(Hmac)` - A new HMAC ready to accept input data
-/// - `Error(Nil)` - If the hash algorithm is not supported
+/// `Ok(Hmac)` on success, `Error(Nil)` if the hash algorithm is not
+/// supported.
 pub fn new(algorithm: HashAlgorithm, key: BitArray) -> Result(Hmac, Nil) {
   case supported_hash(algorithm) {
     True -> do_new(algorithm, key)
@@ -105,9 +105,8 @@ pub fn final(hmac: Hmac) -> BitArray
 /// - `expected`: The expected MAC value to compare against
 ///
 /// ## Returns
-/// - `Ok(True)` - If the computed HMAC matches the expected value
-/// - `Ok(False)` - If the computed HMAC does not match
-/// - `Error(Nil)` - If the hash algorithm is not supported
+/// `Ok(True)` if the HMAC matches, `Ok(False)` if it does not, or
+/// `Error(Nil)` if the hash algorithm is not supported.
 pub fn verify(
   algorithm: HashAlgorithm,
   key key: BitArray,

@@ -453,16 +453,28 @@ pub fn private_exponent_bytes(key: PrivateKey) -> BitArray
 
 /// Returns the first prime factor (p) as big-endian bytes.
 ///
-/// This is part of the CRT (Chinese Remainder Theorem) parameters used
-/// for efficient RSA operations.
+/// The RSA modulus n = p * q. This is part of the CRT (Chinese Remainder
+/// Theorem) parameters used for efficient RSA operations.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The first prime factor as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_prime1")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrime1")
 pub fn prime1(key: PrivateKey) -> BitArray
 
 /// Returns the second prime factor (q) as big-endian bytes.
 ///
-/// This is part of the CRT (Chinese Remainder Theorem) parameters used
-/// for efficient RSA operations.
+/// The RSA modulus n = p * q. This is part of the CRT (Chinese Remainder
+/// Theorem) parameters used for efficient RSA operations.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The second prime factor as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_prime2")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrime2")
 pub fn prime2(key: PrivateKey) -> BitArray
@@ -471,6 +483,12 @@ pub fn prime2(key: PrivateKey) -> BitArray
 ///
 /// This is part of the CRT (Chinese Remainder Theorem) parameters used
 /// for efficient RSA operations.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The first CRT exponent as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_exponent1")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyExponent1")
 pub fn exponent1(key: PrivateKey) -> BitArray
@@ -479,6 +497,12 @@ pub fn exponent1(key: PrivateKey) -> BitArray
 ///
 /// This is part of the CRT (Chinese Remainder Theorem) parameters used
 /// for efficient RSA operations.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The second CRT exponent as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_exponent2")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyExponent2")
 pub fn exponent2(key: PrivateKey) -> BitArray
@@ -487,6 +511,12 @@ pub fn exponent2(key: PrivateKey) -> BitArray
 ///
 /// This is part of the CRT (Chinese Remainder Theorem) parameters used
 /// for efficient RSA operations.
+///
+/// ## Parameters
+/// - `key`: The private key
+///
+/// ## Returns
+/// The CRT coefficient as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_coefficient")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyCoefficient")
 pub fn coefficient(key: PrivateKey) -> BitArray
@@ -523,6 +553,18 @@ pub fn public_key_from_components(
 ///
 /// ## Returns
 /// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if components are invalid.
+///
+/// ## Example
+///
+/// ```gleam
+/// import kryptos/rsa
+///
+/// let assert Ok(#(private_key, _public_key)) = rsa.generate_key_pair(2048)
+/// let n = rsa.modulus(private_key)
+/// let e = rsa.public_exponent_bytes(private_key)
+/// let d = rsa.private_exponent_bytes(private_key)
+/// let assert Ok(#(reconstructed, _pub)) = rsa.from_components(n, e, d)
+/// ```
 pub fn from_components(
   n: BitArray,
   e: BitArray,
