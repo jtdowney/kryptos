@@ -1,4 +1,5 @@
 import gleam/bit_array
+import gleam/int
 import gleam/list
 import gleam/set
 import gleam/string
@@ -52,18 +53,18 @@ pub fn constant_time_equal_length_mismatch_test() {
 // Property: UUIDs are always unique
 pub fn uuid_uniqueness_property_test() {
   qcheck.run(qcheck.default_config(), qcheck.bounded_int(10, 100), fn(count) {
-    let uuids = list.map(list.range(1, count), fn(_) { crypto.random_uuid() })
-    let unique = set.from_list(uuids)
-    assert set.size(unique) == count
+    let uuids =
+      int.range(0, count, set.new(), fn(acc, _) {
+        set.insert(acc, crypto.random_uuid())
+      })
+    assert set.size(uuids) == count
   })
 }
 
 // Property: UUID format is always valid (version 4, correct structure)
 pub fn uuid_format_property_test() {
-  // Run 100 times to test format consistency
-  list.each(list.range(1, 100), fn(_) {
-    let uuid = crypto.random_uuid()
-
+  int.range(0, 100, [], fn(acc, _) { [crypto.random_uuid(), ..acc] })
+  |> list.each(fn(uuid) {
     // Length check
     assert string.length(uuid) == 36
 
