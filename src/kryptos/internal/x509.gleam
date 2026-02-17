@@ -1,10 +1,14 @@
 //// Shared X.509 parsing and encoding utilities for CSR and Certificate modules.
 
+import bitty as p
+import bitty/bytes as b
 import gleam/bit_array
 import gleam/list
+import gleam/option
 import gleam/result
 import gleam/string
 import gleam/string_tree
+import gleam/time/timestamp.{type Timestamp}
 import kryptos/ec
 import kryptos/ecdsa
 import kryptos/eddsa
@@ -104,131 +108,6 @@ pub fn verify_signature(
   }
 }
 
-/// Parse a DER SEQUENCE including its tag and length header.
-///
-/// Returns the complete SEQUENCE (tag + length + content) and remaining bytes.
-/// Returns Error(Nil) if the input does not start with a SEQUENCE tag.
-pub fn parse_sequence_with_header(
-  bytes: BitArray,
-) -> Result(#(BitArray, BitArray), Nil) {
-  case bytes {
-    <<0x30, _:bits>> -> {
-      use #(inner, remaining) <- result.try(der.parse_sequence(bytes))
-
-      let inner_len = bit_array.byte_size(inner)
-      let header_len =
-        bit_array.byte_size(bytes) - bit_array.byte_size(remaining) - inner_len
-      let total_len = header_len + inner_len
-      let assert Ok(full_seq) = bit_array.slice(bytes, 0, total_len)
-      Ok(#(full_seq, remaining))
-    }
-    _ -> Error(Nil)
-  }
-}
-
-/// Parse an X.509 signature algorithm from DER-encoded AlgorithmIdentifier.
-///
-/// Decodes the OID and returns the corresponding SignatureAlgorithm variant.
-/// Returns Error with the unknown OID if the algorithm is not recognized.
-pub fn parse_signature_algorithm(
-  bytes: BitArray,
-) -> Result(x509.SignatureAlgorithm, x509.Oid) {
-  case der.parse_oid(bytes) {
-    Ok(#(oid_components, _params)) ->
-      case oid_components {
-        [1, 2, 840, 113_549, 1, 1, 5] -> Ok(x509.RsaSha1)
-        [1, 2, 840, 113_549, 1, 1, 11] -> Ok(x509.RsaSha256)
-        [1, 2, 840, 113_549, 1, 1, 12] -> Ok(x509.RsaSha384)
-        [1, 2, 840, 113_549, 1, 1, 13] -> Ok(x509.RsaSha512)
-        [1, 2, 840, 10_045, 4, 1] -> Ok(x509.EcdsaSha1)
-        [1, 2, 840, 10_045, 4, 3, 2] -> Ok(x509.EcdsaSha256)
-        [1, 2, 840, 10_045, 4, 3, 3] -> Ok(x509.EcdsaSha384)
-        [1, 2, 840, 10_045, 4, 3, 4] -> Ok(x509.EcdsaSha512)
-        [1, 3, 101, 112] -> Ok(x509.Ed25519)
-        [1, 3, 101, 113] -> Ok(x509.Ed448)
-        _ -> Error(x509.Oid(oid_components))
-      }
-    Error(_) -> Error(x509.Oid([]))
-  }
-}
-
-/// Parse an X.509 distinguished name (DN) from DER encoding.
-///
-/// Decodes a Name structure containing RDNs (relative distinguished names).
-/// Returns Error(Nil) if the encoding is invalid.
-pub fn parse_name(bytes: BitArray) -> Result(x509.Name, Nil) {
-  parse_rdns(bytes, [])
-  |> result.map(x509.Name)
-}
-
-fn parse_rdns(
-  bytes: BitArray,
-  acc: List(x509.Rdn),
-) -> Result(List(x509.Rdn), Nil) {
-  case bytes {
-    <<>> -> Ok(list.reverse(acc))
-    _ -> {
-      use #(rdn_bytes, rest) <- result.try(der.parse_set(bytes))
-
-      parse_rdn_attributes(rdn_bytes, [])
-      |> result.try(fn(attributes) {
-        parse_rdns(rest, [x509.Rdn(attributes:), ..acc])
-      })
-    }
-  }
-}
-
-fn parse_rdn_attributes(
-  bytes: BitArray,
-  acc: List(#(x509.Oid, x509.AttributeValue)),
-) -> Result(List(#(x509.Oid, x509.AttributeValue)), Nil) {
-  case bytes {
-    <<>> -> Ok(list.reverse(acc))
-    _ -> {
-      use #(attr_bytes, rest) <- result.try(der.parse_sequence(bytes))
-      use #(oid_components, after_oid) <- result.try(der.parse_oid(attr_bytes))
-      use #(value, _) <- result.try(parse_attribute_value(after_oid))
-
-      parse_rdn_attributes(rest, [#(x509.Oid(oid_components), value), ..acc])
-    }
-  }
-}
-
-fn parse_attribute_value(
-  bytes: BitArray,
-) -> Result(#(x509.AttributeValue, BitArray), Nil) {
-  case bytes {
-    <<0x0c, _:bits>> -> {
-      use #(s, rest) <- result.try(der.parse_utf8_string(bytes))
-      Ok(#(x509.utf8_string(s), rest))
-    }
-    <<0x13, _:bits>> -> {
-      use #(s, rest) <- result.try(der.parse_printable_string(bytes))
-      Ok(#(x509.printable_string(s), rest))
-    }
-    <<0x14, _:bits>> -> {
-      // TeletexString - normalize to UTF8String
-      use #(s, rest) <- result.try(der.parse_teletex_string(bytes))
-      Ok(#(x509.utf8_string(s), rest))
-    }
-    <<0x16, _:bits>> -> {
-      use #(s, rest) <- result.try(der.parse_ia5_string(bytes))
-      Ok(#(x509.ia5_string(s), rest))
-    }
-    <<0x1c, _:bits>> -> {
-      // UniversalString - normalize to UTF8String
-      use #(s, rest) <- result.try(der.parse_universal_string(bytes))
-      Ok(#(x509.utf8_string(s), rest))
-    }
-    <<0x1e, _:bits>> -> {
-      // BMPString - normalize to UTF8String
-      use #(s, rest) <- result.try(der.parse_bmp_string(bytes))
-      Ok(#(x509.utf8_string(s), rest))
-    }
-    _ -> Error(Nil)
-  }
-}
-
 /// Encode an X.509 distinguished name to DER format.
 ///
 /// Produces a DER-encoded Name structure with RDN attributes sorted per RFC 5280.
@@ -236,10 +115,8 @@ fn parse_attribute_value(
 pub fn encode_name(name: x509.Name) -> Result(BitArray, Nil) {
   let x509.Name(rdns) = name
 
-  list.try_map(rdns, encode_rdn)
-  |> result.try(fn(encoded_rdns) {
-    der.encode_sequence(bit_array.concat(encoded_rdns))
-  })
+  use encoded_rdns <- result.try(list.try_map(rdns, encode_rdn))
+  der.encode_sequence(bit_array.concat(encoded_rdns))
 }
 
 fn encode_rdn(rdn: x509.Rdn) -> Result(BitArray, Nil) {
@@ -261,31 +138,7 @@ fn encode_attribute_type_and_value(
   der.encode_sequence(bit_array.concat([oid_encoded, encoded_value]))
 }
 
-/// Parse a public key from DER-encoded SubjectPublicKeyInfo.
-///
-/// Decodes the algorithm identifier and dispatches to the appropriate key parser (RSA, EC, Ed25519, etc.).
-/// Returns Error with the unknown OID if the algorithm is not supported.
-pub fn parse_public_key(
-  spki_bytes: BitArray,
-) -> Result(x509.PublicKey, x509.Oid) {
-  let result =
-    {
-      use #(spki_content, _) <- result.try(der.parse_sequence(spki_bytes))
-      use #(alg_id_bytes, after_alg) <- result.try(der.parse_sequence(
-        spki_content,
-      ))
-      use #(alg_oid, _alg_params) <- result.try(der.parse_oid(alg_id_bytes))
-      use _ <- result.try(der.parse_bit_string(after_alg))
-
-      Ok(alg_oid)
-    }
-    |> result.replace_error(x509.Oid([]))
-
-  result
-  |> result.try(dispatch_public_key_parse(_, spki_bytes))
-}
-
-fn dispatch_public_key_parse(
+pub fn dispatch_public_key_parse(
   alg_oid: List(Int),
   spki_bytes: BitArray,
 ) -> Result(x509.PublicKey, x509.Oid) {
@@ -324,80 +177,6 @@ fn dispatch_public_key_parse(
   }
 }
 
-/// Recursively parse a sequence of Subject Alternative Name entries.
-///
-/// Accumulates SAN entries from DER-encoded GeneralNames structure.
-/// Returns Error(Nil) if parsing fails for any entry.
-/// When is_critical is True, unknown GeneralName types cause an error.
-pub fn parse_general_names(
-  bytes: BitArray,
-  acc: List(x509.SubjectAltName),
-  is_critical: Bool,
-) -> Result(List(x509.SubjectAltName), Nil) {
-  case bytes {
-    <<>> -> Ok(list.reverse(acc))
-    _ -> {
-      use #(san, rest) <- result.try(parse_general_name(bytes, is_critical))
-      parse_general_names(rest, [san, ..acc], is_critical)
-    }
-  }
-}
-
-/// Parse a single Subject Alternative Name entry.
-///
-/// Decodes one GeneralName from DER encoding (DNS name, email, IP address, etc.).
-/// Returns Error(Nil) if the entry is malformed.
-/// When is_critical is True, unknown GeneralName types return Error.
-pub fn parse_general_name(
-  bytes: BitArray,
-  is_critical: Bool,
-) -> Result(#(x509.SubjectAltName, BitArray), Nil) {
-  use #(tag, value, rest) <- result.try(der.parse_tlv(bytes))
-
-  case tag {
-    // [0] otherName - SEQUENCE { type-id OID, [0] value ANY }
-    0xa0 -> {
-      use #(oid_components, after_oid) <- result.try(der.parse_oid(value))
-      use #(other_value, _) <- result.try(der.parse_context_tag(after_oid, 0))
-      Ok(#(x509.OtherName(x509.Oid(oid_components), other_value), rest))
-    }
-    // [1] rfc822Name (email)
-    0x81 -> {
-      bit_array.to_string(value)
-      |> result.map(fn(s) { #(x509.Email(s), rest) })
-    }
-    // [2] dNSName
-    0x82 -> {
-      bit_array.to_string(value)
-      |> result.map(fn(s) { #(x509.DnsName(s), rest) })
-    }
-    // [4] directoryName - explicit Name (SEQUENCE of RDNs)
-    0xa4 -> {
-      use #(name_content, _) <- result.try(der.parse_sequence(value))
-      use name <- result.try(parse_name(name_content))
-      Ok(#(x509.DirectoryName(name), rest))
-    }
-    // [6] uniformResourceIdentifier (URI)
-    0x86 -> {
-      bit_array.to_string(value)
-      |> result.map(fn(s) { #(x509.Uri(s), rest) })
-    }
-    // [7] iPAddress
-    0x87 -> Ok(#(x509.IpAddress(value), rest))
-    // [8] registeredID - implicit OID
-    0x88 -> {
-      // The value contains raw OID content bytes (without tag/length)
-      use oid_components <- result.try(der.decode_oid_components(value))
-      Ok(#(x509.RegisteredId(x509.Oid(oid_components)), rest))
-    }
-    _ ->
-      case is_critical {
-        True -> Error(Nil)
-        False -> Ok(#(x509.Unknown(tag, value), rest))
-      }
-  }
-}
-
 /// Encode a single Subject Alternative Name entry to DER format.
 ///
 /// Produces a context-specific tagged value for supported GeneralName types:
@@ -419,8 +198,10 @@ pub fn encode_general_name(san: x509.SubjectAltName) -> Result(BitArray, Nil) {
     }
     x509.RegisteredId(x509.Oid(components)) -> {
       use oid_encoded <- result.try(der.encode_oid(components))
-      // Extract just the OID content (skip tag and length) for implicit tagging
-      use #(_, oid_content, _) <- result.try(der.parse_tlv(oid_encoded))
+      use #(_, oid_content) <- result.try(
+        p.run(der.tlv(), on: oid_encoded)
+        |> result.replace_error(Nil),
+      )
       der.encode_context_primitive_tag(8, oid_content)
     }
     x509.OtherName(x509.Oid(oid_components), value) -> {
@@ -433,33 +214,119 @@ pub fn encode_general_name(san: x509.SubjectAltName) -> Result(BitArray, Nil) {
   }
 }
 
-/// Parse a single X.509 extension from DER encoding.
-///
-/// Extracts the extension OID, critical flag, and DER-encoded value bytes.
-/// Returns Error(Nil) if the extension structure is invalid.
-pub fn parse_single_extension(
-  bytes: BitArray,
-) -> Result(#(x509.Oid, Bool, BitArray), Nil) {
-  use #(oid_components, after_oid) <- result.try(der.parse_oid(bytes))
-  let #(is_critical, after_critical) = case after_oid {
-    <<0x01, 0x01, critical_byte, rest:bits>> -> #(critical_byte != 0, rest)
-    other -> #(False, other)
-  }
-  use #(value, _) <- result.try(der.parse_octet_string(after_critical))
-  Ok(#(x509.Oid(oid_components), is_critical, value))
+pub fn attribute_value() -> p.Parser(x509.AttributeValue) {
+  p.one_of([
+    der.utf8_string() |> p.map(x509.utf8_string),
+    der.numeric_string() |> p.map(x509.utf8_string),
+    der.printable_string() |> p.map(x509.printable_string),
+    der.teletex_string() |> p.map(x509.utf8_string),
+    der.ia5_string() |> p.map(x509.ia5_string),
+    der.universal_string() |> p.map(x509.utf8_string),
+    der.bmp_string() |> p.map(x509.utf8_string),
+  ])
 }
 
-/// Parse a Subject Alternative Name extension from DER-encoded bytes.
-///
-/// Decodes the extension value containing a GeneralNames sequence.
-/// Returns Error(Nil) if the extension format is invalid.
-/// When is_critical is True, unknown GeneralName types return Error.
-pub fn parse_san_extension(
-  bytes: BitArray,
-  is_critical: Bool,
-) -> Result(List(x509.SubjectAltName), Nil) {
-  use #(san_content, _) <- result.try(der.parse_sequence(bytes))
-  parse_general_names(san_content, [], is_critical)
+fn rdn_attribute() -> p.Parser(#(x509.Oid, x509.AttributeValue)) {
+  der.sequence(p.pair(der.oid() |> p.map(x509.Oid), attribute_value()))
+}
+
+fn rdn() -> p.Parser(x509.Rdn) {
+  der.set(p.many(rdn_attribute())) |> p.map(x509.Rdn)
+}
+
+pub fn name() -> p.Parser(x509.Name) {
+  p.many(rdn()) |> p.map(x509.Name)
+}
+
+pub fn signature_algorithm_oid() -> p.Parser(List(Int)) {
+  p.terminated(der.oid(), b.rest())
+}
+
+pub fn lookup_signature_algorithm(
+  oid: List(Int),
+) -> Result(x509.SignatureAlgorithm, x509.Oid) {
+  case oid {
+    [1, 2, 840, 113_549, 1, 1, 5] -> Ok(x509.RsaSha1)
+    [1, 2, 840, 113_549, 1, 1, 11] -> Ok(x509.RsaSha256)
+    [1, 2, 840, 113_549, 1, 1, 12] -> Ok(x509.RsaSha384)
+    [1, 2, 840, 113_549, 1, 1, 13] -> Ok(x509.RsaSha512)
+    [1, 2, 840, 10_045, 4, 1] -> Ok(x509.EcdsaSha1)
+    [1, 2, 840, 10_045, 4, 3, 2] -> Ok(x509.EcdsaSha256)
+    [1, 2, 840, 10_045, 4, 3, 3] -> Ok(x509.EcdsaSha384)
+    [1, 2, 840, 10_045, 4, 3, 4] -> Ok(x509.EcdsaSha512)
+    [1, 3, 101, 112] -> Ok(x509.Ed25519)
+    [1, 3, 101, 113] -> Ok(x509.Ed448)
+    _ -> Error(x509.Oid(oid))
+  }
+}
+
+pub fn general_name(is_critical: Bool) -> p.Parser(x509.SubjectAltName) {
+  use #(tag, value) <- p.then(der.tlv())
+  case tag {
+    0xa0 -> {
+      let parser = {
+        use oid_components <- p.then(der.oid())
+        use other_value <- p.then(der.context_tag(0, b.rest()))
+        p.success(x509.OtherName(x509.Oid(oid_components), other_value))
+      }
+      p.from_result(p.run(parser, on: value) |> result.replace_error(Nil))
+    }
+    0x81 -> p.from_result(bit_array.to_string(value) |> result.map(x509.Email))
+    0x82 ->
+      p.from_result(bit_array.to_string(value) |> result.map(x509.DnsName))
+    0xa4 -> {
+      p.from_result(
+        p.run(der.sequence(name()), on: value)
+        |> result.replace_error(Nil)
+        |> result.map(x509.DirectoryName),
+      )
+    }
+    0x86 -> p.from_result(bit_array.to_string(value) |> result.map(x509.Uri))
+    0x87 -> p.success(x509.IpAddress(value))
+    0x88 ->
+      p.from_result(
+        der.decode_oid_components(value)
+        |> result.map(fn(c) { x509.RegisteredId(x509.Oid(c)) }),
+      )
+    _ ->
+      case is_critical {
+        True -> p.fail("unknown critical general name tag")
+        False -> p.success(x509.Unknown(tag, value))
+      }
+  }
+}
+
+pub fn general_names(is_critical: Bool) -> p.Parser(List(x509.SubjectAltName)) {
+  p.many(general_name(is_critical))
+}
+
+pub fn single_extension() -> p.Parser(#(x509.Oid, Bool, BitArray)) {
+  use oid_components <- p.then(der.oid())
+  use is_critical <- p.then(
+    p.optional(der.boolean())
+    |> p.map(option.unwrap(_, False)),
+  )
+  use value <- p.then(der.octet_string())
+  p.success(#(x509.Oid(oid_components), is_critical, value))
+}
+
+pub fn san_extension(is_critical: Bool) -> p.Parser(List(x509.SubjectAltName)) {
+  der.sequence(general_names(is_critical))
+}
+
+pub fn time() -> p.Parser(Timestamp) {
+  p.one_of([der.utc_time(), der.generalized_time()])
+}
+
+pub fn public_key_info() -> p.Parser(#(List(Int), BitArray)) {
+  der.sequence_with_raw(p.terminated(
+    der.sequence(signature_algorithm_oid()),
+    der.bit_string(),
+  ))
+  |> p.map(fn(pair) {
+    let #(raw, alg_oid) = pair
+    #(alg_oid, raw)
+  })
 }
 
 /// Encode an X.509 AlgorithmIdentifier to DER format.
@@ -481,10 +348,9 @@ pub fn encode_algorithm_identifier(sig_alg: SigAlgInfo) -> Result(BitArray, Nil)
 /// Skips the algorithm identifier and returns only the BIT STRING key data.
 /// Returns Error(Nil) if the SPKI structure is invalid.
 pub fn extract_spki_public_key_bytes(spki: BitArray) -> Result(BitArray, Nil) {
-  use #(spki_content, _) <- result.try(der.parse_sequence(spki))
-  use #(_, after_alg) <- result.try(der.parse_sequence(spki_content))
-  use #(pub_key_bytes, _) <- result.try(der.parse_bit_string(after_alg))
-  Ok(pub_key_bytes)
+  let parser =
+    der.sequence(p.preceded(der.sequence(b.rest()), der.bit_string()))
+  p.run(parser, on: spki) |> result.replace_error(Nil)
 }
 
 /// Decode PEM-encoded data to DER bytes.

@@ -5,6 +5,7 @@ packages = [
   { name = "argv", version = "1.0.2", build_tools = ["gleam"], requirements = [], otp_app = "argv", source = "hex", outer_checksum = "BA1FF0929525DEBA1CE67256E5ADF77A7CDDFE729E3E3F57A5BDCAA031DED09D" },
   { name = "bigi", version = "4.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "bigi", source = "hex", outer_checksum = "1B95328C598546D86132A06B84202C1F4FFA9D32EE4D680763C0309861CB6A4A" },
   { name = "birdie", version = "1.5.4", build_tools = ["gleam"], requirements = ["argv", "edit_distance", "envoy", "filepath", "glance", "gleam_community_ansi", "gleam_stdlib", "global_value", "justin", "rank", "simplifile", "term_size", "tom", "trie_again"], otp_app = "birdie", source = "hex", outer_checksum = "BA5176A11460B4F182DCD24C7BC125DCAE9B8D99D06BB75BF7248E0C4843706A" },
+  { name = "bitty", version = "1.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "bitty", source = "hex", outer_checksum = "C972BA34A458BBD6857110E129E5F4C1C51AF426766A774BEB46CE54D3F86C71" },
   { name = "clip", version = "1.2.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "clip", source = "hex", outer_checksum = "FFDF5539D967399D22C58AADBF17423C56B5506055A7064D2A6620ED928E9ECF" },
   { name = "edit_distance", version = "3.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "edit_distance", source = "hex", outer_checksum = "7DC465C34695F9E57D79FC65670C53C992CE342BF29E0AA41FF44F61AF62FC56" },
   { name = "envoy", version = "1.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "envoy", source = "hex", outer_checksum = "850DA9D29D2E5987735872A2B5C81035146D7FE19EFC486129E44440D03FD832" },
@@ -41,6 +42,7 @@ packages = [
 [requirements]
 bigi = { version = ">= 4.1.0 and < 5.0.0" }
 birdie = { version = ">= 1.5.3 and < 2.0.0" }
+bitty = { version = ">= 1.0.0 and < 2.0.0" }
 filepath = { version = ">= 1.1.2 and < 2.0.0" }
 gleam_json = { version = ">= 3.1.0 and < 4.0.0" }
 gleam_regexp = { version = ">= 1.1.1 and < 2.0.0" }

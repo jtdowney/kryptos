@@ -1,4 +1,6 @@
+import bitty as p
 import gleam/list
+import gleam/result
 import kryptos/internal/x509 as internal_x509
 import kryptos/x509.{DnsName, Email, Unknown}
 
@@ -12,7 +14,8 @@ pub fn parse_unknown_san_type_continues_parsing_test() {
   >>
 
   let assert Ok(sans) =
-    internal_x509.parse_san_extension(san_extension_bytes, False)
+    p.run(internal_x509.san_extension(False), on: san_extension_bytes)
+    |> result.replace_error(Nil)
 
   assert list.length(sans) == 2
   assert list.contains(sans, Unknown(0xa3, <<"test":utf8>>))
@@ -24,7 +27,9 @@ pub fn parse_unknown_san_type_in_critical_extension_fails_test() {
     0x30, 0x13, 0xa3, 0x04, "test":utf8, dns_example_com:bits,
   >>
 
-  let result = internal_x509.parse_san_extension(san_extension_bytes, True)
+  let result =
+    p.run(internal_x509.san_extension(True), on: san_extension_bytes)
+    |> result.replace_error(Nil)
   assert result == Error(Nil)
 }
 
@@ -34,7 +39,8 @@ pub fn parse_edi_party_name_as_unknown_test() {
   >>
 
   let assert Ok(sans) =
-    internal_x509.parse_san_extension(san_extension_bytes, False)
+    p.run(internal_x509.san_extension(False), on: san_extension_bytes)
+    |> result.replace_error(Nil)
 
   assert list.length(sans) == 2
   assert list.contains(sans, Unknown(0xa5, <<0x01, 0x02, 0x03>>))
@@ -100,7 +106,8 @@ pub fn parse_multiple_unknown_san_types_test() {
   >>
 
   let assert Ok(sans) =
-    internal_x509.parse_san_extension(san_extension_bytes, False)
+    p.run(internal_x509.san_extension(False), on: san_extension_bytes)
+    |> result.replace_error(Nil)
 
   assert list.length(sans) == 4
   assert list.contains(sans, Unknown(0xa3, <<0xab, 0xcd>>))

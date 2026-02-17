@@ -31,9 +31,12 @@
 //// let pem = csr.to_pem(my_csr)
 //// ```
 
+import bitty as p
+import bitty/bytes as b
 import gleam/bit_array
 import gleam/bool
 import gleam/list
+import gleam/option.{type Option}
 import gleam/result
 import kryptos/ec
 import kryptos/ecdsa
@@ -73,6 +76,8 @@ pub opaque type Csr(status) {
   BuiltCsr(der: BitArray)
   ParsedCsr(
     der: BitArray,
+    cert_req_info_bytes: BitArray,
+    signature: BitArray,
     version: Int,
     subject: x509.Name,
     public_key: x509.PublicKey,
@@ -361,49 +366,18 @@ pub fn from_pem_unverified(pem: String) -> Result(Csr(Parsed), CsrError) {
 /// The parsed fields may not be trustworthy since the signature
 /// was not verified.
 pub fn from_der_unverified(der: BitArray) -> Result(Csr(Parsed), CsrError) {
-  use #(csr_content, remaining) <- result.try(
-    der.parse_sequence(der) |> result.replace_error(InvalidStructure),
-  )
-  use <- bool.guard(
-    when: bit_array.byte_size(remaining) != 0,
-    return: Error(InvalidStructure),
-  )
-
-  // Parse CertificationRequestInfo - we need to preserve the original bytes
-  use #(cert_req_info_bytes, after_info) <- result.try(
-    x509_internal.parse_sequence_with_header(csr_content)
+  use raw <- result.try(
+    p.run(csr_parser(), on: der)
     |> result.replace_error(InvalidStructure),
   )
 
-  // Parse the inner content of CertificationRequestInfo
-  use #(cert_req_info_content, _) <- result.try(
-    der.parse_sequence(cert_req_info_bytes)
-    |> result.replace_error(InvalidStructure),
-  )
+  use version <- result.try(parse_version(raw.info.version))
 
-  // Parse version (INTEGER)
-  use #(version_bytes, after_version) <- result.try(
-    der.parse_integer(cert_req_info_content)
-    |> result.replace_error(InvalidStructure),
-  )
-  use version <- result.try(parse_version(version_bytes))
-
-  // Parse subject (Name)
-  use #(subject_bytes, after_subject) <- result.try(
-    der.parse_sequence(after_version) |> result.replace_error(InvalidStructure),
-  )
-  use subject <- result.try(
-    x509_internal.parse_name(subject_bytes)
-    |> result.replace_error(InvalidStructure),
-  )
-
-  // Parse SubjectPublicKeyInfo
-  use #(spki_bytes, after_spki) <- result.try(
-    x509_internal.parse_sequence_with_header(after_subject)
-    |> result.replace_error(InvalidStructure),
-  )
   use public_key <- result.try(
-    x509_internal.parse_public_key(spki_bytes)
+    x509_internal.dispatch_public_key_parse(
+      raw.info.spki_alg_oid,
+      raw.info.spki_bytes,
+    )
     |> result.map_error(fn(oid) {
       case oid {
         x509.Oid([]) -> InvalidStructure
@@ -412,30 +386,22 @@ pub fn from_der_unverified(der: BitArray) -> Result(Csr(Parsed), CsrError) {
     }),
   )
 
-  // Parse attributes [0] (optional)
-  use #(subject_alt_names, extensions, attributes) <- result.try(
-    parse_attributes(after_spki) |> result.replace_error(InvalidStructure),
-  )
-
-  // Parse signature algorithm
-  use #(sig_alg_bytes, after_sig_alg) <- result.try(
-    der.parse_sequence(after_info) |> result.replace_error(InvalidStructure),
-  )
   use signature_algorithm <- result.try(
-    x509_internal.parse_signature_algorithm(sig_alg_bytes)
+    x509_internal.lookup_signature_algorithm(raw.sig_alg_oid)
     |> result.map_error(UnsupportedSignatureAlgorithm),
   )
 
-  // Parse signature (BIT STRING) - store for verification
-  use #(_signature, _) <- result.try(
-    der.parse_bit_string(after_sig_alg)
+  use #(subject_alt_names, extensions, attributes) <- result.try(
+    process_attributes(raw.info.raw_attributes)
     |> result.replace_error(InvalidStructure),
   )
 
   Ok(ParsedCsr(
     der:,
+    cert_req_info_bytes: raw.cert_req_info_bytes,
+    signature: raw.signature,
     version:,
-    subject:,
+    subject: raw.info.subject,
     public_key:,
     signature_algorithm:,
     subject_alt_names:,
@@ -545,8 +511,63 @@ fn parse_version(bytes: BitArray) -> Result(Int, CsrError) {
   }
 }
 
-fn parse_attributes(
-  bytes: BitArray,
+type RawCertReqInfo {
+  RawCertReqInfo(
+    version: BitArray,
+    subject: x509.Name,
+    spki_alg_oid: List(Int),
+    spki_bytes: BitArray,
+    raw_attributes: Option(List(#(List(Int), BitArray))),
+  )
+}
+
+type RawCsr {
+  RawCsr(
+    cert_req_info_bytes: BitArray,
+    info: RawCertReqInfo,
+    sig_alg_oid: List(Int),
+    signature: BitArray,
+  )
+}
+
+fn single_attribute_parser() -> p.Parser(#(List(Int), BitArray)) {
+  p.pair(der.oid(), der.set(b.rest()))
+}
+
+fn cert_req_info_parser() -> p.Parser(RawCertReqInfo) {
+  use version <- p.then(der.integer())
+  use subject <- p.then(der.sequence(x509_internal.name()))
+  use #(spki_alg_oid, spki_bytes) <- p.then(x509_internal.public_key_info())
+  use raw_attributes <- p.then(
+    p.optional(der.context_tag(
+      0,
+      p.many(der.sequence(single_attribute_parser())),
+    )),
+  )
+  p.success(RawCertReqInfo(
+    version:,
+    subject:,
+    spki_alg_oid:,
+    spki_bytes:,
+    raw_attributes:,
+  ))
+}
+
+fn csr_parser() -> p.Parser(RawCsr) {
+  der.sequence({
+    use #(cert_req_info_bytes, info) <- p.then(
+      der.sequence_with_raw(cert_req_info_parser()),
+    )
+    use sig_alg_oid <- p.then(
+      der.sequence(x509_internal.signature_algorithm_oid()),
+    )
+    use signature <- p.then(der.bit_string())
+    p.success(RawCsr(cert_req_info_bytes:, info:, sig_alg_oid:, signature:))
+  })
+}
+
+fn process_attributes(
+  raw_attributes: Option(List(#(List(Int), BitArray))),
 ) -> Result(
   #(
     List(x509.SubjectAltName),
@@ -555,18 +576,17 @@ fn parse_attributes(
   ),
   Nil,
 ) {
-  case der.parse_context_tag(bytes, 0) {
-    Ok(#(attrs_content, _)) ->
-      parse_attributes_content(attrs_content, [], [], [])
-    Error(_) -> Ok(#([], [], []))
+  case raw_attributes {
+    option.None -> Ok(#([], [], []))
+    option.Some(attrs) -> process_attributes_loop(attrs, [], [], [])
   }
 }
 
-fn parse_attributes_content(
-  bytes: BitArray,
+fn process_attributes_loop(
+  attrs: List(#(List(Int), BitArray)),
   sans: List(x509.SubjectAltName),
   exts: List(#(x509.Oid, Bool, BitArray)),
-  attrs: List(#(x509.Oid, BitArray)),
+  other: List(#(x509.Oid, BitArray)),
 ) -> Result(
   #(
     List(x509.SubjectAltName),
@@ -575,32 +595,23 @@ fn parse_attributes_content(
   ),
   Nil,
 ) {
-  case bytes {
-    <<>> -> Ok(#(sans, list.reverse(exts), list.reverse(attrs)))
-    _ -> {
-      use #(attr_bytes, rest) <- result.try(der.parse_sequence(bytes))
-      use #(oid, value) <- result.try(parse_single_attribute(attr_bytes))
-      case oid {
-        x509.Oid([1, 2, 840, 113_549, 1, 9, 14]) -> {
-          use #(new_sans, new_exts) <- result.try(parse_extension_request(value))
-          parse_attributes_content(
-            rest,
-            list.append(sans, new_sans),
-            list.append(exts, new_exts),
-            attrs,
-          )
-        }
-        _ ->
-          parse_attributes_content(rest, sans, exts, [#(oid, value), ..attrs])
-      }
+  case attrs {
+    [] -> Ok(#(sans, list.reverse(exts), list.reverse(other)))
+    [#([1, 2, 840, 113_549, 1, 9, 14], value), ..rest] -> {
+      use #(new_sans, new_exts) <- result.try(parse_extension_request(value))
+      process_attributes_loop(
+        rest,
+        list.append(sans, new_sans),
+        list.append(exts, new_exts),
+        other,
+      )
     }
+    [#(oid, value), ..rest] ->
+      process_attributes_loop(rest, sans, exts, [
+        #(x509.Oid(oid), value),
+        ..other
+      ])
   }
-}
-
-fn parse_single_attribute(bytes: BitArray) -> Result(#(x509.Oid, BitArray), Nil) {
-  use #(oid_components, after_oid) <- result.try(der.parse_oid(bytes))
-  use #(value, _) <- result.try(der.parse_set(after_oid))
-  Ok(#(x509.Oid(oid_components), value))
 }
 
 fn parse_extension_request(
@@ -613,7 +624,10 @@ fn parse_extension_request(
     when: bit_array.byte_size(bytes) == 0,
     return: Ok(#([], [])),
   )
-  use #(exts_content, _) <- result.try(der.parse_sequence(bytes))
+  use #(exts_content, _) <- result.try(
+    p.run_partial(der.sequence(b.rest()), on: bytes)
+    |> result.replace_error(Nil),
+  )
   parse_extensions(exts_content, [], [])
 }
 
@@ -628,16 +642,20 @@ fn parse_extensions(
   case bytes {
     <<>> -> Ok(#(sans, list.reverse(exts)))
     _ -> {
-      use #(ext_bytes, rest) <- result.try(der.parse_sequence(bytes))
+      use #(ext_bytes, rest) <- result.try(
+        p.run_partial(der.sequence(b.rest()), on: bytes)
+        |> result.replace_error(Nil),
+      )
       use #(oid, is_critical, value) <- result.try(
-        x509_internal.parse_single_extension(ext_bytes),
+        p.run(x509_internal.single_extension(), on: ext_bytes)
+        |> result.replace_error(Nil),
       )
       case oid {
         x509.Oid([2, 5, 29, 17]) -> {
-          use new_sans <- result.try(x509_internal.parse_san_extension(
-            value,
-            False,
-          ))
+          use new_sans <- result.try(
+            p.run(x509_internal.san_extension(False), on: value)
+            |> result.replace_error(Nil),
+          )
           parse_extensions(rest, list.append(sans, new_sans), exts)
         }
         _ -> parse_extensions(rest, sans, [#(oid, is_critical, value), ..exts])
@@ -647,30 +665,14 @@ fn parse_extensions(
 }
 
 fn verify_signature(csr: Csr(Parsed)) -> Result(Nil, CsrError) {
-  let assert ParsedCsr(der:, public_key:, signature_algorithm:, ..) = csr
+  let assert ParsedCsr(
+    cert_req_info_bytes:,
+    signature:,
+    public_key:,
+    signature_algorithm:,
+    ..,
+  ) = csr
 
-  // Extract the CertificationRequestInfo and signature from the DER
-  use #(csr_content, _) <- result.try(
-    der.parse_sequence(der) |> result.replace_error(InvalidStructure),
-  )
-
-  use #(cert_req_info_bytes, after_info) <- result.try(
-    x509_internal.parse_sequence_with_header(csr_content)
-    |> result.replace_error(InvalidStructure),
-  )
-
-  // Skip signature algorithm
-  use #(_, after_sig_alg) <- result.try(
-    der.parse_sequence(after_info) |> result.replace_error(InvalidStructure),
-  )
-
-  // Get signature
-  use #(signature, _) <- result.try(
-    der.parse_bit_string(after_sig_alg)
-    |> result.replace_error(InvalidStructure),
-  )
-
-  // Verify based on algorithm and key type
   let verified =
     x509_internal.verify_signature(
       public_key,

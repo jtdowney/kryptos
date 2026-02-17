@@ -17,6 +17,7 @@
 //// // valid == True
 //// ```
 
+import bitty as p
 import gleam/bit_array
 import gleam/bool
 import gleam/result
@@ -170,17 +171,10 @@ pub fn verify_rs(
 pub fn der_to_rs(der_sig: BitArray, curve: Curve) -> Result(BitArray, Nil) {
   let coord_size = ec.coordinate_size(curve)
 
-  use #(content, remaining) <- result.try(der.parse_sequence(der_sig))
-  use <- bool.guard(
-    when: bit_array.byte_size(remaining) != 0,
-    return: Error(Nil),
-  )
-
-  use #(r_bytes, remaining) <- result.try(der.parse_integer(content))
-  use #(s_bytes, remaining) <- result.try(der.parse_integer(remaining))
-  use <- bool.guard(
-    when: bit_array.byte_size(remaining) != 0,
-    return: Error(Nil),
+  let parser = der.sequence(p.pair(der.integer(), der.integer()))
+  use #(r_bytes, s_bytes) <- result.try(
+    p.run(parser, on: der_sig)
+    |> result.replace_error(Nil),
   )
 
   let r = utils.strip_leading_zeros(r_bytes)

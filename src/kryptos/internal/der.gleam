@@ -1,3 +1,6 @@
+import bitty as p
+import bitty/bytes as b
+import bitty/num
 import gleam/bit_array
 import gleam/bool
 import gleam/bytes_tree
@@ -21,6 +24,8 @@ const oid_tag = 0x06
 
 const utf8_string_tag = 0x0c
 
+const numeric_string_tag = 0x12
+
 const printable_string_tag = 0x13
 
 const teletex_string_tag = 0x14
@@ -39,6 +44,226 @@ const sequence_tag = 0x30
 
 const set_tag = 0x31
 
+/// Parser combinator for DER length encoding.
+pub fn length() -> p.Parser(Int) {
+  use first <- p.then(num.u8())
+  case first {
+    len if len < 128 -> p.success(len)
+    0x81 -> canonical_length(num.u8(), min: 128)
+    0x82 -> canonical_length(num.u16(num.BigEndian), min: 256)
+    _ -> p.fail("unsupported DER length form")
+  }
+}
+
+fn canonical_length(parser: p.Parser(Int), min min: Int) -> p.Parser(Int) {
+  use len <- p.then(parser)
+  case len >= min {
+    True -> p.success(len)
+    False -> p.fail("non-canonical DER length")
+  }
+}
+
+fn container(tag: Int, inner: p.Parser(a)) -> p.Parser(a) {
+  use _ <- p.then(b.tag(<<tag:8>>))
+  use len <- p.then(length())
+  p.within_bytes(len, run: inner)
+}
+
+fn string_combinator(tag: Int) -> p.Parser(String) {
+  use _ <- p.then(b.tag(<<tag:8>>))
+  use len <- p.then(length())
+  use content <- p.then(b.take(bytes: len))
+  p.from_result(bit_array.to_string(content))
+}
+
+/// Parser combinator for a DER SEQUENCE.
+///
+/// Runs `inner` on the bounded content of the sequence.
+pub fn sequence(inner: p.Parser(a)) -> p.Parser(a) {
+  container(sequence_tag, inner)
+}
+
+/// Parser combinator for a DER SET.
+///
+/// Runs `inner` on the bounded content of the set.
+pub fn set(inner: p.Parser(a)) -> p.Parser(a) {
+  container(set_tag, inner)
+}
+
+/// Parser combinator for a context-specific constructed tag.
+///
+/// Runs `inner` on the bounded content of the tagged element.
+pub fn context_tag(tag: Int, inner: p.Parser(a)) -> p.Parser(a) {
+  let tag_byte = int.bitwise_or(0xa0, tag)
+  container(tag_byte, inner)
+}
+
+/// Parser combinator for a DER SEQUENCE that also captures raw bytes.
+///
+/// Returns `#(raw_sequence_bytes, parsed_result)`.
+pub fn sequence_with_raw(inner: p.Parser(a)) -> p.Parser(#(BitArray, a)) {
+  use _ <- p.then(b.tag(<<sequence_tag:8>>))
+  use len <- p.then(length())
+  use content <- p.then(b.take(bytes: len))
+  let assert Ok(len_encoding) = encode_length(len)
+  let raw = bit_array.concat([<<sequence_tag:8>>, len_encoding, content])
+  use parsed <- p.then(p.from_result(
+    p.run(inner, on: content) |> result.replace_error(Nil),
+  ))
+  p.success(#(raw, parsed))
+}
+
+/// Parser combinator for a DER BOOLEAN.
+///
+/// Accepts any non-zero value as TRUE for BER interoperability.
+pub fn boolean() -> p.Parser(Bool) {
+  use _ <- p.then(b.tag(<<boolean_tag:8>>))
+  use len <- p.then(length())
+  use <- bool.lazy_guard(when: len != 1, return: fn() {
+    p.fail("invalid boolean length")
+  })
+  use byte <- p.then(num.u8())
+  p.success(byte != 0x00)
+}
+
+/// Parser combinator for a DER INTEGER.
+///
+/// Returns the raw value bytes (may include leading 0x00 for high-bit values).
+/// Rejects zero-length integers and non-minimal leading zero padding.
+pub fn integer() -> p.Parser(BitArray) {
+  use _ <- p.then(b.tag(<<integer_tag:8>>))
+  use len <- p.then(length())
+  use <- bool.lazy_guard(when: len == 0, return: fn() {
+    p.fail("empty integer")
+  })
+  use value <- p.then(b.take(bytes: len))
+  case value {
+    <<0x00, second:8, _:bits>> if second < 128 ->
+      p.fail("non-minimal integer encoding")
+    _ -> p.success(value)
+  }
+}
+
+/// Parser combinator for a DER BIT STRING.
+///
+/// Only accepts 0 unused bits; strips the unused-bits byte.
+pub fn bit_string() -> p.Parser(BitArray) {
+  use _ <- p.then(b.tag(<<bit_string_tag:8>>))
+  use len <- p.then(length())
+  use <- bool.lazy_guard(when: len == 0, return: fn() {
+    p.fail("empty bit string")
+  })
+  use unused_bits <- p.then(num.u8())
+  case unused_bits {
+    0 -> b.take(bytes: len - 1)
+    _ -> p.fail("non-zero unused bits")
+  }
+}
+
+/// Parser combinator for a DER OCTET STRING.
+pub fn octet_string() -> p.Parser(BitArray) {
+  use _ <- p.then(b.tag(<<octet_string_tag:8>>))
+  use len <- p.then(length())
+  b.take(bytes: len)
+}
+
+/// Parser combinator for a DER OID.
+pub fn oid() -> p.Parser(List(Int)) {
+  use _ <- p.then(b.tag(<<oid_tag:8>>))
+  use len <- p.then(length())
+  use <- bool.lazy_guard(when: len == 0, return: fn() { p.fail("empty OID") })
+  use oid_bytes <- p.then(b.take(bytes: len))
+  p.from_result(decode_oid_components(oid_bytes))
+}
+
+/// Parser combinator for a DER UTF8String.
+pub fn utf8_string() -> p.Parser(String) {
+  string_combinator(utf8_string_tag)
+}
+
+/// Parser combinator for a DER NumericString.
+pub fn numeric_string() -> p.Parser(String) {
+  string_combinator(numeric_string_tag)
+}
+
+/// Parser combinator for a DER PrintableString.
+pub fn printable_string() -> p.Parser(String) {
+  string_combinator(printable_string_tag)
+}
+
+/// Parser combinator for a DER IA5String.
+pub fn ia5_string() -> p.Parser(String) {
+  string_combinator(ia5_string_tag)
+}
+
+/// Parser combinator for a DER TeletexString (T61String).
+///
+/// Converts from ISO 8859-1 (Latin-1) to UTF-8.
+pub fn teletex_string() -> p.Parser(String) {
+  use _ <- p.then(b.tag(<<teletex_string_tag:8>>))
+  use len <- p.then(length())
+  use content <- p.then(b.take(bytes: len))
+  p.from_result(latin1_to_utf8(content))
+}
+
+/// Parser combinator for a DER BMPString.
+///
+/// Converts from UCS-2 big-endian to UTF-8.
+pub fn bmp_string() -> p.Parser(String) {
+  use _ <- p.then(b.tag(<<bmp_string_tag:8>>))
+  use len <- p.then(length())
+  use content <- p.then(b.take(bytes: len))
+  case bit_array.byte_size(content) % 2 {
+    0 -> p.from_result(ucs2_to_utf8(content))
+    _ -> p.fail("odd BMP string length")
+  }
+}
+
+/// Parser combinator for a DER UniversalString.
+///
+/// Converts from UCS-4 big-endian to UTF-8.
+pub fn universal_string() -> p.Parser(String) {
+  use _ <- p.then(b.tag(<<universal_string_tag:8>>))
+  use len <- p.then(length())
+  use content <- p.then(b.take(bytes: len))
+  case bit_array.byte_size(content) % 4 {
+    0 -> p.from_result(ucs4_to_utf8(content))
+    _ -> p.fail("invalid UniversalString length")
+  }
+}
+
+/// Parser combinator for a DER UTCTime.
+pub fn utc_time() -> p.Parser(Timestamp) {
+  use _ <- p.then(b.tag(<<utc_time_tag:8>>))
+  use len <- p.then(length())
+  use <- bool.lazy_guard(when: len != 13, return: fn() {
+    p.fail("invalid UTC time length")
+  })
+  use time_bytes <- p.then(b.take(bytes: len))
+  p.from_result(bits_to_utc_timestamp(time_bytes))
+}
+
+/// Parser combinator for a DER GeneralizedTime.
+pub fn generalized_time() -> p.Parser(Timestamp) {
+  use _ <- p.then(b.tag(<<generalized_time_tag:8>>))
+  use len <- p.then(length())
+  use <- bool.lazy_guard(when: len != 15, return: fn() {
+    p.fail("invalid GeneralizedTime length")
+  })
+  use time_bytes <- p.then(b.take(bytes: len))
+  p.from_result(bits_to_generalized_timestamp(time_bytes))
+}
+
+/// Parser combinator for any DER TLV element.
+///
+/// Returns `#(tag, value_bytes)`.
+pub fn tlv() -> p.Parser(#(Int, BitArray)) {
+  use tag <- p.then(num.u8())
+  use len <- p.then(length())
+  use content <- p.then(b.take(bytes: len))
+  p.success(#(tag, content))
+}
+
 /// Encode a length in DER format.
 ///
 /// Supports lengths up to 65,535 bytes (sufficient for X.509 structures).
@@ -53,40 +278,11 @@ pub fn encode_length(len: Int) -> Result(BitArray, Nil) {
   }
 }
 
-/// Parse DER length encoding, returning (length, remaining bytes).
-///
-/// Supports short form (1 byte) and long form (0x81 + 1 byte, 0x82 + 2 bytes).
-/// Rejects non-canonical encodings (e.g., 0x81 for values < 128).
-pub fn parse_length(bytes: BitArray) -> Result(#(Int, BitArray), Nil) {
-  case bytes {
-    <<len:8, rest:bits>> if len < 128 -> Ok(#(len, rest))
-    <<0x81, len:8, rest:bits>> if len >= 128 -> Ok(#(len, rest))
-    <<0x82, len:16, rest:bits>> if len >= 256 -> Ok(#(len, rest))
-    _ -> Error(Nil)
-  }
-}
-
 /// Encode a boolean as a DER BOOLEAN.
 pub fn encode_bool(value: Bool) -> BitArray {
   case value {
     True -> <<boolean_tag, 0x01, 0xff>>
     False -> <<boolean_tag, 0x01, 0x00>>
-  }
-}
-
-/// Parse a DER BOOLEAN, returning (value, remaining bytes).
-///
-/// Accepts any non-zero value as TRUE for BER interoperability,
-/// as some certificates in the wild use non-0xFF values for TRUE.
-pub fn parse_bool(bytes: BitArray) -> Result(#(Bool, BitArray), Nil) {
-  use rest <- require_tag(bytes, boolean_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use <- bool.guard(when: len != 1, return: Error(Nil))
-
-  case content {
-    <<0x00, remaining:bits>> -> Ok(#(False, remaining))
-    <<_value:8, remaining:bits>> -> Ok(#(True, remaining))
-    _ -> Error(Nil)
   }
 }
 
@@ -121,58 +317,16 @@ pub fn encode_small_int(n: Int) -> Result(BitArray, Nil) {
   }
 }
 
-/// Parse a DER INTEGER, returning (value bytes, remaining bytes).
-///
-/// The returned value bytes may have a leading 0x00 if the high bit was set.
-/// Rejects zero-length integers and non-minimal leading zero padding.
-pub fn parse_integer(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
-  use rest <- require_tag(bytes, integer_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use <- bool.guard(when: len <= 0, return: Error(Nil))
-
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-
-  // Safety: Prior guard ensures content_size >= len, so slice succeeds
-  let assert Ok(value) = bit_array.slice(content, 0, len)
-  use <- reject_non_minimal_zeros(value)
-
-  // Safety: Prior guard ensures content_size >= len, so slice succeeds
-  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
-  Ok(#(value, remaining))
-}
-
 /// Wrap content in a DER SEQUENCE.
 pub fn encode_sequence(content: BitArray) -> Result(BitArray, Nil) {
   use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
   Ok(bit_array.concat([<<sequence_tag>>, len_bytes, content]))
 }
 
-/// Parse the content of a DER SEQUENCE, returning (inner bytes, remaining bytes).
-pub fn parse_sequence(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
-  use rest <- require_tag(bytes, sequence_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-
-  // Safety: Prior guard ensures content_size >= len, so slices succeed
-  let assert Ok(inner) = bit_array.slice(content, 0, len)
-  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
-  Ok(#(inner, remaining))
-}
-
 /// Wrap content in a DER SET.
 pub fn encode_set(content: BitArray) -> Result(BitArray, Nil) {
   use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
   Ok(bit_array.concat([<<set_tag>>, len_bytes, content]))
-}
-
-/// Parse the content of a DER SET, returning (inner bytes, remaining bytes).
-pub fn parse_set(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
-  use rest <- require_tag(bytes, set_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  parse_content(content, len)
 }
 
 /// Encode a BIT STRING.
@@ -191,36 +345,10 @@ pub fn encode_bit_string(value: BitArray) -> Result(BitArray, Nil) {
   Ok(bit_array.concat([<<bit_string_tag>>, len_bytes, content]))
 }
 
-/// Parse a DER BIT STRING, returning (value bytes, remaining bytes).
-///
-/// The first byte of a BIT STRING indicates unused bits; this function
-/// only accepts 0 unused bits and strips that byte from the result.
-pub fn parse_bit_string(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
-  use rest <- require_tag(bytes, bit_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use <- bool.guard(when: len < 1, return: Error(Nil))
-
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-
-  case content {
-    <<0x00, value:bytes-size(len - 1), remaining:bits>> ->
-      Ok(#(value, remaining))
-    _ -> Error(Nil)
-  }
-}
-
 /// Encode an OCTET STRING.
 pub fn encode_octet_string(value: BitArray) -> Result(BitArray, Nil) {
   use len_bytes <- result.try(encode_length(bit_array.byte_size(value)))
   Ok(bit_array.concat([<<octet_string_tag>>, len_bytes, value]))
-}
-
-/// Parse a DER OCTET STRING, returning (value bytes, remaining bytes).
-pub fn parse_octet_string(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
-  use rest <- require_tag(bytes, octet_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  parse_content(content, len)
 }
 
 /// Encode a UTF8String.
@@ -228,59 +356,6 @@ pub fn encode_utf8_string(value: String) -> Result(BitArray, Nil) {
   let content = bit_array.from_string(value)
   use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
   Ok(bit_array.concat([<<utf8_string_tag>>, len_bytes, content]))
-}
-
-/// Parse a DER UTF8String, returning (string value, remaining bytes).
-pub fn parse_utf8_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, utf8_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
-  use value <- result.try(bit_array.to_string(value_bytes))
-  Ok(#(value, remaining))
-}
-
-/// Check if a codepoint is valid for PrintableString per RFC 5280.
-fn is_printable_char(codepoint: Int) -> Bool {
-  case codepoint {
-    // A-Z
-    c if c >= 65 && c <= 90 -> True
-    // a-z
-    c if c >= 97 && c <= 122 -> True
-    // 0-9
-    c if c >= 48 && c <= 57 -> True
-    // space
-    32 -> True
-    // '
-    39 -> True
-    // ( )
-    40 | 41 -> True
-    // +
-    43 -> True
-    // ,
-    44 -> True
-    // -
-    45 -> True
-    // .
-    46 -> True
-    // /
-    47 -> True
-    // :
-    58 -> True
-    // =
-    61 -> True
-    // ?
-    63 -> True
-    _ -> False
-  }
-}
-
-fn is_valid_printable_string(value: BitArray) -> Bool {
-  case value {
-    <<>> -> True
-    <<byte:8, rest:bits>> ->
-      is_printable_char(byte) && is_valid_printable_string(rest)
-    _ -> False
-  }
 }
 
 /// Encode a PrintableString (ASCII subset per RFC 5280).
@@ -296,71 +371,11 @@ pub fn encode_printable_string(value: String) -> Result(BitArray, Nil) {
   Ok(bit_array.concat([<<printable_string_tag>>, len_bytes, content]))
 }
 
-/// Parse a DER PrintableString, returning (string value, remaining bytes).
-pub fn parse_printable_string(
-  bytes: BitArray,
-) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, printable_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
-  use value <- result.try(bit_array.to_string(value_bytes))
-  Ok(#(value, remaining))
-}
-
 /// Encode an IA5String (ASCII).
 pub fn encode_ia5_string(value: String) -> Result(BitArray, Nil) {
   let content = bit_array.from_string(value)
   use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
   Ok(bit_array.concat([<<ia5_string_tag>>, len_bytes, content]))
-}
-
-/// Parse a DER IA5String, returning (string value, remaining bytes).
-pub fn parse_ia5_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, ia5_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
-  use value <- result.try(bit_array.to_string(value_bytes))
-  Ok(#(value, remaining))
-}
-
-/// Parse a DER TeletexString (T61String), returning (string value, remaining bytes).
-///
-/// TeletexString uses ISO 8859-1 (Latin-1) encoding, where each byte represents
-/// one character. This is a decode-only function for legacy certificate compatibility.
-pub fn parse_teletex_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, teletex_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
-  use value <- result.try(latin1_to_utf8(value_bytes))
-  Ok(#(value, remaining))
-}
-
-/// Parse a DER BMPString, returning (string value, remaining bytes).
-///
-/// BMPString uses UCS-2 big-endian encoding (2 bytes per character).
-/// This is a decode-only function for legacy certificate compatibility.
-pub fn parse_bmp_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, bmp_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use <- bool.guard(when: len % 2 != 0, return: Error(Nil))
-  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
-  use value <- result.try(ucs2_to_utf8(value_bytes))
-  Ok(#(value, remaining))
-}
-
-/// Parse a DER UniversalString, returning (string value, remaining bytes).
-///
-/// UniversalString uses UCS-4 big-endian encoding (4 bytes per character).
-/// This is a decode-only function for legacy certificate compatibility.
-pub fn parse_universal_string(
-  bytes: BitArray,
-) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, universal_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use <- bool.guard(when: len % 4 != 0, return: Error(Nil))
-  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
-  use value <- result.try(ucs4_to_utf8(value_bytes))
-  Ok(#(value, remaining))
 }
 
 /// Encode a DER Timestamp, returning a BitArray.
@@ -390,44 +405,6 @@ fn encode_utc_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
   Ok(bit_array.concat([<<utc_time_tag>>, len_bytes, bytes]))
 }
 
-/// Parse a UTCTime, returning (Timestamp, remaining).
-/// UTCTime uses 2-digit years: 00-49 = 2000-2049, 50-99 = 1950-1999.
-pub fn parse_utc_time(bytes: BitArray) -> Result(#(Timestamp, BitArray), Nil) {
-  use rest <- require_tag(bytes, utc_time_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use <- bool.guard(when: len != 13, return: Error(Nil))
-  use #(time_bytes, remaining) <- result.try(parse_content(content, len))
-  use time_str <- result.try(bit_array.to_string(time_bytes))
-  use <- bool.guard(when: !string.ends_with(time_str, "Z"), return: Error(Nil))
-
-  use yy <- result.try(int.parse(string.slice(time_str, 0, 2)))
-  use month_int <- result.try(int.parse(string.slice(time_str, 2, 2)))
-  use month <- result.try(calendar.month_from_int(month_int))
-  use day <- result.try(int.parse(string.slice(time_str, 4, 2)))
-  use hour <- result.try(int.parse(string.slice(time_str, 6, 2)))
-  use minute <- result.try(int.parse(string.slice(time_str, 8, 2)))
-  use second <- result.try(int.parse(string.slice(time_str, 10, 2)))
-
-  let year = case yy >= 50 {
-    True -> 1900 + yy
-    False -> 2000 + yy
-  }
-
-  let ts =
-    timestamp.from_calendar(
-      calendar.Date(year:, month:, day:),
-      calendar.TimeOfDay(
-        hours: hour,
-        minutes: minute,
-        seconds: second,
-        nanoseconds: 0,
-      ),
-      calendar.utc_offset,
-    )
-
-  Ok(#(ts, remaining))
-}
-
 /// Format: YYYYMMDDHHMMSSZ
 pub fn encode_generalized_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
   let #(date, time) = timestamp.to_calendar(timestamp, calendar.utc_offset)
@@ -444,40 +421,6 @@ pub fn encode_generalized_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
   let bytes = bit_array.from_string(content)
   use len_bytes <- result.try(encode_length(bit_array.byte_size(bytes)))
   Ok(bit_array.concat([<<generalized_time_tag>>, len_bytes, bytes]))
-}
-
-/// Parse a GeneralizedTime, returning (Timestamp, remaining).
-pub fn parse_generalized_time(
-  bytes: BitArray,
-) -> Result(#(Timestamp, BitArray), Nil) {
-  use rest <- require_tag(bytes, generalized_time_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use <- bool.guard(when: len != 15, return: Error(Nil))
-  use #(time_bytes, remaining) <- result.try(parse_content(content, len))
-  use time_str <- result.try(bit_array.to_string(time_bytes))
-  use <- bool.guard(when: !string.ends_with(time_str, "Z"), return: Error(Nil))
-
-  use year <- result.try(int.parse(string.slice(time_str, 0, 4)))
-  use month_int <- result.try(int.parse(string.slice(time_str, 4, 2)))
-  use month <- result.try(calendar.month_from_int(month_int))
-  use day <- result.try(int.parse(string.slice(time_str, 6, 2)))
-  use hour <- result.try(int.parse(string.slice(time_str, 8, 2)))
-  use minute <- result.try(int.parse(string.slice(time_str, 10, 2)))
-  use second <- result.try(int.parse(string.slice(time_str, 12, 2)))
-
-  let timestamp =
-    timestamp.from_calendar(
-      calendar.Date(year:, month:, day:),
-      calendar.TimeOfDay(
-        hours: hour,
-        minutes: minute,
-        seconds: second,
-        nanoseconds: 0,
-      ),
-      calendar.utc_offset,
-    )
-
-  Ok(#(timestamp, remaining))
 }
 
 /// Encode an OID (Object Identifier).
@@ -503,23 +446,6 @@ pub fn encode_oid(components: List(Int)) -> Result(BitArray, Nil) {
   }
 }
 
-/// Parse a DER OID, returning (components list, remaining bytes).
-pub fn parse_oid(bytes: BitArray) -> Result(#(List(Int), BitArray), Nil) {
-  use rest <- require_tag(bytes, oid_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use <- bool.guard(when: len < 1, return: Error(Nil))
-
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-
-  // Safety: Prior guard ensures content_size >= len, so slices succeed
-  let assert Ok(oid_bytes) = bit_array.slice(content, 0, len)
-  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
-
-  use components <- result.try(decode_oid_components(oid_bytes))
-  Ok(#(components, remaining))
-}
-
 /// Encode a context-specific tag (e.g., [0], [1]).
 ///
 /// Uses constructed form (tag | 0xA0).
@@ -527,19 +453,6 @@ pub fn encode_context_tag(tag: Int, content: BitArray) -> Result(BitArray, Nil) 
   let tag_byte = int.bitwise_or(0xa0, tag)
   use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
   Ok(bit_array.concat([<<tag_byte:8>>, len_bytes, content]))
-}
-
-/// Parse a context-specific constructed tag (e.g., [0], [1]).
-///
-/// Returns (inner bytes, remaining bytes) if the tag matches.
-pub fn parse_context_tag(
-  bytes: BitArray,
-  tag: Int,
-) -> Result(#(BitArray, BitArray), Nil) {
-  let tag_byte = int.bitwise_or(0xa0, tag)
-  use rest <- require_tag(bytes, tag_byte)
-  use #(len, content) <- result.try(parse_length(rest))
-  parse_content(content, len)
 }
 
 /// Encode a context-specific primitive tag (e.g., [0], [2] for SANs).
@@ -552,52 +465,6 @@ pub fn encode_context_primitive_tag(
   let tag_byte = int.bitwise_or(0x80, tag)
   use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
   Ok(bit_array.concat([<<tag_byte:8>>, len_bytes, content]))
-}
-
-/// Parse content of a given length, returning (value, remaining bytes).
-pub fn parse_content(
-  content: BitArray,
-  len: Int,
-) -> Result(#(BitArray, BitArray), Nil) {
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-  // Safety: Prior guard ensures content_size >= len, so slices succeed
-  let assert Ok(inner) = bit_array.slice(content, 0, len)
-  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
-  Ok(#(inner, remaining))
-}
-
-/// Parse a TLV element, returning (tag, value, remaining bytes).
-pub fn parse_tlv(bytes: BitArray) -> Result(#(Int, BitArray, BitArray), Nil) {
-  case bytes {
-    <<tag:8, rest:bits>> -> {
-      use #(len, content) <- result.try(parse_length(rest))
-      use #(value, remaining) <- result.try(parse_content(content, len))
-      Ok(#(tag, value, remaining))
-    }
-    _ -> Error(Nil)
-  }
-}
-
-fn require_tag(
-  bytes: BitArray,
-  tag: Int,
-  next: fn(BitArray) -> Result(a, Nil),
-) -> Result(a, Nil) {
-  case bytes {
-    <<t:8, rest:bits>> if t == tag -> next(rest)
-    _ -> Error(Nil)
-  }
-}
-
-fn reject_non_minimal_zeros(
-  value: BitArray,
-  next: fn() -> Result(a, Nil),
-) -> Result(a, Nil) {
-  case value {
-    <<0x00, second:8, _:bits>> if second < 128 -> Error(Nil)
-    _ -> next()
-  }
 }
 
 fn bytes_from_list(bytes: List(Int)) -> BitArray {
@@ -690,6 +557,89 @@ fn decode_oid_rest(
       }
     }
     _ -> Error(Nil)
+  }
+}
+
+fn bits_to_utc_timestamp(time_bytes: BitArray) -> Result(Timestamp, Nil) {
+  use time_str <- result.try(bit_array.to_string(time_bytes))
+  use <- bool.guard(when: !string.ends_with(time_str, "Z"), return: Error(Nil))
+
+  use yy <- result.try(int.parse(string.slice(time_str, 0, 2)))
+  use month_int <- result.try(int.parse(string.slice(time_str, 2, 2)))
+  use month <- result.try(calendar.month_from_int(month_int))
+  use day <- result.try(int.parse(string.slice(time_str, 4, 2)))
+  use hour <- result.try(int.parse(string.slice(time_str, 6, 2)))
+  use minute <- result.try(int.parse(string.slice(time_str, 8, 2)))
+  use second <- result.try(int.parse(string.slice(time_str, 10, 2)))
+
+  let year = case yy >= 50 {
+    True -> 1900 + yy
+    False -> 2000 + yy
+  }
+
+  Ok(timestamp.from_calendar(
+    calendar.Date(year:, month:, day:),
+    calendar.TimeOfDay(
+      hours: hour,
+      minutes: minute,
+      seconds: second,
+      nanoseconds: 0,
+    ),
+    calendar.utc_offset,
+  ))
+}
+
+fn bits_to_generalized_timestamp(time_bytes: BitArray) -> Result(Timestamp, Nil) {
+  use time_str <- result.try(bit_array.to_string(time_bytes))
+  use <- bool.guard(when: !string.ends_with(time_str, "Z"), return: Error(Nil))
+
+  use year <- result.try(int.parse(string.slice(time_str, 0, 4)))
+  use month_int <- result.try(int.parse(string.slice(time_str, 4, 2)))
+  use month <- result.try(calendar.month_from_int(month_int))
+  use day <- result.try(int.parse(string.slice(time_str, 6, 2)))
+  use hour <- result.try(int.parse(string.slice(time_str, 8, 2)))
+  use minute <- result.try(int.parse(string.slice(time_str, 10, 2)))
+  use second <- result.try(int.parse(string.slice(time_str, 12, 2)))
+
+  Ok(timestamp.from_calendar(
+    calendar.Date(year:, month:, day:),
+    calendar.TimeOfDay(
+      hours: hour,
+      minutes: minute,
+      seconds: second,
+      nanoseconds: 0,
+    ),
+    calendar.utc_offset,
+  ))
+}
+
+/// Check if a codepoint is valid for PrintableString per RFC 5280.
+fn is_printable_char(codepoint: Int) -> Bool {
+  case codepoint {
+    c if c >= 65 && c <= 90 -> True
+    c if c >= 97 && c <= 122 -> True
+    c if c >= 48 && c <= 57 -> True
+    32 -> True
+    39 -> True
+    40 | 41 -> True
+    43 -> True
+    44 -> True
+    45 -> True
+    46 -> True
+    47 -> True
+    58 -> True
+    61 -> True
+    63 -> True
+    _ -> False
+  }
+}
+
+fn is_valid_printable_string(value: BitArray) -> Bool {
+  case value {
+    <<>> -> True
+    <<byte:8, rest:bits>> ->
+      is_printable_char(byte) && is_valid_printable_string(rest)
+    _ -> False
   }
 }
 

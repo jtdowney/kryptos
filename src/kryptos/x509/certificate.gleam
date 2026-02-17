@@ -60,6 +60,7 @@
 //// let assert Ok(Nil) = certificate.verify_self_signed(cert)
 //// ```
 
+import bitty as p
 import gleam/bit_array
 import gleam/bool
 import gleam/int
@@ -67,7 +68,6 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/set.{type Set}
-import gleam/time/timestamp.{type Timestamp}
 import kryptos/crypto
 import kryptos/ec
 import kryptos/ecdsa
@@ -75,7 +75,7 @@ import kryptos/eddsa
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/der
 import kryptos/internal/utils.{parse_ip}
-import kryptos/internal/x509.{type SigAlgInfo, SigAlgInfo} as x509_internal
+import kryptos/internal/x509.{type SigAlgInfo} as x509_internal
 import kryptos/rsa
 import kryptos/x509
 import kryptos/xdh
@@ -87,10 +87,6 @@ const oid_basic_constraints = x509.Oid([2, 5, 29, 19])
 const oid_client_auth = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 2])
 
 const oid_code_signing = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 3])
-
-const oid_ed25519 = x509.Oid([1, 3, 101, 112])
-
-const oid_ed448 = x509.Oid([1, 3, 101, 113])
 
 const oid_email_protection = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 4])
 
@@ -155,6 +151,30 @@ fn empty_extensions_acc() -> ExtensionsAcc {
     authority_key_identifier: None,
     raw: [],
     seen_oids: set.new(),
+  )
+}
+
+type RawTbs {
+  RawTbs(
+    version: Int,
+    serial_number: BitArray,
+    sig_alg_oid: List(Int),
+    issuer: x509.Name,
+    validity: x509.Validity,
+    subject: x509.Name,
+    spki_alg_oid: List(Int),
+    spki_bytes: BitArray,
+    has_unique_ids: Bool,
+    extensions: Option(List(#(x509.Oid, Bool, BitArray))),
+  )
+}
+
+type RawCertificate {
+  RawCertificate(
+    tbs_bytes: BitArray,
+    tbs: RawTbs,
+    outer_sig_alg_oid: List(Int),
+    signature: BitArray,
   )
 }
 
@@ -563,10 +583,7 @@ pub fn self_signed_with_eddsa(
   key: eddsa.PrivateKey,
 ) -> Result(Certificate(Built), Nil) {
   use validity <- result.try(option.to_result(builder.validity, Nil))
-  let sig_alg = case eddsa.curve(key) {
-    eddsa.Ed25519 -> SigAlgInfo(oid_ed25519, False)
-    eddsa.Ed448 -> SigAlgInfo(oid_ed448, False)
-  }
+  let sig_alg = x509_internal.eddsa_sig_alg_info(eddsa.curve(key))
   let public_key = eddsa.public_key_from_private_key(key)
   use spki <- result.try(eddsa.public_key_to_der(public_key))
 
@@ -643,6 +660,80 @@ pub fn from_pem(
   |> result.try(list.try_map(_, from_der))
 }
 
+fn certificate_version() -> p.Parser(Int) {
+  use opt <- p.then(p.optional(der.context_tag(0, der.integer())))
+  case opt {
+    None -> p.success(0)
+    Some(<<0>>) -> p.success(0)
+    Some(<<1>>) -> p.success(1)
+    Some(<<2>>) -> p.success(2)
+    Some(_) -> p.fail("invalid certificate version")
+  }
+}
+
+fn validity_parser() -> p.Parser(x509.Validity) {
+  use not_before <- p.then(x509_internal.time())
+  use not_after <- p.then(x509_internal.time())
+  p.success(x509.Validity(not_before:, not_after:))
+}
+
+fn skip_unique_ids() -> p.Parser(Bool) {
+  p.many(
+    p.attempt({
+      use #(tag, _) <- p.then(der.tlv())
+      case tag {
+        0x81 | 0x82 -> p.success(Nil)
+        _ -> p.fail("not a unique id tag")
+      }
+    }),
+  )
+  |> p.map(fn(items) { !list.is_empty(items) })
+}
+
+fn optional_extensions() -> p.Parser(Option(List(#(x509.Oid, Bool, BitArray)))) {
+  p.optional(der.context_tag(
+    3,
+    der.sequence(p.many(der.sequence(x509_internal.single_extension()))),
+  ))
+}
+
+fn tbs_parser() -> p.Parser(RawTbs) {
+  use version <- p.then(certificate_version())
+  use serial_number <- p.then(der.integer())
+  use sig_alg_oid <- p.then(
+    der.sequence(x509_internal.signature_algorithm_oid()),
+  )
+  use issuer <- p.then(der.sequence(x509_internal.name()))
+  use validity <- p.then(der.sequence(validity_parser()))
+  use subject <- p.then(der.sequence(x509_internal.name()))
+  use #(spki_alg_oid, spki_bytes) <- p.then(x509_internal.public_key_info())
+  use has_unique_ids <- p.then(skip_unique_ids())
+  use extensions <- p.then(optional_extensions())
+  p.success(RawTbs(
+    version:,
+    serial_number:,
+    sig_alg_oid:,
+    issuer:,
+    validity:,
+    subject:,
+    spki_alg_oid:,
+    spki_bytes:,
+    has_unique_ids:,
+    extensions:,
+  ))
+}
+
+fn certificate_parser() -> p.Parser(RawCertificate) {
+  der.sequence({
+    use #(tbs_bytes, tbs) <- p.then(der.sequence_with_raw(tbs_parser()))
+    use outer_sig_alg_oid <- p.then(
+      der.sequence(x509_internal.signature_algorithm_oid()),
+    )
+    use signature <- p.then(der.bit_string())
+    p.success(RawCertificate(tbs_bytes:, tbs:, outer_sig_alg_oid:, signature:))
+  })
+}
+
 /// Parse a DER-encoded X.509 certificate.
 ///
 /// Validates the ASN.1 structure and extracts all standard fields and
@@ -661,81 +752,27 @@ pub fn from_pem(
 /// - `Error(UnsupportedAlgorithm(oid))` if the signature algorithm or key type is not supported
 /// - `Error(UnrecognizedCriticalExtension(oid))` if an unknown extension is marked critical (per RFC 5280)
 pub fn from_der(der: BitArray) -> Result(Certificate(Parsed), CertificateError) {
-  use #(cert_content, remaining) <- result.try(
-    der.parse_sequence(der) |> result.replace_error(ParseError),
-  )
-  use <- bool.guard(
-    when: bit_array.byte_size(remaining) != 0,
-    return: Error(ParseError),
-  )
-
-  // Parse TBSCertificate
-  use #(tbs_bytes, after_tbs) <- result.try(
-    x509_internal.parse_sequence_with_header(cert_content)
+  use raw <- result.try(
+    p.run(certificate_parser(), on: der)
     |> result.replace_error(ParseError),
   )
 
-  // Parse the inner content of TBSCertificate
-  use #(tbs_content, _) <- result.try(
-    der.parse_sequence(tbs_bytes)
-    |> result.replace_error(ParseError),
-  )
-
-  // Parse version [0] EXPLICIT (optional, defaults to v1 = 0)
-  use #(version, after_version) <- result.try(parse_certificate_version(
-    tbs_content,
-  ))
-
-  // Parse serial number (INTEGER)
-  use #(serial_number, after_serial) <- result.try(
-    der.parse_integer(after_version)
-    |> result.replace_error(ParseError),
-  )
-
-  // Parse signature algorithm (SEQUENCE)
-  use #(sig_alg_bytes, after_sig_alg) <- result.try(
-    der.parse_sequence(after_serial)
-    |> result.replace_error(ParseError),
-  )
   use signature_algorithm <- result.try(
-    x509_internal.parse_signature_algorithm(sig_alg_bytes)
+    x509_internal.lookup_signature_algorithm(raw.tbs.sig_alg_oid)
     |> result.map_error(UnsupportedAlgorithm),
   )
 
-  // Parse issuer (Name)
-  use #(issuer_bytes, after_issuer) <- result.try(
-    der.parse_sequence(after_sig_alg)
-    |> result.replace_error(ParseError),
-  )
-  use issuer <- result.try(
-    x509_internal.parse_name(issuer_bytes)
-    |> result.replace_error(ParseError),
+  // Signature algorithm OIDs must match (RFC 5280 §4.1.1.2)
+  use <- bool.guard(
+    when: raw.tbs.sig_alg_oid != raw.outer_sig_alg_oid,
+    return: Error(ParseError),
   )
 
-  // Parse validity (SEQUENCE)
-  use #(validity_bytes, after_validity) <- result.try(
-    der.parse_sequence(after_issuer)
-    |> result.replace_error(ParseError),
-  )
-  use validity <- result.try(parse_validity(validity_bytes))
-
-  // Parse subject (Name)
-  use #(subject_bytes, after_subject) <- result.try(
-    der.parse_sequence(after_validity)
-    |> result.replace_error(ParseError),
-  )
-  use subject <- result.try(
-    x509_internal.parse_name(subject_bytes)
-    |> result.replace_error(ParseError),
-  )
-
-  // Parse SubjectPublicKeyInfo (SEQUENCE)
-  use #(spki_bytes, after_spki) <- result.try(
-    x509_internal.parse_sequence_with_header(after_subject)
-    |> result.replace_error(ParseError),
-  )
   use public_key <- result.try(
-    x509_internal.parse_public_key(spki_bytes)
+    x509_internal.dispatch_public_key_parse(
+      raw.tbs.spki_alg_oid,
+      raw.tbs.spki_bytes,
+    )
     |> result.map_error(fn(oid) {
       case oid {
         x509.Oid([]) -> ParseError
@@ -744,39 +781,28 @@ pub fn from_der(der: BitArray) -> Result(Certificate(Parsed), CertificateError) 
     }),
   )
 
-  // Parse extensions [3] (optional)
-  use exts <- result.try(parse_certificate_extensions(after_spki, version))
-
-  // Parse outer signature algorithm (must match TBS per RFC 5280 §4.1.1.2)
-  use #(outer_sig_alg_bytes, after_outer_sig_alg) <- result.try(
-    der.parse_sequence(after_tbs)
-    |> result.replace_error(ParseError),
-  )
-  use outer_signature_algorithm <- result.try(
-    x509_internal.parse_signature_algorithm(outer_sig_alg_bytes)
-    |> result.replace_error(ParseError),
+  // RFC 5280 version validation
+  use <- bool.guard(
+    when: raw.tbs.has_unique_ids && raw.tbs.version < 1,
+    return: Error(ParseError),
   )
   use <- bool.guard(
-    when: signature_algorithm != outer_signature_algorithm,
+    when: option.is_some(raw.tbs.extensions) && raw.tbs.version < 2,
     return: Error(ParseError),
   )
 
-  // Parse signature (BIT STRING)
-  use #(signature, _) <- result.try(
-    der.parse_bit_string(after_outer_sig_alg)
-    |> result.replace_error(ParseError),
-  )
+  use exts <- result.try(process_all_extensions(raw.tbs.extensions))
 
   Ok(ParsedCertificate(
     der:,
-    tbs_bytes:,
-    signature:,
-    version:,
-    serial_number:,
+    tbs_bytes: raw.tbs_bytes,
+    signature: raw.signature,
+    version: raw.tbs.version,
+    serial_number: raw.tbs.serial_number,
     signature_algorithm:,
-    issuer:,
-    validity:,
-    subject:,
+    issuer: raw.tbs.issuer,
+    validity: raw.tbs.validity,
+    subject: raw.tbs.subject,
     public_key:,
     basic_constraints: exts.basic_constraints,
     key_usage: exts.key_usage,
@@ -1050,92 +1076,26 @@ pub fn verify_self_signed(
   |> verify(cert, _)
 }
 
-fn parse_certificate_version(
-  bytes: BitArray,
-) -> Result(#(Int, BitArray), CertificateError) {
-  case der.parse_context_tag(bytes, 0) {
-    Ok(#(version_content, rest)) -> {
-      use #(version_bytes, _) <- result.try(
-        der.parse_integer(version_content)
-        |> result.replace_error(ParseError),
-      )
-
-      case version_bytes {
-        <<0>> -> Ok(#(0, rest))
-        <<1>> -> Ok(#(1, rest))
-        <<2>> -> Ok(#(2, rest))
-        <<_:8>> -> Error(ParseError)
-        _ -> Error(ParseError)
-      }
-    }
-    Error(_) -> Ok(#(0, bytes))
-  }
-}
-
-fn parse_validity(bytes: BitArray) -> Result(x509.Validity, CertificateError) {
-  use #(not_before, after_not_before) <- result.try(
-    parse_time(bytes) |> result.replace_error(ParseError),
-  )
-  use #(not_after, _) <- result.try(
-    parse_time(after_not_before) |> result.replace_error(ParseError),
-  )
-  Ok(x509.Validity(not_before:, not_after:))
-}
-
-fn parse_time(bytes: BitArray) -> Result(#(Timestamp, BitArray), Nil) {
-  case bytes {
-    <<0x17, _:bits>> -> der.parse_utc_time(bytes)
-    <<0x18, _:bits>> -> der.parse_generalized_time(bytes)
-    _ -> Error(Nil)
-  }
-}
-
-/// Parse optional unique IDs with RFC 5280 version validation.
-fn parse_optional_unique_ids(
-  bytes: BitArray,
-  version: Int,
-) -> Result(BitArray, CertificateError) {
-  case bytes {
-    <<0x81, _:bits>> | <<0x82, _:bits>> -> {
-      use <- bool.guard(when: version < 1, return: Error(ParseError))
-      case der.parse_tlv(bytes) {
-        Ok(#(_, _, remaining)) -> parse_optional_unique_ids(remaining, version)
-        Error(_) -> Ok(bytes)
-      }
-    }
-    _ -> Ok(bytes)
-  }
-}
-
-/// Parse extensions with RFC 5280 version validation.
-fn parse_certificate_extensions(
-  bytes: BitArray,
-  version: Int,
+fn process_all_extensions(
+  raw_exts: Option(List(#(x509.Oid, Bool, BitArray))),
 ) -> Result(ExtensionsAcc, CertificateError) {
-  use bytes <- result.try(parse_optional_unique_ids(bytes, version))
-  case der.parse_context_tag(bytes, 3) {
-    Ok(#(exts_content, _)) -> {
-      use <- bool.guard(when: version < 2, return: Error(ParseError))
-      use #(exts_seq, _) <- result.try(
-        der.parse_sequence(exts_content)
-        |> result.replace_error(ParseError),
-      )
-      parse_extensions_content(exts_seq)
-    }
-    Error(_) -> Ok(empty_extensions_acc())
-  }
-}
-
-fn parse_raw_extensions(
-  bytes: BitArray,
-  acc: List(#(x509.Oid, Bool, BitArray)),
-) -> Result(List(#(x509.Oid, Bool, BitArray)), Nil) {
-  case bytes {
-    <<>> -> Ok(list.reverse(acc))
-    _ -> {
-      use #(ext_bytes, rest) <- result.try(der.parse_sequence(bytes))
-      x509_internal.parse_single_extension(ext_bytes)
-      |> result.try(fn(ext) { parse_raw_extensions(rest, [ext, ..acc]) })
+  case raw_exts {
+    None -> Ok(empty_extensions_acc())
+    Some(raw) -> {
+      list.try_fold(raw, empty_extensions_acc(), fn(acc, ext) {
+        let #(x509.Oid(components), _, _) = ext
+        case set.contains(acc.seen_oids, components) {
+          True -> Error(ParseError)
+          False -> {
+            ExtensionsAcc(
+              ..acc,
+              seen_oids: set.insert(acc.seen_oids, components),
+            )
+            |> process_extension(ext)
+          }
+        }
+      })
+      |> result.map(fn(acc) { ExtensionsAcc(..acc, raw:) })
     }
   }
 }
@@ -1163,7 +1123,7 @@ fn process_extension(
       })
     }
     x509.Oid([2, 5, 29, 17]) -> {
-      x509_internal.parse_san_extension(value, is_critical)
+      p.run(x509_internal.san_extension(is_critical), on: value)
       |> result.replace_error(ParseError)
       |> result.map(fn(subject_alt_names) {
         ExtensionsAcc(..acc, subject_alt_names:)
@@ -1192,122 +1152,26 @@ fn process_extension(
   }
 }
 
-fn parse_extensions_content(
-  bytes: BitArray,
-) -> Result(ExtensionsAcc, CertificateError) {
-  use raw <- result.try(
-    parse_raw_extensions(bytes, [])
-    |> result.replace_error(ParseError),
-  )
-
-  list.try_fold(raw, empty_extensions_acc(), fn(acc, ext) {
-    let #(x509.Oid(components), _, _) = ext
-    case set.contains(acc.seen_oids, components) {
-      True -> Error(ParseError)
-      False -> {
-        ExtensionsAcc(..acc, seen_oids: set.insert(acc.seen_oids, components))
-        |> process_extension(ext)
-      }
-    }
-  })
-  |> result.map(fn(acc) { ExtensionsAcc(..acc, raw:) })
-}
-
-fn parse_subject_key_identifier_ext(bytes: BitArray) -> Result(BitArray, Nil) {
-  der.parse_octet_string(bytes)
-  |> result.map(fn(pair) { pair.0 })
-}
-
-fn parse_authority_key_identifier_ext(
-  bytes: BitArray,
-) -> Result(x509.AuthorityKeyIdentifier, Nil) {
-  use #(inner, _) <- result.try(der.parse_sequence(bytes))
-  parse_aki_fields(inner, None, None, None)
-}
-
-fn parse_aki_fields(
-  bytes: BitArray,
-  key_id: Option(BitArray),
-  issuer: Option(List(x509.SubjectAltName)),
-  serial: Option(BitArray),
-) -> Result(x509.AuthorityKeyIdentifier, Nil) {
-  case bytes {
-    <<>> ->
-      Ok(x509.AuthorityKeyIdentifier(
-        key_identifier: key_id,
-        authority_cert_issuer: issuer,
-        authority_cert_serial_number: serial,
-      ))
-    <<0x80, len:8, rest:bits>> -> {
-      use <- bool.guard(
-        when: bit_array.byte_size(rest) < len,
-        return: Error(Nil),
-      )
-
-      use key_bytes <- result.try(bit_array.slice(rest, 0, len))
-      use remaining <- result.try(bit_array.slice(
-        rest,
-        len,
-        bit_array.byte_size(rest) - len,
-      ))
-
-      parse_aki_fields(remaining, Some(key_bytes), issuer, serial)
-    }
-    <<0xa1, _:bits>> -> {
-      use #(issuer_content, remaining) <- result.try(der.parse_context_tag(
-        bytes,
-        1,
-      ))
-      use parsed_issuers <- result.try(x509_internal.parse_general_names(
-        issuer_content,
-        [],
-        False,
-      ))
-
-      parse_aki_fields(remaining, key_id, Some(parsed_issuers), serial)
-    }
-    <<0x82, len:8, rest:bits>> -> {
-      use <- bool.guard(
-        when: bit_array.byte_size(rest) < len,
-        return: Error(Nil),
-      )
-
-      use serial_bytes <- result.try(bit_array.slice(rest, 0, len))
-      use remaining <- result.try(bit_array.slice(
-        rest,
-        len,
-        bit_array.byte_size(rest) - len,
-      ))
-
-      parse_aki_fields(remaining, key_id, issuer, Some(serial_bytes))
-    }
-    _ -> Error(Nil)
-  }
-}
-
 fn parse_basic_constraints_ext(
   bytes: BitArray,
 ) -> Result(x509.BasicConstraints, Nil) {
-  use #(seq_content, _) <- result.try(der.parse_sequence(bytes))
-  use <- bool.guard(
-    when: bit_array.byte_size(seq_content) == 0,
-    return: Ok(x509.BasicConstraints(ca: False, path_len_constraint: None)),
+  use #(ca, path_len_bytes) <- result.try(
+    p.run(
+      der.sequence(p.pair(
+        p.optional(der.boolean()) |> p.map(option.unwrap(_, False)),
+        p.optional(der.integer()),
+      )),
+      on: bytes,
+    )
+    |> result.replace_error(Nil),
   )
-
-  use #(ca, after_ca) <- result.try(der.parse_bool(seq_content))
-  use <- bool.guard(
-    when: bit_array.byte_size(after_ca) == 0,
-    return: Ok(x509.BasicConstraints(ca: ca, path_len_constraint: None)),
-  )
-
-  use <- bool.guard(
-    when: !ca,
-    return: Ok(x509.BasicConstraints(ca: False, path_len_constraint: None)),
-  )
-
-  use #(path_len_bytes, _) <- result.try(der.parse_integer(after_ca))
-  use path_len <- result.try(bytes_to_int(path_len_bytes))
-  Ok(x509.BasicConstraints(ca: ca, path_len_constraint: Some(path_len)))
+  case ca, path_len_bytes {
+    True, Some(plb) -> {
+      use path_len <- result.try(bytes_to_int(plb))
+      Ok(x509.BasicConstraints(ca: True, path_len_constraint: Some(path_len)))
+    }
+    _, _ -> Ok(x509.BasicConstraints(ca:, path_len_constraint: None))
+  }
 }
 
 fn bytes_to_int(bytes: BitArray) -> Result(Int, Nil) {
@@ -1355,10 +1219,9 @@ fn decode_key_usage_bits(bytes: BitArray) -> List(x509.KeyUsage) {
           #(encipher_only, x509.EncipherOnly),
         ]
         |> list.filter_map(fn(pair) {
-          let #(bit, usage) = pair
-          case bit == 1 {
-            True -> Ok(usage)
-            False -> Error(Nil)
+          case pair {
+            #(1, usage) -> Ok(usage)
+            _ -> Error(Nil)
           }
         })
 
@@ -1371,42 +1234,71 @@ fn decode_key_usage_bits(bytes: BitArray) -> List(x509.KeyUsage) {
   }
 }
 
+fn parse_subject_key_identifier_ext(bytes: BitArray) -> Result(BitArray, Nil) {
+  p.run(der.octet_string(), on: bytes)
+  |> result.replace_error(Nil)
+}
+
+fn parse_authority_key_identifier_ext(
+  bytes: BitArray,
+) -> Result(x509.AuthorityKeyIdentifier, Nil) {
+  use fields <- result.try(
+    p.run(der.sequence(p.many(der.tlv())), on: bytes)
+    |> result.replace_error(Nil),
+  )
+  list.try_fold(fields, #(None, None, None), fn(acc, field) {
+    let #(key_id, issuer_names, serial) = acc
+    let #(tag, value) = field
+    case tag {
+      0x80 -> Ok(#(Some(value), issuer_names, serial))
+      0xa1 -> {
+        p.run(x509_internal.general_names(False), on: value)
+        |> result.replace_error(Nil)
+        |> result.map(fn(names) { #(key_id, Some(names), serial) })
+      }
+      0x82 -> Ok(#(key_id, issuer_names, Some(value)))
+      _ -> Error(Nil)
+    }
+  })
+  |> result.map(fn(acc) {
+    let #(key_id, issuer_names, serial) = acc
+    x509.AuthorityKeyIdentifier(
+      key_identifier: key_id,
+      authority_cert_issuer: issuer_names,
+      authority_cert_serial_number: serial,
+    )
+  })
+}
+
 fn parse_extended_key_usage_ext(
   bytes: BitArray,
   is_critical: Bool,
 ) -> Result(List(x509.ExtendedKeyUsage), CertificateError) {
-  use #(seq_content, _) <- result.try(
-    der.parse_sequence(bytes) |> result.replace_error(ParseError),
+  use oids <- result.try(
+    p.run(der.sequence(p.many(der.oid())), on: bytes)
+    |> result.replace_error(ParseError),
   )
-  parse_eku_oids(seq_content, [], is_critical)
+  list.try_fold(oids, [], fn(acc, oid_components) {
+    case oid_to_eku(oid_components) {
+      Ok(eku) -> Ok([eku, ..acc])
+      Error(_) ->
+        case is_critical {
+          False -> Ok(acc)
+          True -> Error(UnrecognizedCriticalExtension(x509.Oid(oid_components)))
+        }
+    }
+  })
+  |> result.map(list.reverse)
 }
 
-fn parse_eku_oids(
-  bytes: BitArray,
-  acc: List(x509.ExtendedKeyUsage),
-  is_critical: Bool,
-) -> Result(List(x509.ExtendedKeyUsage), CertificateError) {
-  case bytes {
-    <<>> -> Ok(list.reverse(acc))
-    _ -> {
-      use #(oid_components, rest) <- result.try(
-        der.parse_oid(bytes) |> result.replace_error(ParseError),
-      )
-      let eku = case oid_components {
-        [1, 3, 6, 1, 5, 5, 7, 3, 1] -> Some(x509.ServerAuth)
-        [1, 3, 6, 1, 5, 5, 7, 3, 2] -> Some(x509.ClientAuth)
-        [1, 3, 6, 1, 5, 5, 7, 3, 3] -> Some(x509.CodeSigning)
-        [1, 3, 6, 1, 5, 5, 7, 3, 4] -> Some(x509.EmailProtection)
-        [1, 3, 6, 1, 5, 5, 7, 3, 9] -> Some(x509.OcspSigning)
-        _ -> None
-      }
-      case eku, is_critical {
-        Some(e), _ -> parse_eku_oids(rest, [e, ..acc], is_critical)
-        None, False -> parse_eku_oids(rest, acc, is_critical)
-        None, True ->
-          Error(UnrecognizedCriticalExtension(x509.Oid(oid_components)))
-      }
-    }
+fn oid_to_eku(oid: List(Int)) -> Result(x509.ExtendedKeyUsage, Nil) {
+  case oid {
+    [1, 3, 6, 1, 5, 5, 7, 3, 1] -> Ok(x509.ServerAuth)
+    [1, 3, 6, 1, 5, 5, 7, 3, 2] -> Ok(x509.ClientAuth)
+    [1, 3, 6, 1, 5, 5, 7, 3, 3] -> Ok(x509.CodeSigning)
+    [1, 3, 6, 1, 5, 5, 7, 3, 4] -> Ok(x509.EmailProtection)
+    [1, 3, 6, 1, 5, 5, 7, 3, 9] -> Ok(x509.OcspSigning)
+    _ -> Error(Nil)
   }
 }
 
