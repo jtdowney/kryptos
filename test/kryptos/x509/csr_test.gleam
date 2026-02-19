@@ -233,9 +233,6 @@ pub fn pem_lines_wrap_at_64_characters_test() {
   assert string.length(last) > 0
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn csr_ecdsa_dns_san_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p256_pkcs8.pem")
   let assert Ok(#(private_key, _)) = ec.from_pem(pem)
@@ -319,9 +316,6 @@ pub fn rsa_csr_includes_null_params_test() {
   assert contains_subsequence(der, rsa_sha256_oid_with_null)
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn csr_rsa_dns_san_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
   let assert Ok(#(private_key, _)) = rsa.from_pem(pem, rsa.Pkcs8)
@@ -360,9 +354,6 @@ pub fn csr_rsa_dns_san_verified_by_openssl_test() {
   |> birdie.snap(title: "csr rsa dns san text")
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn csr_eddsa_ed25519_dns_san_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/ed25519_pkcs8.pem")
   let assert Ok(#(private_key, _)) = eddsa.from_pem(pem)
@@ -401,9 +392,6 @@ pub fn csr_eddsa_ed25519_dns_san_verified_by_openssl_test() {
   |> birdie.snap(title: "csr eddsa ed25519 dns san text")
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn csr_eddsa_ed448_dns_san_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/ed448_pkcs8.pem")
   let assert Ok(#(private_key, _)) = eddsa.from_pem(pem)
@@ -442,9 +430,6 @@ pub fn csr_eddsa_ed448_dns_san_verified_by_openssl_test() {
   |> birdie.snap(title: "csr eddsa ed448 dns san text")
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn csr_ecdsa_email_san_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p256_pkcs8.pem")
   let assert Ok(#(private_key, _)) = ec.from_pem(pem)
@@ -478,9 +463,6 @@ pub fn csr_ecdsa_email_san_verified_by_openssl_test() {
   |> birdie.snap(title: "csr ecdsa email san text")
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn csr_ecdsa_ipv4_san_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p256_pkcs8.pem")
   let assert Ok(#(private_key, _)) = ec.from_pem(pem)
@@ -514,9 +496,6 @@ pub fn csr_ecdsa_ipv4_san_verified_by_openssl_test() {
   |> birdie.snap(title: "csr ecdsa ipv4 san text")
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn csr_ecdsa_ipv6_san_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p256_pkcs8.pem")
   let assert Ok(#(private_key, _)) = ec.from_pem(pem)

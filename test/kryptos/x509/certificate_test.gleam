@@ -217,9 +217,6 @@ pub fn self_signed_eddsa_roundtrip_test() {
   let assert Ok(_) = certificate.verify_self_signed(parsed448)
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn cert_ecdsa_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p256_pkcs8.pem")
   let assert Ok(#(private_key, _)) = ec.from_pem(pem)
@@ -273,9 +270,6 @@ pub fn cert_ecdsa_verified_by_openssl_test() {
   |> birdie.snap(title: "cert ecdsa openssl text")
 }
 
-// TODO: enable on javascript when shellout is fixed
-// https://github.com/tynanbe/shellout/pull/14
-@target(erlang)
 pub fn cert_rsa_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
   let assert Ok(#(private_key, _)) = rsa.from_pem(pem, rsa.Pkcs8)
