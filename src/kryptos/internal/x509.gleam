@@ -100,7 +100,10 @@ pub fn verify_signature(
       rsa.verify(key, data, signature, hash.Sha512, rsa.Pkcs1v15)
     x509.EdPublicKey(key), x509.Ed25519 -> eddsa.verify(key, data, signature)
     x509.EdPublicKey(key), x509.Ed448 -> eddsa.verify(key, data, signature)
-    _, _ -> False
+    x509.EcPublicKey(_), _ -> False
+    x509.RsaPublicKey(_), _ -> False
+    x509.EdPublicKey(_), _ -> False
+    x509.XdhPublicKey(_), _ -> False
   }
 }
 
