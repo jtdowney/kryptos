@@ -220,15 +220,12 @@ pub fn der_to_rs(der_sig: BitArray, curve: Curve) -> Result(BitArray, Nil) {
 pub fn rs_to_der(rs: BitArray, curve: Curve) -> Result(BitArray, Nil) {
   let coord_size = ec.coordinate_size(curve)
 
-  use <- bool.guard(
-    when: bit_array.byte_size(rs) != coord_size * 2,
-    return: Error(Nil),
-  )
-
-  let assert Ok(r) = bit_array.slice(rs, 0, coord_size)
-  let assert Ok(s) = bit_array.slice(rs, coord_size, coord_size)
-
-  use r_encoded <- result.try(der.encode_integer(r))
-  use s_encoded <- result.try(der.encode_integer(s))
-  der.encode_sequence(bit_array.concat([r_encoded, s_encoded]))
+  case rs {
+    <<r:bytes-size(coord_size), s:bytes-size(coord_size)>> -> {
+      use r_encoded <- result.try(der.encode_integer(r))
+      use s_encoded <- result.try(der.encode_integer(s))
+      der.encode_sequence(bit_array.concat([r_encoded, s_encoded]))
+    }
+    _ -> Error(Nil)
+  }
 }
