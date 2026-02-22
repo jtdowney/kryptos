@@ -7,6 +7,7 @@ import gleam/int
 
 /// HChaCha20 key derivation function.
 /// Takes a 32-byte key and 16-byte input, returns 32-byte subkey.
+@external(javascript, "./hchacha20_ffi.mjs", "subkey")
 pub fn subkey(key: BitArray, input: BitArray) -> BitArray {
   // Parse key as 8 little-endian 32-bit words
   let assert <<
