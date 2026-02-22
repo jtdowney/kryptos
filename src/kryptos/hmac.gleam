@@ -34,7 +34,14 @@ pub fn supported_hash(algorithm: HashAlgorithm) -> Bool {
     hash.Sha512 -> True
     hash.Sha512x224 -> True
     hash.Sha512x256 -> True
-    _ -> False
+    hash.Blake2b -> False
+    hash.Blake2s -> False
+    hash.Sha3x224 -> False
+    hash.Sha3x256 -> False
+    hash.Sha3x384 -> False
+    hash.Sha3x512 -> False
+    hash.Shake128(_) -> False
+    hash.Shake256(_) -> False
   }
 }
 

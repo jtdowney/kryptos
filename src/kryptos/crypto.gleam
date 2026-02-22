@@ -197,7 +197,11 @@ fn concat_kdf_supported_hash(algorithm: HashAlgorithm) -> Bool {
     hash.Sha3x256 -> True
     hash.Sha3x384 -> True
     hash.Sha3x512 -> True
-    _ -> False
+    hash.Blake2b -> False
+    hash.Blake2s -> False
+    hash.Md5 -> False
+    hash.Shake128(_) -> False
+    hash.Shake256(_) -> False
   }
 }
 
