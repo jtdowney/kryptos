@@ -1100,7 +1100,7 @@ fn parse_optional_unique_ids(
       use <- bool.guard(when: version < 1, return: Error(ParseError))
       case der.parse_tlv(bytes) {
         Ok(#(_, _, remaining)) -> parse_optional_unique_ids(remaining, version)
-        Error(_) -> Ok(bytes)
+        Error(_) -> Error(ParseError)
       }
     }
     _ -> Ok(bytes)
