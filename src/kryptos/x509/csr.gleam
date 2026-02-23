@@ -555,10 +555,14 @@ fn parse_attributes(
   ),
   Nil,
 ) {
-  case der.parse_context_tag(bytes, 0) {
-    Ok(#(attrs_content, _)) ->
-      parse_attributes_content(attrs_content, [], [], [])
-    Error(_) -> Ok(#([], [], []))
+  case bytes {
+    <<0xa0, _:bits>> ->
+      case der.parse_context_tag(bytes, 0) {
+        Ok(#(attrs_content, _)) ->
+          parse_attributes_content(attrs_content, [], [], [])
+        Error(_) -> Error(Nil)
+      }
+    _ -> Ok(#([], [], []))
   }
 }
 
@@ -599,7 +603,8 @@ fn parse_attributes_content(
 
 fn parse_single_attribute(bytes: BitArray) -> Result(#(x509.Oid, BitArray), Nil) {
   use #(oid_components, after_oid) <- result.try(der.parse_oid(bytes))
-  use #(value, _) <- result.try(der.parse_set(after_oid))
+  use #(value, remaining) <- result.try(der.parse_set(after_oid))
+  use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
   Ok(#(x509.Oid(oid_components), value))
 }
 
