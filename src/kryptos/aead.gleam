@@ -245,7 +245,8 @@ pub fn seal_with_aad(
           use #(subkey, chacha_nonce) <- result.try(xchacha20_derive(key, nonce))
           do_seal(ChaCha20Poly1305(subkey), chacha_nonce, plaintext, aad)
         }
-        _ -> do_seal(ctx, nonce, plaintext, aad)
+        Gcm(..) | Ccm(..) | ChaCha20Poly1305(..) ->
+          do_seal(ctx, nonce, plaintext, aad)
       }
     False -> Error(Nil)
   }
@@ -343,7 +344,8 @@ pub fn open_with_aad(
           use #(subkey, chacha_nonce) <- result.try(xchacha20_derive(key, nonce))
           do_open(ChaCha20Poly1305(subkey), chacha_nonce, tag, ciphertext, aad)
         }
-        _ -> do_open(ctx, nonce, tag, ciphertext, aad)
+        Gcm(..) | Ccm(..) | ChaCha20Poly1305(..) ->
+          do_open(ctx, nonce, tag, ciphertext, aad)
       }
     False -> Error(Nil)
   }
