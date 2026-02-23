@@ -104,14 +104,19 @@ pub fn is_ascii(s: String) -> Bool {
 }
 
 /// Split a string into chunks of the specified size.
+/// Returns an empty list if size <= 0.
 pub fn chunk_string(s: String, size: Int) -> List(String) {
-  case string.length(s) <= size {
-    True -> [s]
-    False -> {
-      let chunk = string.slice(s, 0, size)
-      let rest = string.slice(s, size, string.length(s) - size)
-      [chunk, ..chunk_string(rest, size)]
-    }
+  case size > 0 {
+    False -> []
+    True ->
+      case string.length(s) <= size {
+        True -> [s]
+        False -> {
+          let chunk = string.slice(s, 0, size)
+          let rest = string.slice(s, size, string.length(s) - size)
+          [chunk, ..chunk_string(rest, size)]
+        }
+      }
   }
 }
 
