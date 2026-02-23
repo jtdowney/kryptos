@@ -696,6 +696,43 @@ pub fn encode_oid_single_component_returns_error_test() {
   assert der.encode_oid([1]) == Error(Nil)
 }
 
+pub fn encode_oid_rejects_first_arc_above_2_test() {
+  assert der.encode_oid([3, 0]) == Error(Nil)
+  assert der.encode_oid([4, 1, 2]) == Error(Nil)
+}
+
+pub fn encode_oid_rejects_negative_first_arc_test() {
+  assert der.encode_oid([-1, 0]) == Error(Nil)
+}
+
+pub fn encode_oid_rejects_second_arc_above_39_for_arc_0_test() {
+  assert der.encode_oid([0, 40]) == Error(Nil)
+  assert der.encode_oid([0, 100]) == Error(Nil)
+}
+
+pub fn encode_oid_rejects_second_arc_above_39_for_arc_1_test() {
+  assert der.encode_oid([1, 40]) == Error(Nil)
+  assert der.encode_oid([1, 100]) == Error(Nil)
+}
+
+pub fn encode_oid_allows_second_arc_above_39_for_arc_2_test() {
+  let assert Ok(_) = der.encode_oid([2, 40])
+  let assert Ok(_) = der.encode_oid([2, 100])
+  let assert Ok(_) = der.encode_oid([2, 999])
+}
+
+pub fn encode_oid_rejects_negative_second_arc_test() {
+  assert der.encode_oid([1, -1]) == Error(Nil)
+}
+
+pub fn encode_oid_accepts_boundary_values_test() {
+  let assert Ok(_) = der.encode_oid([0, 0])
+  let assert Ok(_) = der.encode_oid([0, 39])
+  let assert Ok(_) = der.encode_oid([1, 0])
+  let assert Ok(_) = der.encode_oid([1, 39])
+  let assert Ok(_) = der.encode_oid([2, 0])
+}
+
 pub fn parse_oid_simple_test() {
   let bytes = <<0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d>>
   let result = der.parse_oid(bytes)

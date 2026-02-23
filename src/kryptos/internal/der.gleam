@@ -297,6 +297,8 @@ pub fn encode_printable_string(value: String) -> Result(BitArray, Nil) {
 }
 
 /// Parse a DER PrintableString, returning (string value, remaining bytes).
+/// Note: does not enforce the PrintableString charset (A-Z, a-z, 0-9,
+/// space, '()+,-./:=?) to remain liberal in what we accept per Postel's law.
 pub fn parse_printable_string(
   bytes: BitArray,
 ) -> Result(#(String, BitArray), Nil) {
@@ -315,6 +317,8 @@ pub fn encode_ia5_string(value: String) -> Result(BitArray, Nil) {
 }
 
 /// Parse a DER IA5String, returning (string value, remaining bytes).
+/// Note: does not enforce the IA5 (ASCII-only) constraint to remain
+/// liberal in what we accept per Postel's law.
 pub fn parse_ia5_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
   use rest <- require_tag(bytes, ia5_string_tag)
   use #(len, content) <- result.try(parse_length(rest))
@@ -482,12 +486,19 @@ pub fn parse_generalized_time(
 
 /// Encode an OID (Object Identifier).
 ///
-/// OID components are encoded as: first*40 + second for the first byte,
-/// then base-128 with continuation bits for remaining components.
-/// Returns Error(Nil) for invalid OIDs (fewer than 2 components).
+/// OID components are encoded per ITU-T X.690 Section 8.19.4: first*40 + second
+/// for the first subidentifier, then base-128 with continuation bits for the rest.
+/// Returns Error(Nil) for invalid OIDs (fewer than 2 components, or root arc
+/// values violating ITU-T X.660: first must be 0-2, second must be 0-39 when
+/// first is 0 or 1).
 pub fn encode_oid(components: List(Int)) -> Result(BitArray, Nil) {
   case components {
-    [first, second, ..rest] -> {
+    [first, second, ..rest]
+      if first >= 0
+      && first <= 2
+      && second >= 0
+      && { first == 2 || second <= 39 }
+    -> {
       let first_value = first * 40 + second
       let first_bytes = encode_oid_component(first_value)
       let rest_bytes = list.flat_map(rest, encode_oid_component)
