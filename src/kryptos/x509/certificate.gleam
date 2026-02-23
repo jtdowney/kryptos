@@ -1214,14 +1214,16 @@ fn parse_extensions_content(
 }
 
 fn parse_subject_key_identifier_ext(bytes: BitArray) -> Result(BitArray, Nil) {
-  der.parse_octet_string(bytes)
-  |> result.map(fn(pair) { pair.0 })
+  use #(value, remaining) <- result.try(der.parse_octet_string(bytes))
+  use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
+  Ok(value)
 }
 
 fn parse_authority_key_identifier_ext(
   bytes: BitArray,
 ) -> Result(x509.AuthorityKeyIdentifier, Nil) {
-  use #(inner, _) <- result.try(der.parse_sequence(bytes))
+  use #(inner, remaining) <- result.try(der.parse_sequence(bytes))
+  use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
   parse_aki_fields(inner, None, None, None)
 }
 
@@ -1288,7 +1290,8 @@ fn parse_aki_fields(
 fn parse_basic_constraints_ext(
   bytes: BitArray,
 ) -> Result(x509.BasicConstraints, Nil) {
-  use #(seq_content, _) <- result.try(der.parse_sequence(bytes))
+  use #(seq_content, remaining) <- result.try(der.parse_sequence(bytes))
+  use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
   use <- bool.guard(
     when: bit_array.byte_size(seq_content) == 0,
     return: Ok(x509.BasicConstraints(ca: False, path_len_constraint: None)),
@@ -1305,7 +1308,8 @@ fn parse_basic_constraints_ext(
     return: Ok(x509.BasicConstraints(ca: False, path_len_constraint: None)),
   )
 
-  use #(path_len_bytes, _) <- result.try(der.parse_integer(after_ca))
+  use #(path_len_bytes, remaining) <- result.try(der.parse_integer(after_ca))
+  use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
   use path_len <- result.try(bytes_to_int(path_len_bytes))
   Ok(x509.BasicConstraints(ca: ca, path_len_constraint: Some(path_len)))
 }
