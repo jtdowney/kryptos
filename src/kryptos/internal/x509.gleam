@@ -1,6 +1,7 @@
 //// Shared X.509 parsing and encoding utilities for CSR and Certificate modules.
 
 import gleam/bit_array
+import gleam/bool
 import gleam/list
 import gleam/result
 import gleam/string
@@ -190,7 +191,8 @@ fn parse_rdn_attributes(
     _ -> {
       use #(attr_bytes, rest) <- result.try(der.parse_sequence(bytes))
       use #(oid_components, after_oid) <- result.try(der.parse_oid(attr_bytes))
-      use #(value, _) <- result.try(parse_attribute_value(after_oid))
+      use #(value, remaining) <- result.try(parse_attribute_value(after_oid))
+      use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
 
       parse_rdn_attributes(rest, [#(x509.Oid(oid_components), value), ..acc])
     }
@@ -376,7 +378,8 @@ pub fn parse_general_name(
     }
     // [4] directoryName - explicit Name (SEQUENCE of RDNs)
     0xa4 -> {
-      use #(name_content, _) <- result.try(der.parse_sequence(value))
+      use #(name_content, remaining) <- result.try(der.parse_sequence(value))
+      use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
       use name <- result.try(parse_name(name_content))
       Ok(#(x509.DirectoryName(name), rest))
     }
@@ -448,7 +451,8 @@ pub fn parse_single_extension(
     <<0x01, 0x01, critical_byte, rest:bits>> -> #(critical_byte != 0, rest)
     other -> #(False, other)
   }
-  use #(value, _) <- result.try(der.parse_octet_string(after_critical))
+  use #(value, remaining) <- result.try(der.parse_octet_string(after_critical))
+  use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
   Ok(#(x509.Oid(oid_components), is_critical, value))
 }
 
