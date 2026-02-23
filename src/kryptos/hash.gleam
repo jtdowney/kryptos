@@ -43,10 +43,40 @@ pub type HashAlgorithm {
   Sha3x512
   /// SHAKE128 extendable-output function (128-bit security).
   /// The output_length parameter specifies the desired digest length in bytes.
+  /// Prefer using the `shake_128` smart constructor to validate the output length.
   Shake128(output_length: Int)
   /// SHAKE256 extendable-output function (256-bit security).
   /// The output_length parameter specifies the desired digest length in bytes.
+  /// Prefer using the `shake_256` smart constructor to validate the output length.
   Shake256(output_length: Int)
+}
+
+/// Creates a SHAKE128 hash algorithm with the given output length in bytes.
+///
+/// ## Parameters
+/// - `output_length`: The desired digest length in bytes (must be > 0)
+///
+/// ## Returns
+/// `Ok(HashAlgorithm)` on success, `Error(Nil)` if the output length is invalid.
+pub fn shake_128(output_length length: Int) -> Result(HashAlgorithm, Nil) {
+  case length > 0 {
+    True -> Ok(Shake128(length))
+    False -> Error(Nil)
+  }
+}
+
+/// Creates a SHAKE256 hash algorithm with the given output length in bytes.
+///
+/// ## Parameters
+/// - `output_length`: The desired digest length in bytes (must be > 0)
+///
+/// ## Returns
+/// `Ok(HashAlgorithm)` on success, `Error(Nil)` if the output length is invalid.
+pub fn shake_256(output_length length: Int) -> Result(HashAlgorithm, Nil) {
+  case length > 0 {
+    True -> Ok(Shake256(length))
+    False -> Error(Nil)
+  }
 }
 
 @internal
@@ -113,9 +143,16 @@ pub type Hasher
 /// ## Returns
 /// `Ok(Hasher)` on success, `Error(Nil)` if the hash algorithm is not
 /// supported by the runtime.
+pub fn new(algorithm: HashAlgorithm) -> Result(Hasher, Nil) {
+  case algorithm {
+    Shake128(len) | Shake256(len) if len <= 0 -> Error(Nil)
+    _ -> do_new(algorithm)
+  }
+}
+
 @external(erlang, "kryptos_ffi", "hash_new")
 @external(javascript, "../kryptos_ffi.mjs", "hashNew")
-pub fn new(algorithm: HashAlgorithm) -> Result(Hasher, Nil)
+fn do_new(algorithm: HashAlgorithm) -> Result(Hasher, Nil)
 
 /// Adds data to an in-progress hash computation.
 ///
