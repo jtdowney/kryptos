@@ -270,28 +270,21 @@ fn do_decrypt(ctx: CipherContext, ciphertext: BitArray) -> Result(BitArray, Nil)
 @internal
 pub fn cipher_name(ctx: CipherContext) -> String {
   case ctx {
-    Ecb(cipher:) ->
-      case cipher {
-        Aes(key_size:, ..) -> "aes-" <> int.to_string(key_size) <> "-ecb"
-      }
-    Cbc(cipher:, ..) ->
-      case cipher {
-        Aes(key_size:, ..) -> "aes-" <> int.to_string(key_size) <> "-cbc"
-      }
-    Ctr(cipher:, ..) ->
-      case cipher {
-        Aes(key_size:, ..) -> "aes-" <> int.to_string(key_size) <> "-ctr"
-      }
+    Ecb(cipher: Aes(key_size:, ..)) ->
+      "aes-" <> int.to_string(key_size) <> "-ecb"
+    Cbc(cipher: Aes(key_size:, ..), ..) ->
+      "aes-" <> int.to_string(key_size) <> "-cbc"
+    Ctr(cipher: Aes(key_size:, ..), ..) ->
+      "aes-" <> int.to_string(key_size) <> "-ctr"
   }
 }
 
 @internal
 pub fn cipher_key(ctx: CipherContext) -> BitArray {
   case ctx {
-    Ecb(cipher:) | Cbc(cipher:, ..) | Ctr(cipher:, ..) ->
-      case cipher {
-        Aes(key:, ..) -> key
-      }
+    Ecb(cipher: Aes(key:, ..))
+    | Cbc(cipher: Aes(key:, ..), ..)
+    | Ctr(cipher: Aes(key:, ..), ..) -> key
   }
 }
 
