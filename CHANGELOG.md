@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-25
+
+### Added
+
+#### X.509
+
+- X.509 certificate parsing with SAN type support
+- CSR (Certificate Signing Request) generation and parsing
+
+#### Hash Functions
+
+- SHAKE128 and SHAKE256 extensible-output hash algorithms
+- `hash.is_supported` for runtime algorithm detection
+
+### Fixed
+
+- Support both OTP 27 and OTP 28
+
 ## [1.2.0] - 2026-01-19
 
 ### Added
@@ -119,6 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Wycheproof test vector validation for ECDSA, AES-GCM, AES-CBC, ChaCha20-Poly1305, XDH, and ECDH
 
+[1.3.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.3.0
 [1.2.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.2.0
 [1.1.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.1.0
 [1.0.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.0.0
