@@ -41,6 +41,15 @@ import {
   algorithm_name as hashAlgorithmName,
 } from "./kryptos/hash.mjs";
 import {
+  ParameterSet$isMldsa44,
+  ParameterSet$isMldsa65,
+  ParameterSet$isMldsa87,
+  ParameterSet$Mldsa44,
+  ParameterSet$Mldsa65,
+  ParameterSet$Mldsa87,
+  key_size as mldsaKeySize,
+} from "./kryptos/mldsa.mjs";
+import {
   EncryptPadding$isEncryptPkcs1v15,
   EncryptPadding$isOaep,
   PrivateKeyFormat$isPkcs1,
@@ -893,6 +902,42 @@ function importPublicKeyDer(der, type, allowedTypes, preValidate) {
   }
 }
 
+export function exportPublicKeyPem(key) {
+  try {
+    const exported = key.export({ format: "pem", type: "spki" });
+    return Result$Ok(exported);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function exportPublicKeyDer(key) {
+  try {
+    const exported = key.export({ format: "der", type: "spki" });
+    return Result$Ok(BitArray$BitArray(exported));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function exportPrivateKeyPem(key) {
+  try {
+    const exported = key.export({ format: "pem", type: "pkcs8" });
+    return Result$Ok(exported);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function exportPrivateKeyDer(key) {
+  try {
+    const exported = key.export({ format: "der", type: "pkcs8" });
+    return Result$Ok(BitArray$BitArray(exported));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
 // EC Import Functions
 
 export function ecImportPrivateKeyPem(pem) {
@@ -905,7 +950,6 @@ export function ecImportPrivateKeyDer(der) {
 
 export function ecImportPublicKeyPem(pem) {
   try {
-    // Extract DER from PEM and validate it uses named curves
     const derBytes = pemToDer(pem);
     if (!validateSpkiUsesNamedCurve(derBytes)) {
       return Result$Error(undefined);
@@ -919,44 +963,6 @@ export function ecImportPublicKeyPem(pem) {
 
 export function ecImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["ec"], validateSpkiUsesNamedCurve);
-}
-
-// EC Export Functions
-
-export function ecExportPrivateKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "pkcs8" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function ecExportPrivateKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "pkcs8" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function ecExportPublicKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "spki" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function ecExportPublicKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "spki" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
 }
 
 // =============================================================================
@@ -1105,44 +1111,6 @@ export function xdhImportPublicKeyPem(pem) {
 
 export function xdhImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["x25519", "x448"]);
-}
-
-// XDH Export Functions
-
-export function xdhExportPrivateKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "pkcs8" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPrivateKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "pkcs8" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPublicKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "spki" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPublicKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "spki" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
 }
 
 // =============================================================================
@@ -1514,40 +1482,174 @@ export function eddsaImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["ed25519", "ed448"]);
 }
 
-// EdDSA Export Functions
+// =============================================================================
+// ML-DSA (FIPS 204)
+// =============================================================================
 
-export function eddsaExportPrivateKeyPem(key) {
+const MLDSA_SEED_PKCS8_PREFIX = {
+  "ml-dsa-44": Buffer.from(
+    "3034020100300b060960864801650304031104228020",
+    "hex",
+  ),
+  "ml-dsa-65": Buffer.from(
+    "3034020100300b060960864801650304031204228020",
+    "hex",
+  ),
+  "ml-dsa-87": Buffer.from(
+    "3034020100300b060960864801650304031304228020",
+    "hex",
+  ),
+};
+
+const MLDSA_PUBLIC_DER_PREFIX = {
+  // ML-DSA-44: OID 2.16.840.1.101.3.4.3.17
+  "ml-dsa-44": Buffer.from(
+    "30820532300b06096086480165030403110382052100",
+    "hex",
+  ),
+  // ML-DSA-65: OID 2.16.840.1.101.3.4.3.18
+  "ml-dsa-65": Buffer.from(
+    "308207b2300b0609608648016503040312038207a100",
+    "hex",
+  ),
+  // ML-DSA-87: OID 2.16.840.1.101.3.4.3.19
+  "ml-dsa-87": Buffer.from(
+    "30820a32300b060960864801650304031303820a2100",
+    "hex",
+  ),
+};
+
+function mldsaKeyType(param) {
+  if (ParameterSet$isMldsa44(param)) return "ml-dsa-44";
+  if (ParameterSet$isMldsa65(param)) return "ml-dsa-65";
+  if (ParameterSet$isMldsa87(param)) return "ml-dsa-87";
+  throw new Error("Unsupported ML-DSA parameter set");
+}
+
+function mldsaParamFromKeyType(keyType) {
+  switch (keyType) {
+    case "ml-dsa-44":
+      return ParameterSet$Mldsa44();
+    case "ml-dsa-65":
+      return ParameterSet$Mldsa65();
+    case "ml-dsa-87":
+      return ParameterSet$Mldsa87();
+    default:
+      throw new Error(`Unsupported ML-DSA key type: ${keyType}`);
+  }
+}
+
+export function mldsaGenerateKeyPair(param) {
+  const keyType = mldsaKeyType(param);
+  const { privateKey, publicKey } = crypto.generateKeyPairSync(keyType);
+  return [privateKey, publicKey];
+}
+
+export function mldsaSign(privateKey, message) {
+  const signature = crypto.sign(null, message.rawBuffer, privateKey);
+  return BitArray$BitArray(signature);
+}
+
+export function mldsaVerify(publicKey, message, signature) {
   try {
-    const exported = key.export({ format: "pem", type: "pkcs8" });
-    return Result$Ok(exported);
+    return crypto.verify(
+      null,
+      message.rawBuffer,
+      publicKey,
+      signature.rawBuffer,
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function mldsaPublicKeyToBytes(publicKey) {
+  const der = publicKey.export({ format: "der", type: "spki" });
+  const keyType = publicKey.asymmetricKeyType;
+  const prefixLen = MLDSA_PUBLIC_DER_PREFIX[keyType].length;
+  return BitArray$BitArray(der.subarray(prefixLen));
+}
+
+export function mldsaPublicKeyFromBytes(param, publicBytes) {
+  try {
+    const keyType = mldsaKeyType(param);
+    const expectedSize = mldsaKeySize(param);
+    if (publicBytes.byteSize !== expectedSize) {
+      return Result$Error(undefined);
+    }
+    const prefix = MLDSA_PUBLIC_DER_PREFIX[keyType];
+    const der = Buffer.concat([prefix, Buffer.from(publicBytes.rawBuffer)]);
+    const publicKey = crypto.createPublicKey({
+      key: der,
+      format: "der",
+      type: "spki",
+    });
+    return Result$Ok(publicKey);
   } catch {
     return Result$Error(undefined);
   }
 }
 
-export function eddsaExportPrivateKeyDer(key) {
+export function mldsaPublicKeyFromPrivate(privateKey) {
+  return crypto.createPublicKey(privateKey);
+}
+
+export function mldsaPrivateKeyParameterSet(privateKey) {
+  return mldsaParamFromKeyType(privateKey.asymmetricKeyType);
+}
+
+export function mldsaPublicKeyParameterSet(publicKey) {
+  return mldsaParamFromKeyType(publicKey.asymmetricKeyType);
+}
+
+export function mldsaFromSeed(param, seed) {
   try {
-    const exported = key.export({ format: "der", type: "pkcs8" });
-    return Result$Ok(BitArray$BitArray(exported));
+    if (seed.byteSize !== 32) {
+      return Result$Error(undefined);
+    }
+    const keyType = mldsaKeyType(param);
+    const prefix = MLDSA_SEED_PKCS8_PREFIX[keyType];
+    const der = Buffer.concat([prefix, Buffer.from(seed.rawBuffer)]);
+    const privateKey = crypto.createPrivateKey({
+      key: der,
+      format: "der",
+      type: "pkcs8",
+    });
+    const publicKey = crypto.createPublicKey(privateKey);
+    return Result$Ok([privateKey, publicKey]);
   } catch {
     return Result$Error(undefined);
   }
 }
 
-export function eddsaExportPublicKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "spki" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
+export function mldsaImportPrivateKeyPem(pem) {
+  return importPrivateKeyPem(pem, "pkcs8", [
+    "ml-dsa-44",
+    "ml-dsa-65",
+    "ml-dsa-87",
+  ]);
 }
 
-export function eddsaExportPublicKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "spki" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
+export function mldsaImportPrivateKeyDer(der) {
+  return importPrivateKeyDer(der, "pkcs8", [
+    "ml-dsa-44",
+    "ml-dsa-65",
+    "ml-dsa-87",
+  ]);
+}
+
+export function mldsaImportPublicKeyPem(pem) {
+  return importPublicKeyPem(pem, "spki", [
+    "ml-dsa-44",
+    "ml-dsa-65",
+    "ml-dsa-87",
+  ]);
+}
+
+export function mldsaImportPublicKeyDer(der) {
+  return importPublicKeyDer(der, "spki", [
+    "ml-dsa-44",
+    "ml-dsa-65",
+    "ml-dsa-87",
+  ]);
 }

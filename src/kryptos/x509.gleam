@@ -5,7 +5,7 @@
 ////
 //// - **Distinguished Names**: Type-safe construction of subject/issuer names
 //// - **Extensions**: Subject Alternative Names, Basic Constraints, Key Usage, etc.
-//// - **Public Keys**: Unified representation for RSA, ECDSA, EdDSA, and XDH keys
+//// - **Public Keys**: Unified representation for RSA, ECDSA, EdDSA, XDH, and ML-DSA keys
 //// - **Signature Algorithms**: Common signing algorithms for certificates and CSRs
 //// - **Certificate Fields**: Validity periods, authority key identifiers
 ////
@@ -56,6 +56,7 @@ import gleam/time/timestamp.{type Timestamp}
 import kryptos/ec
 import kryptos/eddsa
 import kryptos/internal/der
+import kryptos/mldsa
 import kryptos/rsa
 import kryptos/xdh
 
@@ -135,6 +136,8 @@ pub type PublicKey {
   EdPublicKey(eddsa.PublicKey)
   /// An XDH public key (e.g., Curve25519 or Curve448).
   XdhPublicKey(xdh.PublicKey)
+  /// An ML-DSA public key (ML-DSA-44, ML-DSA-65, or ML-DSA-87).
+  MldsaPublicKey(mldsa.PublicKey)
 }
 
 /// Signature algorithm used in X.509 structures.
@@ -159,6 +162,12 @@ pub type SignatureAlgorithm {
   Ed25519
   /// Edwards-Curve Digital Signature Algorithm using Ed448
   Ed448
+  /// Module-Lattice Digital Signature Algorithm ML-DSA-44 (FIPS 204)
+  Mldsa44
+  /// Module-Lattice Digital Signature Algorithm ML-DSA-65 (FIPS 204)
+  Mldsa65
+  /// Module-Lattice Digital Signature Algorithm ML-DSA-87 (FIPS 204)
+  Mldsa87
 }
 
 /// Basic Constraints extension - indicates if cert is a CA.

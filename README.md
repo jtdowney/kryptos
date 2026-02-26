@@ -41,19 +41,20 @@ gleam add kryptos
 
 | Module                                                                       | Algorithms                                              |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
-| [hash](https://hexdocs.pm/kryptos/kryptos/hash.html)                         | SHA-1, SHA-2, SHA-3, SHAKE, BLAKE2                      |
-| [hmac](https://hexdocs.pm/kryptos/kryptos/hmac.html)                         | All hash algorithms                                     |
 | [aead](https://hexdocs.pm/kryptos/kryptos/aead.html)                         | AES-GCM, AES-CCM, ChaCha20-Poly1305, XChaCha20-Poly1305 |
 | [block](https://hexdocs.pm/kryptos/kryptos/block.html)                       | AES-128, AES-192, AES-256, AES Key Wrap (RFC 3394)      |
+| [crypto](https://hexdocs.pm/kryptos/kryptos/crypto.html)                     | HKDF, PBKDF2, random bytes                              |
+| [ec](https://hexdocs.pm/kryptos/kryptos/ec.html)                             | Key generation, import/export, introspection            |
+| [ecdh](https://hexdocs.pm/kryptos/kryptos/ecdh.html)                         | P-256, P-384, P-521, secp256k1                          |
 | [ecdsa](https://hexdocs.pm/kryptos/kryptos/ecdsa.html)                       | P-256, P-384, P-521, secp256k1                          |
 | [eddsa](https://hexdocs.pm/kryptos/kryptos/eddsa.html)                       | Ed25519, Ed448                                          |
-| [ecdh](https://hexdocs.pm/kryptos/kryptos/ecdh.html)                         | P-256, P-384, P-521, secp256k1                          |
-| [ec](https://hexdocs.pm/kryptos/kryptos/ec.html)                             | Key generation, import/export, introspection            |
-| [xdh](https://hexdocs.pm/kryptos/kryptos/xdh.html)                           | X25519, X448                                            |
+| [hash](https://hexdocs.pm/kryptos/kryptos/hash.html)                         | SHA-1, SHA-2, SHA-3, SHAKE, BLAKE2                      |
+| [hmac](https://hexdocs.pm/kryptos/kryptos/hmac.html)                         | All hash algorithms                                     |
+| [mldsa](https://hexdocs.pm/kryptos/kryptos/mldsa.html)                       | ML-DSA-44, ML-DSA-65, ML-DSA-87                         |
 | [rsa](https://hexdocs.pm/kryptos/kryptos/rsa.html)                           | OAEP, PKCS#1 v1.5, PSS, PKCS#1 v1.5 signatures          |
-| [crypto](https://hexdocs.pm/kryptos/kryptos/crypto.html)                     | HKDF, PBKDF2, random bytes                              |
-| [x509/csr](https://hexdocs.pm/kryptos/kryptos/x509/csr.html)                 | CSR generation with ECDSA/RSA/EdDSA, SANs               |
 | [x509/certificate](https://hexdocs.pm/kryptos/kryptos/x509/certificate.html) | Certificate parsing and self-signed generation          |
+| [x509/csr](https://hexdocs.pm/kryptos/kryptos/x509/csr.html)                 | CSR generation with ECDSA/RSA/EdDSA/ML-DSA, SANs        |
+| [xdh](https://hexdocs.pm/kryptos/kryptos/xdh.html)                           | X25519, X448                                            |
 
 ## Getting Started
 

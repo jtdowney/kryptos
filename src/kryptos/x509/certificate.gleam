@@ -75,7 +75,8 @@ import kryptos/eddsa
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/der
 import kryptos/internal/utils.{parse_ip}
-import kryptos/internal/x509.{type SigAlgInfo, SigAlgInfo} as x509_internal
+import kryptos/internal/x509.{type SigAlgInfo} as x509_internal
+import kryptos/mldsa
 import kryptos/rsa
 import kryptos/x509
 import kryptos/xdh
@@ -87,10 +88,6 @@ const oid_basic_constraints = x509.Oid([2, 5, 29, 19])
 const oid_client_auth = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 2])
 
 const oid_code_signing = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 3])
-
-const oid_ed25519 = x509.Oid([1, 3, 101, 112])
-
-const oid_ed448 = x509.Oid([1, 3, 101, 113])
 
 const oid_email_protection = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 4])
 
@@ -215,6 +212,7 @@ pub opaque type Certificate(status) {
 /// - `self_signed_with_ecdsa()` for ECDSA keys
 /// - `self_signed_with_rsa()` for RSA keys
 /// - `self_signed_with_eddsa()` for Ed25519/Ed448 keys
+/// - `self_signed_with_mldsa()` for ML-DSA keys
 pub opaque type Builder {
   Builder(
     subject: x509.Name,
@@ -563,10 +561,7 @@ pub fn self_signed_with_eddsa(
   key: eddsa.PrivateKey,
 ) -> Result(Certificate(Built), Nil) {
   use validity <- result.try(option.to_result(builder.validity, Nil))
-  let sig_alg = case eddsa.curve(key) {
-    eddsa.Ed25519 -> SigAlgInfo(oid_ed25519, False)
-    eddsa.Ed448 -> SigAlgInfo(oid_ed448, False)
-  }
+  let sig_alg = x509_internal.eddsa_sig_alg_info(eddsa.curve(key))
   let public_key = eddsa.public_key_from_private_key(key)
   use spki <- result.try(eddsa.public_key_to_der(public_key))
 
@@ -583,6 +578,48 @@ pub fn self_signed_with_eddsa(
     validity,
   ))
   let signature = eddsa.sign(key, tbs)
+  use cert_der <- result.try(encode_certificate(tbs, sig_alg, signature))
+  Ok(BuiltCertificate(cert_der))
+}
+
+/// Signs a self-signed certificate with an ML-DSA private key.
+///
+/// The public key is derived from the private key and used as both
+/// the issuer and subject public key. ML-DSA has built-in hashing, so no
+/// hash algorithm parameter is needed.
+///
+/// **Note**: ML-DSA is a post-quantum signature algorithm (FIPS 204).
+/// Support may be limited with browsers and certificate authorities.
+///
+/// ## Parameters
+/// - `builder`: The configured certificate builder
+/// - `key`: An ML-DSA private key from `mldsa.generate_key_pair`
+///
+/// ## Returns
+/// - `Ok(Certificate(Built))` containing the signed certificate
+/// - `Error(Nil)` if validity is missing or the public key cannot be encoded
+pub fn self_signed_with_mldsa(
+  builder: Builder,
+  key: mldsa.PrivateKey,
+) -> Result(Certificate(Built), Nil) {
+  use validity <- result.try(option.to_result(builder.validity, Nil))
+  let sig_alg = x509_internal.mldsa_sig_alg_info(mldsa.parameter_set(key))
+  let public_key = mldsa.public_key_from_private_key(key)
+  let spki = mldsa.public_key_to_der(public_key)
+
+  let serial = case builder.serial_number {
+    Some(s) -> s
+    None -> generate_serial_number()
+  }
+
+  use tbs <- result.try(encode_tbs_certificate(
+    builder,
+    serial,
+    sig_alg,
+    spki,
+    validity,
+  ))
+  let signature = mldsa.sign(key, tbs)
   use cert_der <- result.try(encode_certificate(tbs, sig_alg, signature))
   Ok(BuiltCertificate(cert_der))
 }
@@ -878,7 +915,7 @@ pub fn subject(cert: Certificate(Parsed)) -> x509.Name {
 /// - `cert`: A parsed certificate
 ///
 /// ## Returns
-/// The subject's public key (RSA, EC, Ed, or XDH).
+/// The subject's public key (RSA, EC, Ed, XDH, or ML-DSA).
 pub fn public_key(cert: Certificate(Parsed)) -> x509.PublicKey {
   let assert ParsedCertificate(public_key:, ..) = cert
   public_key
@@ -997,7 +1034,7 @@ pub fn extensions(
 ///
 /// ## Parameters
 /// - `cert`: The parsed certificate to verify
-/// - `issuer_public_key`: The public key to verify against (must be RSA, ECDSA, or EdDSA)
+/// - `issuer_public_key`: The public key to verify against (must be RSA, ECDSA, EdDSA, or ML-DSA)
 ///
 /// ## Returns
 /// - `Ok(Nil)` if the signature is valid

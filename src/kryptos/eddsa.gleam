@@ -178,7 +178,7 @@ pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
 }
 
 @external(erlang, "kryptos_ffi", "eddsa_export_private_key_pem")
-@external(javascript, "../kryptos_ffi.mjs", "eddsaExportPrivateKeyPem")
+@external(javascript, "../kryptos_ffi.mjs", "exportPrivateKeyPem")
 fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 
 /// Exports an EdDSA private key to DER format.
@@ -191,7 +191,7 @@ fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 /// ## Returns
 /// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "eddsa_export_private_key_der")
-@external(javascript, "../kryptos_ffi.mjs", "eddsaExportPrivateKeyDer")
+@external(javascript, "../kryptos_ffi.mjs", "exportPrivateKeyDer")
 pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 
 /// Imports an EdDSA public key from PEM-encoded data.
@@ -235,7 +235,7 @@ pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
 }
 
 @external(erlang, "kryptos_ffi", "eddsa_export_public_key_pem")
-@external(javascript, "../kryptos_ffi.mjs", "eddsaExportPublicKeyPem")
+@external(javascript, "../kryptos_ffi.mjs", "exportPublicKeyPem")
 fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 
 /// Exports an EdDSA public key to DER format.
@@ -248,7 +248,7 @@ fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 /// ## Returns
 /// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "eddsa_export_public_key_der")
-@external(javascript, "../kryptos_ffi.mjs", "eddsaExportPublicKeyDer")
+@external(javascript, "../kryptos_ffi.mjs", "exportPublicKeyDer")
 pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 
 /// Derives the public key from an EdDSA private key.

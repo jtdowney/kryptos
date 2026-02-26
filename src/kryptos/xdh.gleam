@@ -189,7 +189,7 @@ pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
 }
 
 @external(erlang, "kryptos_ffi", "xdh_export_private_key_pem")
-@external(javascript, "../kryptos_ffi.mjs", "xdhExportPrivateKeyPem")
+@external(javascript, "../kryptos_ffi.mjs", "exportPrivateKeyPem")
 fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 
 /// Exports an XDH private key to DER format.
@@ -202,7 +202,7 @@ fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 /// ## Returns
 /// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "xdh_export_private_key_der")
-@external(javascript, "../kryptos_ffi.mjs", "xdhExportPrivateKeyDer")
+@external(javascript, "../kryptos_ffi.mjs", "exportPrivateKeyDer")
 pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 
 /// Imports an XDH public key from PEM-encoded data.
@@ -246,7 +246,7 @@ pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
 }
 
 @external(erlang, "kryptos_ffi", "xdh_export_public_key_pem")
-@external(javascript, "../kryptos_ffi.mjs", "xdhExportPublicKeyPem")
+@external(javascript, "../kryptos_ffi.mjs", "exportPublicKeyPem")
 fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 
 /// Exports an XDH public key to DER format.
@@ -259,7 +259,7 @@ fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 /// ## Returns
 /// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "xdh_export_public_key_der")
-@external(javascript, "../kryptos_ffi.mjs", "xdhExportPublicKeyDer")
+@external(javascript, "../kryptos_ffi.mjs", "exportPublicKeyDer")
 pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 
 /// Derives the public key from an XDH private key.

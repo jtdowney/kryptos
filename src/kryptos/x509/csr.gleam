@@ -42,6 +42,7 @@ import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/der
 import kryptos/internal/utils.{parse_ip}
 import kryptos/internal/x509.{type SigAlgInfo} as x509_internal
+import kryptos/mldsa
 import kryptos/rsa
 import kryptos/x509
 
@@ -64,7 +65,7 @@ pub type Parsed
 /// A Certificate Signing Request.
 ///
 /// The phantom type parameter tracks how the CSR was created:
-/// - `Csr(Built)` - created via `sign_with_ecdsa` or `sign_with_rsa`
+/// - `Csr(Built)` - created via `sign_with_ecdsa`, `sign_with_rsa`, `sign_with_eddsa`, or `sign_with_mldsa`
 /// - `Csr(Parsed)` - created via `from_pem` or `from_der`
 ///
 /// Export functions (`to_pem`, `to_der`) work on any `Csr(a)`.
@@ -101,7 +102,8 @@ pub opaque type Builder {
 /// Creates a new CSR builder with an empty subject and no extensions.
 ///
 /// Use the `with_*` functions to configure the builder, then call
-/// `sign_with_ecdsa` or `sign_with_rsa` to generate the signed CSR.
+/// `sign_with_ecdsa`, `sign_with_rsa`, `sign_with_eddsa`, or `sign_with_mldsa`
+/// to generate the signed CSR.
 ///
 /// ## Returns
 /// A new Builder ready for configuration.
@@ -298,6 +300,34 @@ pub fn sign_with_eddsa(
   Ok(BuiltCsr(csr_der))
 }
 
+/// Signs the CSR with an ML-DSA private key.
+///
+/// **Note**: ML-DSA is a post-quantum signature algorithm (FIPS 204).
+/// Support may be limited with browsers and certificate authorities.
+///
+/// ## Parameters
+/// - `builder`: The configured CSR builder
+/// - `key`: An ML-DSA private key from `mldsa.generate_key_pair`
+///
+/// ## Returns
+/// - `Ok(Csr(Built))` containing the signed CSR
+/// - `Error(Nil)` if the public key cannot be encoded
+pub fn sign_with_mldsa(
+  builder: Builder,
+  key: mldsa.PrivateKey,
+) -> Result(Csr(Built), Nil) {
+  let sig_alg = x509_internal.mldsa_sig_alg_info(mldsa.parameter_set(key))
+  let public_key = mldsa.public_key_from_private_key(key)
+  let spki = mldsa.public_key_to_der(public_key)
+  use cert_request_info <- result.try(encode_certification_request_info(
+    builder,
+    spki,
+  ))
+  let signature = mldsa.sign(key, cert_request_info)
+  use csr_der <- result.try(encode_csr(cert_request_info, sig_alg, signature))
+  Ok(BuiltCsr(csr_der))
+}
+
 /// Exports the CSR as DER-encoded bytes.
 ///
 /// DER (Distinguished Encoding Rules) is a binary format commonly used
@@ -480,7 +510,7 @@ pub fn subject(csr: Csr(Parsed)) -> x509.Name {
 /// - `csr`: A parsed CSR
 ///
 /// ## Returns
-/// The subject's public key (RSA, EC, or EdDSA).
+/// The subject's public key (RSA, EC, EdDSA, or ML-DSA).
 pub fn public_key(csr: Csr(Parsed)) -> x509.PublicKey {
   let assert ParsedCsr(public_key:, ..) = csr
   public_key
