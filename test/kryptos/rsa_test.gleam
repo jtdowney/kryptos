@@ -33,32 +33,29 @@ pub fn rsa_sign_verify_roundtrip_property_test() {
 
   let #(private_key, public_key) = load_test_key_pair()
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(#(hash_alg, padding), message) = input
-    let signature = rsa.sign(private_key, message, hash_alg, padding)
-    assert rsa.verify(public_key, message, signature, hash_alg, padding)
-  })
+  use input <- qcheck.given(gen)
+  let #(#(hash_alg, padding), message) = input
+  let signature = rsa.sign(private_key, message, hash_alg, padding)
+  assert rsa.verify(public_key, message, signature, hash_alg, padding)
 }
 
 // Property: wrong public key fails verification
 pub fn rsa_wrong_public_key_fails_property_test() {
   let gen = qcheck.byte_aligned_bit_array()
 
-  qcheck.run(
+  use message <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(3),
     gen,
-    fn(message) {
-      let assert Ok(#(private_key, _)) = rsa.generate_key_pair(2048)
-      let assert Ok(#(_, other_public_key)) = rsa.generate_key_pair(2048)
-      let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
-      assert !rsa.verify(
-        other_public_key,
-        message,
-        signature,
-        hash.Sha256,
-        rsa.Pkcs1v15,
-      )
-    },
+  )
+  let assert Ok(#(private_key, _)) = rsa.generate_key_pair(2048)
+  let assert Ok(#(_, other_public_key)) = rsa.generate_key_pair(2048)
+  let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
+  assert !rsa.verify(
+    other_public_key,
+    message,
+    signature,
+    hash.Sha256,
+    rsa.Pkcs1v15,
   )
 }
 
@@ -67,21 +64,14 @@ pub fn rsa_tampered_message_fails_property_test() {
   let gen = qcheck.non_empty_byte_aligned_bit_array()
   let #(private_key, public_key) = load_test_key_pair()
 
-  qcheck.run(qcheck.default_config(), gen, fn(message) {
-    let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
+  use message <- qcheck.given(gen)
+  let signature = rsa.sign(private_key, message, hash.Sha256, rsa.Pkcs1v15)
 
-    // Flip first bit
-    let assert <<first_byte:8, rest:bits>> = message
-    let tampered = <<{ int.bitwise_exclusive_or(first_byte, 1) }:8, rest:bits>>
+  // Flip first bit
+  let assert <<first_byte:8, rest:bits>> = message
+  let tampered = <<{ int.bitwise_exclusive_or(first_byte, 1) }:8, rest:bits>>
 
-    assert !rsa.verify(
-      public_key,
-      tampered,
-      signature,
-      hash.Sha256,
-      rsa.Pkcs1v15,
-    )
-  })
+  assert !rsa.verify(public_key, tampered, signature, hash.Sha256, rsa.Pkcs1v15)
 }
 
 // Property: encrypt then decrypt returns original plaintext
@@ -99,18 +89,16 @@ pub fn rsa_encrypt_decrypt_roundtrip_property_test() {
       qcheck.bounded_int(0, 100),
     )
 
-  qcheck.run(
+  use input <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(10),
     gen,
-    fn(input) {
-      let #(padding, plaintext_size) = input
-      let plaintext = crypto.random_bytes(plaintext_size)
-
-      let assert Ok(ciphertext) = rsa.encrypt(public_key, plaintext, padding)
-      let assert Ok(decrypted) = rsa.decrypt(private_key, ciphertext, padding)
-      assert decrypted == plaintext
-    },
   )
+  let #(padding, plaintext_size) = input
+  let plaintext = crypto.random_bytes(plaintext_size)
+
+  let assert Ok(ciphertext) = rsa.encrypt(public_key, plaintext, padding)
+  let assert Ok(decrypted) = rsa.decrypt(private_key, ciphertext, padding)
+  assert decrypted == plaintext
 }
 
 pub fn generate_key_pair_too_small_test() {
@@ -478,103 +466,95 @@ pub fn public_key_exponent_3_test() {
 }
 
 pub fn modulus_bytes_consistency_property_test() {
-  qcheck.run(
+  use _ <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(5),
     qcheck.return(Nil),
-    fn(_) {
-      let assert Ok(#(private, public)) = rsa.generate_key_pair(2048)
-      let priv_modulus = rsa.modulus(private)
-      let pub_modulus = rsa.public_key_modulus(public)
-      assert priv_modulus == pub_modulus
-    },
   )
+  let assert Ok(#(private, public)) = rsa.generate_key_pair(2048)
+  let priv_modulus = rsa.modulus(private)
+  let pub_modulus = rsa.public_key_modulus(public)
+  assert priv_modulus == pub_modulus
 }
 
 pub fn exponent_bytes_consistency_property_test() {
-  qcheck.run(
+  use _ <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(5),
     qcheck.return(Nil),
-    fn(_) {
-      let assert Ok(#(private, public)) = rsa.generate_key_pair(2048)
-      let priv_exp = rsa.public_exponent_bytes(private)
-      let pub_exp = rsa.public_key_exponent_bytes(public)
-      assert priv_exp == pub_exp
-    },
   )
+  let assert Ok(#(private, public)) = rsa.generate_key_pair(2048)
+  let priv_exp = rsa.public_exponent_bytes(private)
+  let pub_exp = rsa.public_key_exponent_bytes(public)
+  assert priv_exp == pub_exp
 }
 
 pub fn from_components_roundtrip_sign_verify_property_test() {
-  qcheck.run(
+  use message <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(5),
     qcheck.byte_aligned_bit_array(),
-    fn(message) {
-      let assert Ok(#(original_private, original_public)) =
-        rsa.generate_key_pair(2048)
+  )
+  let assert Ok(#(original_private, original_public)) =
+    rsa.generate_key_pair(2048)
 
-      let n = rsa.modulus(original_private)
-      let e = rsa.public_exponent_bytes(original_private)
-      let d = rsa.private_exponent_bytes(original_private)
+  let n = rsa.modulus(original_private)
+  let e = rsa.public_exponent_bytes(original_private)
+  let d = rsa.private_exponent_bytes(original_private)
 
-      let assert Ok(#(reconstructed_private, reconstructed_public)) =
-        rsa.from_components(n, e, d)
+  let assert Ok(#(reconstructed_private, reconstructed_public)) =
+    rsa.from_components(n, e, d)
 
-      let signature =
-        rsa.sign(reconstructed_private, message, hash.Sha256, rsa.Pkcs1v15)
-      assert rsa.verify(
-        original_public,
-        message,
-        signature,
-        hash.Sha256,
-        rsa.Pkcs1v15,
-      )
-      assert rsa.verify(
-        reconstructed_public,
-        message,
-        signature,
-        hash.Sha256,
-        rsa.Pkcs1v15,
-      )
-    },
+  let signature =
+    rsa.sign(reconstructed_private, message, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(
+    original_public,
+    message,
+    signature,
+    hash.Sha256,
+    rsa.Pkcs1v15,
+  )
+  assert rsa.verify(
+    reconstructed_public,
+    message,
+    signature,
+    hash.Sha256,
+    rsa.Pkcs1v15,
   )
 }
 
 pub fn from_full_components_roundtrip_sign_verify_property_test() {
-  qcheck.run(
+  use message <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(5),
     qcheck.byte_aligned_bit_array(),
-    fn(message) {
-      let assert Ok(#(original_private, original_public)) =
-        rsa.generate_key_pair(2048)
+  )
+  let assert Ok(#(original_private, original_public)) =
+    rsa.generate_key_pair(2048)
 
-      let n = rsa.modulus(original_private)
-      let e = rsa.public_exponent_bytes(original_private)
-      let d = rsa.private_exponent_bytes(original_private)
-      let p = rsa.prime1(original_private)
-      let q = rsa.prime2(original_private)
-      let dp = rsa.exponent1(original_private)
-      let dq = rsa.exponent2(original_private)
-      let qi = rsa.coefficient(original_private)
+  let n = rsa.modulus(original_private)
+  let e = rsa.public_exponent_bytes(original_private)
+  let d = rsa.private_exponent_bytes(original_private)
+  let p = rsa.prime1(original_private)
+  let q = rsa.prime2(original_private)
+  let dp = rsa.exponent1(original_private)
+  let dq = rsa.exponent2(original_private)
+  let qi = rsa.coefficient(original_private)
 
-      let assert Ok(#(reconstructed_private, reconstructed_public)) =
-        rsa.from_full_components(n, e, d, p, q, dp, dq, qi)
+  let assert Ok(#(reconstructed_private, reconstructed_public)) =
+    rsa.from_full_components(n, e, d, p, q, dp, dq, qi)
 
-      let signature =
-        rsa.sign(reconstructed_private, message, hash.Sha256, rsa.Pkcs1v15)
-      assert rsa.verify(
-        original_public,
-        message,
-        signature,
-        hash.Sha256,
-        rsa.Pkcs1v15,
-      )
-      assert rsa.verify(
-        reconstructed_public,
-        message,
-        signature,
-        hash.Sha256,
-        rsa.Pkcs1v15,
-      )
-    },
+  let signature =
+    rsa.sign(reconstructed_private, message, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(
+    original_public,
+    message,
+    signature,
+    hash.Sha256,
+    rsa.Pkcs1v15,
+  )
+  assert rsa.verify(
+    reconstructed_public,
+    message,
+    signature,
+    hash.Sha256,
+    rsa.Pkcs1v15,
   )
 }
 
@@ -619,25 +599,23 @@ pub fn from_components_crt_accessors_work_test() {
 }
 
 pub fn public_key_from_components_roundtrip_property_test() {
-  qcheck.run(
+  use message <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(5),
     qcheck.byte_aligned_bit_array(),
-    fn(message) {
-      let assert Ok(#(private, _)) = rsa.generate_key_pair(2048)
+  )
+  let assert Ok(#(private, _)) = rsa.generate_key_pair(2048)
 
-      let n = rsa.modulus(private)
-      let e = rsa.public_exponent_bytes(private)
+  let n = rsa.modulus(private)
+  let e = rsa.public_exponent_bytes(private)
 
-      let assert Ok(reconstructed_public) = rsa.public_key_from_components(n, e)
+  let assert Ok(reconstructed_public) = rsa.public_key_from_components(n, e)
 
-      let signature = rsa.sign(private, message, hash.Sha256, rsa.Pkcs1v15)
-      assert rsa.verify(
-        reconstructed_public,
-        message,
-        signature,
-        hash.Sha256,
-        rsa.Pkcs1v15,
-      )
-    },
+  let signature = rsa.sign(private, message, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(
+    reconstructed_public,
+    message,
+    signature,
+    hash.Sha256,
+    rsa.Pkcs1v15,
   )
 }

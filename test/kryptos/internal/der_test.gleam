@@ -74,11 +74,10 @@ pub fn parse_length_empty_input_test() {
 pub fn length_roundtrip_property_test() {
   let gen = qcheck.bounded_int(0, 65_535)
 
-  qcheck.run(qcheck.default_config(), gen, fn(len) {
-    let assert Ok(encoded) = der.encode_length(len)
-    let result = der.parse_length(encoded)
-    assert result == Ok(#(len, <<>>))
-  })
+  use len <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_length(len)
+  let result = der.parse_length(encoded)
+  assert result == Ok(#(len, <<>>))
 }
 
 pub fn encode_small_int_single_byte_values_test() {
@@ -119,12 +118,11 @@ pub fn encode_small_int_rejects_overflow_test() {
 pub fn encode_small_int_roundtrip_property_test() {
   let gen = qcheck.bounded_int(0, 0xffff_ffff)
 
-  qcheck.run(qcheck.default_config(), gen, fn(n) {
-    let assert Ok(encoded) = der.encode_small_int(n)
-    let assert Ok(#(parsed_bytes, <<>>)) = der.parse_integer(encoded)
-    let assert Ok(re_encoded) = der.encode_integer(parsed_bytes)
-    assert re_encoded == encoded
-  })
+  use n <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_small_int(n)
+  let assert Ok(#(parsed_bytes, <<>>)) = der.parse_integer(encoded)
+  let assert Ok(re_encoded) = der.encode_integer(parsed_bytes)
+  assert re_encoded == encoded
 }
 
 pub fn encode_integer_zero_test() {
@@ -198,16 +196,14 @@ pub fn parse_integer_truncated_test() {
 pub fn integer_roundtrip_property_test() {
   let gen = qcheck.byte_aligned_bit_array()
 
-  qcheck.run(
+  use bytes <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(50),
     gen,
-    fn(bytes) {
-      let assert Ok(encoded) = der.encode_integer(bytes)
-      let result = der.parse_integer(encoded)
-      let assert Ok(#(_value, remaining)) = result
-      assert remaining == <<>>
-    },
   )
+  let assert Ok(encoded) = der.encode_integer(bytes)
+  let result = der.parse_integer(encoded)
+  let assert Ok(#(_value, remaining)) = result
+  assert remaining == <<>>
 }
 
 pub fn encode_sequence_empty_test() {
@@ -253,11 +249,10 @@ pub fn parse_sequence_with_remaining_test() {
 pub fn sequence_roundtrip_property_test() {
   let gen = qcheck.byte_aligned_bit_array()
 
-  qcheck.run(qcheck.default_config(), gen, fn(content) {
-    let assert Ok(encoded) = der.encode_sequence(content)
-    let result = der.parse_sequence(encoded)
-    assert result == Ok(#(content, <<>>))
-  })
+  use content <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_sequence(content)
+  let result = der.parse_sequence(encoded)
+  assert result == Ok(#(content, <<>>))
 }
 
 pub fn sequence_large_content_test() {
@@ -293,11 +288,10 @@ pub fn parse_set_wrong_tag_test() {
 pub fn set_roundtrip_property_test() {
   let gen = qcheck.byte_aligned_bit_array()
 
-  qcheck.run(qcheck.default_config(), gen, fn(content) {
-    let assert Ok(encoded) = der.encode_set(content)
-    let result = der.parse_set(encoded)
-    assert result == Ok(#(content, <<>>))
-  })
+  use content <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_set(content)
+  let result = der.parse_set(encoded)
+  assert result == Ok(#(content, <<>>))
 }
 
 pub fn encode_bit_string_prepends_zero_test() {
@@ -352,11 +346,10 @@ pub fn parse_bit_string_empty_content_test() {
 pub fn bit_string_roundtrip_property_test() {
   let gen = qcheck.byte_aligned_bit_array()
 
-  qcheck.run(qcheck.default_config(), gen, fn(content) {
-    let assert Ok(encoded) = der.encode_bit_string(content)
-    let result = der.parse_bit_string(encoded)
-    assert result == Ok(#(content, <<>>))
-  })
+  use content <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_bit_string(content)
+  let result = der.parse_bit_string(encoded)
+  assert result == Ok(#(content, <<>>))
 }
 
 pub fn encode_octet_string_tag_test() {
@@ -400,11 +393,10 @@ pub fn parse_octet_string_truncated_test() {
 pub fn octet_string_roundtrip_property_test() {
   let gen = qcheck.byte_aligned_bit_array()
 
-  qcheck.run(qcheck.default_config(), gen, fn(content) {
-    let assert Ok(encoded) = der.encode_octet_string(content)
-    let result = der.parse_octet_string(encoded)
-    assert result == Ok(#(content, <<>>))
-  })
+  use content <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_octet_string(content)
+  let result = der.parse_octet_string(encoded)
+  assert result == Ok(#(content, <<>>))
 }
 
 pub fn encode_utf8_string_tag_test() {
@@ -448,11 +440,10 @@ pub fn parse_utf8_string_with_remaining_test() {
 pub fn utf8_string_roundtrip_property_test() {
   let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
 
-  qcheck.run(qcheck.default_config(), gen, fn(s) {
-    let assert Ok(encoded) = der.encode_utf8_string(s)
-    let result = der.parse_utf8_string(encoded)
-    assert result == Ok(#(s, <<>>))
-  })
+  use s <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_utf8_string(s)
+  let result = der.parse_utf8_string(encoded)
+  assert result == Ok(#(s, <<>>))
 }
 
 pub fn encode_printable_string_tag_test() {
@@ -519,11 +510,10 @@ pub fn printable_string_roundtrip_property_test() {
   let gen =
     qcheck.string_from(qcheck.codepoint_from_ints(65, printable_string_rest))
 
-  qcheck.run(qcheck.default_config(), gen, fn(s) {
-    let assert Ok(encoded) = der.encode_printable_string(s)
-    let result = der.parse_printable_string(encoded)
-    assert result == Ok(#(s, <<>>))
-  })
+  use s <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_printable_string(s)
+  let result = der.parse_printable_string(encoded)
+  assert result == Ok(#(s, <<>>))
 }
 
 pub fn encode_ia5_string_tag_test() {
@@ -543,11 +533,10 @@ pub fn parse_ia5_string_empty_test() {
 pub fn ia5_string_roundtrip_property_test() {
   let gen = qcheck.string_from(qcheck.printable_ascii_codepoint())
 
-  qcheck.run(qcheck.default_config(), gen, fn(s) {
-    let assert Ok(encoded) = der.encode_ia5_string(s)
-    let result = der.parse_ia5_string(encoded)
-    assert result == Ok(#(s, <<>>))
-  })
+  use s <- qcheck.given(gen)
+  let assert Ok(encoded) = der.encode_ia5_string(s)
+  let result = der.parse_ia5_string(encoded)
+  assert result == Ok(#(s, <<>>))
 }
 
 pub fn encode_string_empty_test() {
@@ -814,17 +803,15 @@ pub fn oid_large_first_component_roundtrip_property_test() {
       qcheck.list_from(qcheck.bounded_int(0, 100_000)),
     )
 
-  qcheck.run(
+  use input <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(50),
     gen,
-    fn(input) {
-      let #(second, rest) = input
-      let components = [2, second, ..rest]
-      let assert Ok(encoded) = der.encode_oid(components)
-      let result = der.parse_oid(encoded)
-      assert result == Ok(#(components, <<>>))
-    },
   )
+  let #(second, rest) = input
+  let components = [2, second, ..rest]
+  let assert Ok(encoded) = der.encode_oid(components)
+  let result = der.parse_oid(encoded)
+  assert result == Ok(#(components, <<>>))
 }
 
 pub fn parse_oid_empty_test() {
@@ -843,17 +830,15 @@ pub fn oid_roundtrip_property_test() {
       ),
     )
 
-  qcheck.run(
+  use input <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(50),
     gen,
-    fn(input) {
-      let #(first, #(second, rest)) = input
-      let components = [first, second, ..rest]
-      let assert Ok(encoded) = der.encode_oid(components)
-      let result = der.parse_oid(encoded)
-      assert result == Ok(#(components, <<>>))
-    },
   )
+  let #(first, #(second, rest)) = input
+  let components = [first, second, ..rest]
+  let assert Ok(encoded) = der.encode_oid(components)
+  let result = der.parse_oid(encoded)
+  assert result == Ok(#(components, <<>>))
 }
 
 pub fn encode_context_tag_test() {
@@ -905,12 +890,11 @@ pub fn context_tag_roundtrip_property_test() {
   let gen =
     qcheck.tuple2(qcheck.bounded_int(0, 30), qcheck.byte_aligned_bit_array())
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(tag, content) = input
-    let assert Ok(encoded) = der.encode_context_tag(tag, content)
-    let result = der.parse_context_tag(encoded, tag)
-    assert result == Ok(#(content, <<>>))
-  })
+  use input <- qcheck.given(gen)
+  let #(tag, content) = input
+  let assert Ok(encoded) = der.encode_context_tag(tag, content)
+  let result = der.parse_context_tag(encoded, tag)
+  assert result == Ok(#(content, <<>>))
 }
 
 pub fn encode_context_primitive_tag_test() {
@@ -968,17 +952,15 @@ pub fn parse_tlv_roundtrip_property_test() {
   let gen =
     qcheck.tuple2(qcheck.bounded_int(0, 255), qcheck.byte_aligned_bit_array())
 
-  qcheck.run(
+  use input <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(50),
     gen,
-    fn(input) {
-      let #(tag, content) = input
-      let assert Ok(len_bytes) = der.encode_length(bit_array.byte_size(content))
-      let tlv = bit_array.concat([<<tag:8>>, len_bytes, content])
-      let result = der.parse_tlv(tlv)
-      assert result == Ok(#(tag, content, <<>>))
-    },
   )
+  let #(tag, content) = input
+  let assert Ok(len_bytes) = der.encode_length(bit_array.byte_size(content))
+  let tlv = bit_array.concat([<<tag:8>>, len_bytes, content])
+  let result = der.parse_tlv(tlv)
+  assert result == Ok(#(tag, content, <<>>))
 }
 
 pub fn nested_sequence_test() {
@@ -1080,17 +1062,15 @@ pub fn utc_time_roundtrip_property_test() {
       qcheck.bounded_int(0, 59),
     )
 
-  qcheck.run(
+  use input <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(50),
     gen,
-    fn(input) {
-      let #(year, month, day, hour, minute, second) = input
-      let ts = make_timestamp(year, month, day, hour, minute, second)
-      let assert Ok(encoded) = der.encode_timestamp(ts)
-      let assert Ok(#(parsed_ts, <<>>)) = der.parse_utc_time(encoded)
-      assert parsed_ts == ts
-    },
   )
+  let #(year, month, day, hour, minute, second) = input
+  let ts = make_timestamp(year, month, day, hour, minute, second)
+  let assert Ok(encoded) = der.encode_timestamp(ts)
+  let assert Ok(#(parsed_ts, <<>>)) = der.parse_utc_time(encoded)
+  assert parsed_ts == ts
 }
 
 pub fn generalized_time_roundtrip_property_test() {
@@ -1104,17 +1084,15 @@ pub fn generalized_time_roundtrip_property_test() {
       qcheck.bounded_int(0, 59),
     )
 
-  qcheck.run(
+  use input <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(50),
     gen,
-    fn(input) {
-      let #(year, month, day, hour, minute, second) = input
-      let ts = make_timestamp(year, month, day, hour, minute, second)
-      let assert Ok(encoded) = der.encode_generalized_time(ts)
-      let assert Ok(#(parsed_ts, <<>>)) = der.parse_generalized_time(encoded)
-      assert parsed_ts == ts
-    },
   )
+  let #(year, month, day, hour, minute, second) = input
+  let ts = make_timestamp(year, month, day, hour, minute, second)
+  let assert Ok(encoded) = der.encode_generalized_time(ts)
+  let assert Ok(#(parsed_ts, <<>>)) = der.parse_generalized_time(encoded)
+  assert parsed_ts == ts
 }
 
 pub fn parse_utc_time_with_remaining_test() {

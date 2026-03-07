@@ -131,29 +131,28 @@ pub fn hmac_chunking_invariant_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(algorithm, key, data) = input
-    let data_size = bit_array.byte_size(data)
-    let assert Ok(expected) = crypto.hmac(algorithm, key, data)
+  use input <- qcheck.given(gen)
+  let #(algorithm, key, data) = input
+  let data_size = bit_array.byte_size(data)
+  let assert Ok(expected) = crypto.hmac(algorithm, key, data)
 
-    list.each([0, data_size / 2, data_size], fn(split_point) {
-      let split_point = case split_point > data_size {
-        True -> data_size
-        False -> split_point
-      }
-      let assert Ok(first) = bit_array.slice(data, 0, split_point)
-      let assert Ok(second) =
-        bit_array.slice(data, split_point, data_size - split_point)
+  list.each([0, data_size / 2, data_size], fn(split_point) {
+    let split_point = case split_point > data_size {
+      True -> data_size
+      False -> split_point
+    }
+    let assert Ok(first) = bit_array.slice(data, 0, split_point)
+    let assert Ok(second) =
+      bit_array.slice(data, split_point, data_size - split_point)
 
-      let assert Ok(hmac_state) = hmac.new(algorithm, key)
-      let result =
-        hmac_state
-        |> hmac.update(first)
-        |> hmac.update(second)
-        |> hmac.final()
+    let assert Ok(hmac_state) = hmac.new(algorithm, key)
+    let result =
+      hmac_state
+      |> hmac.update(first)
+      |> hmac.update(second)
+      |> hmac.final()
 
-      assert result == expected
-    })
+    assert result == expected
   })
 }
 
@@ -169,12 +168,11 @@ pub fn hmac_verify_roundtrip_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(algorithm, key, data) = input
-    let assert Ok(mac) = crypto.hmac(algorithm, key, data)
-    let assert Ok(valid) = hmac.verify(algorithm, key, data, mac)
-    assert valid
-  })
+  use input <- qcheck.given(gen)
+  let #(algorithm, key, data) = input
+  let assert Ok(mac) = crypto.hmac(algorithm, key, data)
+  let assert Ok(valid) = hmac.verify(algorithm, key, data, mac)
+  assert valid
 }
 
 // Property: wrong key fails verification
@@ -186,20 +184,19 @@ pub fn hmac_wrong_key_fails_property_test() {
       qcheck.non_empty_byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(key1, key2, data) = input
-    // HMAC pads keys shorter than the block size with zeros, so keys that
-    // differ only by trailing zeros are HMAC-equivalent. We compare the
-    // canonical form (trailing zeros stripped) to detect this.
-    case utils.strip_trailing_zeros(key1) == utils.strip_trailing_zeros(key2) {
-      True -> Nil
-      False -> {
-        let assert Ok(mac) = crypto.hmac(hash.Sha256, key1, data)
-        let assert Ok(valid) = hmac.verify(hash.Sha256, key2, data, mac)
-        assert !valid
-      }
+  use input <- qcheck.given(gen)
+  let #(key1, key2, data) = input
+  // HMAC pads keys shorter than the block size with zeros, so keys that
+  // differ only by trailing zeros are HMAC-equivalent. We compare the
+  // canonical form (trailing zeros stripped) to detect this.
+  case utils.strip_trailing_zeros(key1) == utils.strip_trailing_zeros(key2) {
+    True -> Nil
+    False -> {
+      let assert Ok(mac) = crypto.hmac(hash.Sha256, key1, data)
+      let assert Ok(valid) = hmac.verify(hash.Sha256, key2, data, mac)
+      assert !valid
     }
-  })
+  }
 }
 
 // Edge case: empty data produces valid HMAC

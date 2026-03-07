@@ -136,24 +136,22 @@ pub fn ipv4_parsing_property_test() {
       qcheck.bounded_int(0, 255),
     )
 
-  qcheck.run(
+  use octets <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(50),
     gen,
-    fn(octets) {
-      let #(a, b, c, d) = octets
-      let ip =
-        int.to_string(a)
-        <> "."
-        <> int.to_string(b)
-        <> "."
-        <> int.to_string(c)
-        <> "."
-        <> int.to_string(d)
-
-      let assert Ok(_) = csr.new() |> csr.with_ip(ip)
-      Nil
-    },
   )
+  let #(a, b, c, d) = octets
+  let ip =
+    int.to_string(a)
+    <> "."
+    <> int.to_string(b)
+    <> "."
+    <> int.to_string(c)
+    <> "."
+    <> int.to_string(d)
+
+  let assert Ok(_) = csr.new() |> csr.with_ip(ip)
+  Nil
 }
 
 pub fn ipv4_rejects_invalid_test() {
@@ -561,10 +559,12 @@ pub fn ipv6_full_form_parsing_property_test() {
       |> string.join(":")
     })
 
-  qcheck.run(qcheck.default_config() |> qcheck.with_test_count(50), gen, fn(ip) {
-    let assert Ok(_) = csr.new() |> csr.with_ip(ip)
-    Nil
-  })
+  use ip <- qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(50),
+    gen,
+  )
+  let assert Ok(_) = csr.new() |> csr.with_ip(ip)
+  Nil
 }
 
 pub fn ecdsa_csr_roundtrip_property_test() {
@@ -583,37 +583,35 @@ pub fn ecdsa_csr_roundtrip_property_test() {
     }
   }
 
-  qcheck.run(
+  use curve <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(10),
     curve_gen,
-    fn(curve) {
-      let #(private_key, _) = ec.generate_key_pair(curve)
-      let subject =
-        x509.name([x509.cn("test.example.com"), x509.organization("Test Org")])
-
-      let assert Ok(builder) =
-        csr.new()
-        |> csr.with_subject(subject)
-        |> csr.with_dns_name("test.example.com")
-        |> result.try(csr.with_dns_name(_, "www.test.example.com"))
-
-      let assert Ok(built_csr) =
-        csr.sign_with_ecdsa(builder, private_key, hash_for_curve(curve))
-
-      let der = csr.to_der(built_csr)
-      let assert Ok(parsed) = csr.from_der(der)
-
-      assert csr.version(parsed) == 0
-      let assert EcPublicKey(_) = csr.public_key(parsed)
-      assert list.length(csr.subject_alt_names(parsed)) == 2
-
-      let pem = csr.to_pem(built_csr)
-      let assert Ok(parsed_from_pem) = csr.from_pem(pem)
-      assert csr.version(parsed_from_pem) == 0
-
-      Nil
-    },
   )
+  let #(private_key, _) = ec.generate_key_pair(curve)
+  let subject =
+    x509.name([x509.cn("test.example.com"), x509.organization("Test Org")])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("test.example.com")
+    |> result.try(csr.with_dns_name(_, "www.test.example.com"))
+
+  let assert Ok(built_csr) =
+    csr.sign_with_ecdsa(builder, private_key, hash_for_curve(curve))
+
+  let der = csr.to_der(built_csr)
+  let assert Ok(parsed) = csr.from_der(der)
+
+  assert csr.version(parsed) == 0
+  let assert EcPublicKey(_) = csr.public_key(parsed)
+  assert list.length(csr.subject_alt_names(parsed)) == 2
+
+  let pem = csr.to_pem(built_csr)
+  let assert Ok(parsed_from_pem) = csr.from_pem(pem)
+  assert csr.version(parsed_from_pem) == 0
+
+  Nil
 }
 
 pub fn rsa_csr_roundtrip_test() {

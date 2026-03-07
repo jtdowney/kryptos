@@ -83,30 +83,29 @@ pub fn hash_chunking_invariant_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(algorithm, data) = input
-    let data_size = bit_array.byte_size(data)
-    let assert Ok(expected) = crypto.hash(algorithm, data)
+  use input <- qcheck.given(gen)
+  let #(algorithm, data) = input
+  let data_size = bit_array.byte_size(data)
+  let assert Ok(expected) = crypto.hash(algorithm, data)
 
-    // Test with multiple chunk sizes
-    list.each([0, data_size / 2, data_size], fn(split_point) {
-      let split_point = case split_point > data_size {
-        True -> data_size
-        False -> split_point
-      }
-      let assert Ok(first) = bit_array.slice(data, 0, split_point)
-      let assert Ok(second) =
-        bit_array.slice(data, split_point, data_size - split_point)
+  // Test with multiple chunk sizes
+  list.each([0, data_size / 2, data_size], fn(split_point) {
+    let split_point = case split_point > data_size {
+      True -> data_size
+      False -> split_point
+    }
+    let assert Ok(first) = bit_array.slice(data, 0, split_point)
+    let assert Ok(second) =
+      bit_array.slice(data, split_point, data_size - split_point)
 
-      let assert Ok(hasher) = hash.new(algorithm)
-      let result =
-        hasher
-        |> hash.update(first)
-        |> hash.update(second)
-        |> hash.final()
+    let assert Ok(hasher) = hash.new(algorithm)
+    let result =
+      hasher
+      |> hash.update(first)
+      |> hash.update(second)
+      |> hash.final()
 
-      assert result == expected
-    })
+    assert result == expected
   })
 }
 
@@ -120,12 +119,11 @@ pub fn hash_deterministic_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(algorithm, data) = input
-    let assert Ok(hash1) = crypto.hash(algorithm, data)
-    let assert Ok(hash2) = crypto.hash(algorithm, data)
-    assert hash1 == hash2
-  })
+  use input <- qcheck.given(gen)
+  let #(algorithm, data) = input
+  let assert Ok(hash1) = crypto.hash(algorithm, data)
+  let assert Ok(hash2) = crypto.hash(algorithm, data)
+  assert hash1 == hash2
 }
 
 pub fn is_supported_sha256_test() {
@@ -142,12 +140,11 @@ pub fn shake_output_length_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(algorithm_fn, output_length, data) = input
-    let algorithm = algorithm_fn(output_length)
-    let assert Ok(digest) = crypto.hash(algorithm, data)
-    assert bit_array.byte_size(digest) == output_length
-  })
+  use input <- qcheck.given(gen)
+  let #(algorithm_fn, output_length, data) = input
+  let algorithm = algorithm_fn(output_length)
+  let assert Ok(digest) = crypto.hash(algorithm, data)
+  assert bit_array.byte_size(digest) == output_length
 }
 
 pub fn is_supported_matches_new_test() {

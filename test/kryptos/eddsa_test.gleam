@@ -23,12 +23,11 @@ pub fn eddsa_sign_verify_roundtrip_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(curve, message) = input
-    let #(private_key, public_key) = eddsa.generate_key_pair(curve)
-    let signature = eddsa.sign(private_key, message)
-    assert eddsa.verify(public_key, message, signature)
-  })
+  use input <- qcheck.given(gen)
+  let #(curve, message) = input
+  let #(private_key, public_key) = eddsa.generate_key_pair(curve)
+  let signature = eddsa.sign(private_key, message)
+  assert eddsa.verify(public_key, message, signature)
 }
 
 // Property: EdDSA signatures are deterministic
@@ -39,13 +38,12 @@ pub fn eddsa_deterministic_signature_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(curve, message) = input
-    let #(private_key, _) = eddsa.generate_key_pair(curve)
-    let signature1 = eddsa.sign(private_key, message)
-    let signature2 = eddsa.sign(private_key, message)
-    assert signature1 == signature2
-  })
+  use input <- qcheck.given(gen)
+  let #(curve, message) = input
+  let #(private_key, _) = eddsa.generate_key_pair(curve)
+  let signature1 = eddsa.sign(private_key, message)
+  let signature2 = eddsa.sign(private_key, message)
+  assert signature1 == signature2
 }
 
 // Property: wrong public key fails verification
@@ -56,13 +54,12 @@ pub fn eddsa_wrong_public_key_fails_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(curve, message) = input
-    let #(private_key, _) = eddsa.generate_key_pair(curve)
-    let #(_, other_public_key) = eddsa.generate_key_pair(curve)
-    let signature = eddsa.sign(private_key, message)
-    assert !eddsa.verify(other_public_key, message, signature)
-  })
+  use input <- qcheck.given(gen)
+  let #(curve, message) = input
+  let #(private_key, _) = eddsa.generate_key_pair(curve)
+  let #(_, other_public_key) = eddsa.generate_key_pair(curve)
+  let signature = eddsa.sign(private_key, message)
+  assert !eddsa.verify(other_public_key, message, signature)
 }
 
 // Property: tampered message fails verification
@@ -73,17 +70,16 @@ pub fn eddsa_tampered_message_fails_property_test() {
       qcheck.non_empty_byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(curve, message) = input
-    let #(private_key, public_key) = eddsa.generate_key_pair(curve)
-    let signature = eddsa.sign(private_key, message)
+  use input <- qcheck.given(gen)
+  let #(curve, message) = input
+  let #(private_key, public_key) = eddsa.generate_key_pair(curve)
+  let signature = eddsa.sign(private_key, message)
 
-    // Flip first bit
-    let assert <<first_byte:8, rest:bits>> = message
-    let tampered = <<{ int.bitwise_exclusive_or(first_byte, 1) }:8, rest:bits>>
+  // Flip first bit
+  let assert <<first_byte:8, rest:bits>> = message
+  let tampered = <<{ int.bitwise_exclusive_or(first_byte, 1) }:8, rest:bits>>
 
-    assert !eddsa.verify(public_key, tampered, signature)
-  })
+  assert !eddsa.verify(public_key, tampered, signature)
 }
 
 pub fn verify_tampered_signature_test() {

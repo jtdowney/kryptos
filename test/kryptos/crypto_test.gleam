@@ -9,10 +9,9 @@ import qcheck
 
 // Property: random_bytes(n) always returns exactly n bytes
 pub fn random_bytes_length_property_test() {
-  qcheck.run(qcheck.default_config(), qcheck.bounded_int(0, 1000), fn(size) {
-    let bytes = crypto.random_bytes(size)
-    assert bit_array.byte_size(bytes) == size
-  })
+  use size <- qcheck.given(qcheck.bounded_int(0, 1000))
+  let bytes = crypto.random_bytes(size)
+  assert bit_array.byte_size(bytes) == size
 }
 
 // Edge case: negative sizes are handled gracefully
@@ -23,25 +22,18 @@ pub fn random_bytes_negative_test() {
 
 // Property: constant_time_equal is reflexive (a == a)
 pub fn constant_time_equal_reflexive_property_test() {
-  qcheck.run(qcheck.default_config(), qcheck.byte_aligned_bit_array(), fn(data) {
-    assert crypto.constant_time_equal(data, data)
-  })
+  use data <- qcheck.given(qcheck.byte_aligned_bit_array())
+  assert crypto.constant_time_equal(data, data)
 }
 
 // Property: constant_time_equal is symmetric (a == b implies b == a)
 pub fn constant_time_equal_symmetric_property_test() {
-  qcheck.run(
-    qcheck.default_config(),
-    qcheck.tuple2(
-      qcheck.byte_aligned_bit_array(),
-      qcheck.byte_aligned_bit_array(),
-    ),
-    fn(input) {
-      let #(a, b) = input
-      assert crypto.constant_time_equal(a, b)
-        == crypto.constant_time_equal(b, a)
-    },
-  )
+  use input <- qcheck.given(qcheck.tuple2(
+    qcheck.byte_aligned_bit_array(),
+    qcheck.byte_aligned_bit_array(),
+  ))
+  let #(a, b) = input
+  assert crypto.constant_time_equal(a, b) == crypto.constant_time_equal(b, a)
 }
 
 // Edge case: length mismatch always returns false
@@ -52,13 +44,12 @@ pub fn constant_time_equal_length_mismatch_test() {
 
 // Property: UUIDs are always unique
 pub fn uuid_uniqueness_property_test() {
-  qcheck.run(qcheck.default_config(), qcheck.bounded_int(10, 100), fn(count) {
-    let uuids =
-      int.range(0, count, set.new(), fn(acc, _) {
-        set.insert(acc, crypto.random_uuid())
-      })
-    assert set.size(uuids) == count
-  })
+  use count <- qcheck.given(qcheck.bounded_int(10, 100))
+  let uuids =
+    int.range(0, count, set.new(), fn(acc, _) {
+      set.insert(acc, crypto.random_uuid())
+    })
+  assert set.size(uuids) == count
 }
 
 // Property: UUID format is always valid (version 4, correct structure)
@@ -105,12 +96,11 @@ pub fn concat_kdf_output_length_property_test() {
       qcheck.bounded_int(1, 255),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(algorithm, secret, length) = input
-    let assert Ok(result) =
-      crypto.concat_kdf(algorithm, secret:, info: <<>>, length:)
-    assert bit_array.byte_size(result) == length
-  })
+  use input <- qcheck.given(gen)
+  let #(algorithm, secret, length) = input
+  let assert Ok(result) =
+    crypto.concat_kdf(algorithm, secret:, info: <<>>, length:)
+  assert bit_array.byte_size(result) == length
 }
 
 // Property: Concat KDF is deterministic - same inputs produce same output
@@ -121,17 +111,16 @@ pub fn concat_kdf_deterministic_property_test() {
       qcheck.byte_aligned_bit_array(),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(secret, info) = input
-    let length = 32
+  use input <- qcheck.given(gen)
+  let #(secret, info) = input
+  let length = 32
 
-    let assert Ok(result1) =
-      crypto.concat_kdf(hash.Sha256, secret:, info:, length:)
-    let assert Ok(result2) =
-      crypto.concat_kdf(hash.Sha256, secret:, info:, length:)
+  let assert Ok(result1) =
+    crypto.concat_kdf(hash.Sha256, secret:, info:, length:)
+  let assert Ok(result2) =
+    crypto.concat_kdf(hash.Sha256, secret:, info:, length:)
 
-    assert result1 == result2
-  })
+  assert result1 == result2
 }
 
 // Test vectors from patrickfav/singlestep-kdf (NIST SP 800-56C Rev1 non-official vectors)

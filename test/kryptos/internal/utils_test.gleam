@@ -72,10 +72,12 @@ pub fn is_ascii_property_test() {
       |> string.from_utf_codepoints
     })
 
-  qcheck.run(qcheck.default_config() |> qcheck.with_test_count(100), gen, fn(s) {
-    assert utils.is_ascii(s)
-    Nil
-  })
+  use s <- qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(100),
+    gen,
+  )
+  assert utils.is_ascii(s)
+  Nil
 }
 
 pub fn non_ascii_rejected_property_test() {
@@ -87,10 +89,12 @@ pub fn non_ascii_rejected_property_test() {
       "test" <> string.from_utf_codepoints([cp])
     })
 
-  qcheck.run(qcheck.default_config() |> qcheck.with_test_count(100), gen, fn(s) {
-    assert !utils.is_ascii(s)
-    Nil
-  })
+  use s <- qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(100),
+    gen,
+  )
+  assert !utils.is_ascii(s)
+  Nil
 }
 
 pub fn chunk_string_single_chunk_test() {

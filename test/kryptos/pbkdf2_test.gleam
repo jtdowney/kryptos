@@ -15,15 +15,14 @@ pub fn pbkdf2_output_length_property_test() {
       qcheck.bounded_int(1, 128),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(algorithm, password, length) = input
-    let salt = <<"salt":utf8>>
-    let iterations = 1
+  use input <- qcheck.given(gen)
+  let #(algorithm, password, length) = input
+  let salt = <<"salt":utf8>>
+  let iterations = 1
 
-    let assert Ok(result) =
-      crypto.pbkdf2(algorithm, password:, salt:, iterations:, length:)
-    assert bit_array.byte_size(result) == length
-  })
+  let assert Ok(result) =
+    crypto.pbkdf2(algorithm, password:, salt:, iterations:, length:)
+  assert bit_array.byte_size(result) == length
 }
 
 // Property: PBKDF2 is deterministic - same inputs produce same output
@@ -35,17 +34,16 @@ pub fn pbkdf2_deterministic_property_test() {
       qcheck.bounded_int(1, 10),
     )
 
-  qcheck.run(qcheck.default_config(), gen, fn(input) {
-    let #(password, salt, iterations) = input
-    let length = 32
+  use input <- qcheck.given(gen)
+  let #(password, salt, iterations) = input
+  let length = 32
 
-    let assert Ok(result1) =
-      crypto.pbkdf2(hash.Sha256, password:, salt:, iterations:, length:)
-    let assert Ok(result2) =
-      crypto.pbkdf2(hash.Sha256, password:, salt:, iterations:, length:)
+  let assert Ok(result1) =
+    crypto.pbkdf2(hash.Sha256, password:, salt:, iterations:, length:)
+  let assert Ok(result2) =
+    crypto.pbkdf2(hash.Sha256, password:, salt:, iterations:, length:)
 
-    assert result1 == result2
-  })
+  assert result1 == result2
 }
 
 // RFC 6070 Test Vectors for PBKDF2-HMAC-SHA1

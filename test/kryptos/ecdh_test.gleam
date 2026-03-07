@@ -12,21 +12,19 @@ pub fn ecdh_commutativity_property_test() {
       qcheck.return(Secp256k1),
     ])
 
-  qcheck.run(
+  use curve <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(10),
     gen,
-    fn(curve) {
-      let #(alice_private, alice_public) = ec.generate_key_pair(curve)
-      let #(bob_private, bob_public) = ec.generate_key_pair(curve)
-
-      let assert Ok(alice_shared) =
-        ecdh.compute_shared_secret(alice_private, bob_public)
-      let assert Ok(bob_shared) =
-        ecdh.compute_shared_secret(bob_private, alice_public)
-
-      assert alice_shared == bob_shared
-    },
   )
+  let #(alice_private, alice_public) = ec.generate_key_pair(curve)
+  let #(bob_private, bob_public) = ec.generate_key_pair(curve)
+
+  let assert Ok(alice_shared) =
+    ecdh.compute_shared_secret(alice_private, bob_public)
+  let assert Ok(bob_shared) =
+    ecdh.compute_shared_secret(bob_private, alice_public)
+
+  assert alice_shared == bob_shared
 }
 
 // Property: shared secret size matches expected curve output size
@@ -38,20 +36,17 @@ pub fn ecdh_shared_secret_size_property_test() {
       qcheck.return(#(Secp256k1, 32)),
     ])
 
-  qcheck.run(
+  use input <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(10),
     gen,
-    fn(input) {
-      let #(curve, expected_size) = input
-      let #(alice_private, _) = ec.generate_key_pair(curve)
-      let #(_, bob_public) = ec.generate_key_pair(curve)
-
-      let assert Ok(shared) =
-        ecdh.compute_shared_secret(alice_private, bob_public)
-
-      assert bit_array.byte_size(shared) == expected_size
-    },
   )
+  let #(curve, expected_size) = input
+  let #(alice_private, _) = ec.generate_key_pair(curve)
+  let #(_, bob_public) = ec.generate_key_pair(curve)
+
+  let assert Ok(shared) = ecdh.compute_shared_secret(alice_private, bob_public)
+
+  assert bit_array.byte_size(shared) == expected_size
 }
 
 // Property: same inputs always produce same shared secret
@@ -61,21 +56,17 @@ pub fn ecdh_deterministic_property_test() {
       qcheck.return(P384),
     ])
 
-  qcheck.run(
+  use curve <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(10),
     gen,
-    fn(curve) {
-      let #(alice_private, _) = ec.generate_key_pair(curve)
-      let #(_, bob_public) = ec.generate_key_pair(curve)
-
-      let assert Ok(shared1) =
-        ecdh.compute_shared_secret(alice_private, bob_public)
-      let assert Ok(shared2) =
-        ecdh.compute_shared_secret(alice_private, bob_public)
-
-      assert shared1 == shared2
-    },
   )
+  let #(alice_private, _) = ec.generate_key_pair(curve)
+  let #(_, bob_public) = ec.generate_key_pair(curve)
+
+  let assert Ok(shared1) = ecdh.compute_shared_secret(alice_private, bob_public)
+  let assert Ok(shared2) = ecdh.compute_shared_secret(alice_private, bob_public)
+
+  assert shared1 == shared2
 }
 
 pub fn different_keys_different_secrets_test() {

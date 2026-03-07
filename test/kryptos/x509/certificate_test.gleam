@@ -33,13 +33,12 @@ pub fn builder_with_dns_name_rejects_non_ascii_test() {
 }
 
 pub fn generated_serial_is_positive_property_test() {
-  qcheck.run(qcheck.default_config(), qcheck.return(Nil), fn(_) {
-    let serial = certificate.generate_serial_number()
+  use _ <- qcheck.given(qcheck.return(Nil))
+  let serial = certificate.generate_serial_number()
 
-    let assert <<first_byte:8, _:bits>> = serial
-    assert first_byte <= 0x7f
-    assert bit_array.byte_size(serial) == 20
-  })
+  let assert <<first_byte:8, _:bits>> = serial
+  assert first_byte <= 0x7f
+  assert bit_array.byte_size(serial) == 20
 }
 
 pub fn from_pem_no_certificates_test() {
@@ -358,30 +357,27 @@ pub fn xdh_x25519_key_agreement_property_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
   let assert x509.XdhPublicKey(cert_pub) = certificate.public_key(parsed)
 
-  qcheck.run(
+  use _ <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(10),
     qcheck.return(Nil),
-    fn(_) {
-      let #(alice_private, _alice_public) = xdh.generate_key_pair(xdh.X25519)
-      let assert Ok(shared_with_cert) =
-        xdh.compute_shared_secret(alice_private, cert_pub)
-      assert bit_array.byte_size(shared_with_cert) == 32
-
-      let #(bob_private, _) = xdh.generate_key_pair(xdh.X25519)
-      let assert Ok(bob_shared) =
-        xdh.compute_shared_secret(bob_private, cert_pub)
-      assert shared_with_cert != bob_shared
-
-      let pub_bytes = xdh.public_key_to_bytes(cert_pub)
-      let assert Ok(reimported_pub) =
-        xdh.public_key_from_bytes(xdh.X25519, pub_bytes)
-      let assert Ok(shared_reimported) =
-        xdh.compute_shared_secret(alice_private, reimported_pub)
-      assert shared_with_cert == shared_reimported
-
-      Nil
-    },
   )
+  let #(alice_private, _alice_public) = xdh.generate_key_pair(xdh.X25519)
+  let assert Ok(shared_with_cert) =
+    xdh.compute_shared_secret(alice_private, cert_pub)
+  assert bit_array.byte_size(shared_with_cert) == 32
+
+  let #(bob_private, _) = xdh.generate_key_pair(xdh.X25519)
+  let assert Ok(bob_shared) = xdh.compute_shared_secret(bob_private, cert_pub)
+  assert shared_with_cert != bob_shared
+
+  let pub_bytes = xdh.public_key_to_bytes(cert_pub)
+  let assert Ok(reimported_pub) =
+    xdh.public_key_from_bytes(xdh.X25519, pub_bytes)
+  let assert Ok(shared_reimported) =
+    xdh.compute_shared_secret(alice_private, reimported_pub)
+  assert shared_with_cert == shared_reimported
+
+  Nil
 }
 
 pub fn xdh_x25519_spki_fixture_roundtrip_test() {
@@ -523,68 +519,63 @@ pub fn ecdsa_certificate_roundtrip_property_test() {
     }
   }
 
-  qcheck.run(
+  use curve <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(10),
     curve_gen,
-    fn(curve) {
-      let #(private_key, _) = ec.generate_key_pair(curve)
-      let subject =
-        x509.name([
-          x509.cn("test.example.com"),
-          x509.organization("Test Org"),
-        ])
-      let now = timestamp.system_time()
-      let later =
-        timestamp.from_unix_seconds_and_nanoseconds(
-          seconds: 2_000_000_000,
-          nanoseconds: 0,
-        )
-
-      let assert Ok(builder) =
-        certificate.new()
-        |> certificate.with_subject(subject)
-        |> certificate.with_validity(Validity(not_before: now, not_after: later))
-        |> certificate.with_basic_constraints(
-          ca: False,
-          path_len_constraint: None,
-        )
-        |> certificate.with_key_usage(DigitalSignature)
-        |> certificate.with_extended_key_usage(ServerAuth)
-        |> certificate.with_dns_name("test.example.com")
-        |> result.try(certificate.with_dns_name(_, "www.test.example.com"))
-
-      let assert Ok(cert) =
-        certificate.self_signed_with_ecdsa(
-          builder,
-          private_key,
-          hash_for_curve(curve),
-        )
-
-      let der = certificate.to_der(cert)
-      let assert Ok(parsed) = certificate.from_der(der)
-
-      assert certificate.version(parsed) == 2
-      let assert x509.EcPublicKey(_) = certificate.public_key(parsed)
-      assert list.length(certificate.subject_alt_names(parsed)) == 2
-
-      let assert Ok(bc) = certificate.basic_constraints(parsed)
-      assert !bc.ca
-
-      let ku = certificate.key_usage(parsed)
-      assert list.contains(ku, DigitalSignature)
-
-      let eku = certificate.extended_key_usage(parsed)
-      assert list.contains(eku, ServerAuth)
-
-      let assert Ok(_) = certificate.verify_self_signed(parsed)
-
-      let pem = certificate.to_pem(cert)
-      let assert Ok([parsed_pem]) = certificate.from_pem(pem)
-      assert certificate.version(parsed_pem) == 2
-
-      Nil
-    },
   )
+  let #(private_key, _) = ec.generate_key_pair(curve)
+  let subject =
+    x509.name([
+      x509.cn("test.example.com"),
+      x509.organization("Test Org"),
+    ])
+  let now = timestamp.system_time()
+  let later =
+    timestamp.from_unix_seconds_and_nanoseconds(
+      seconds: 2_000_000_000,
+      nanoseconds: 0,
+    )
+
+  let assert Ok(builder) =
+    certificate.new()
+    |> certificate.with_subject(subject)
+    |> certificate.with_validity(Validity(not_before: now, not_after: later))
+    |> certificate.with_basic_constraints(ca: False, path_len_constraint: None)
+    |> certificate.with_key_usage(DigitalSignature)
+    |> certificate.with_extended_key_usage(ServerAuth)
+    |> certificate.with_dns_name("test.example.com")
+    |> result.try(certificate.with_dns_name(_, "www.test.example.com"))
+
+  let assert Ok(cert) =
+    certificate.self_signed_with_ecdsa(
+      builder,
+      private_key,
+      hash_for_curve(curve),
+    )
+
+  let der = certificate.to_der(cert)
+  let assert Ok(parsed) = certificate.from_der(der)
+
+  assert certificate.version(parsed) == 2
+  let assert x509.EcPublicKey(_) = certificate.public_key(parsed)
+  assert list.length(certificate.subject_alt_names(parsed)) == 2
+
+  let assert Ok(bc) = certificate.basic_constraints(parsed)
+  assert !bc.ca
+
+  let ku = certificate.key_usage(parsed)
+  assert list.contains(ku, DigitalSignature)
+
+  let eku = certificate.extended_key_usage(parsed)
+  assert list.contains(eku, ServerAuth)
+
+  let assert Ok(_) = certificate.verify_self_signed(parsed)
+
+  let pem = certificate.to_pem(cert)
+  let assert Ok([parsed_pem]) = certificate.from_pem(pem)
+  assert certificate.version(parsed_pem) == 2
+
+  Nil
 }
 
 pub fn parse_subject_key_identifier_test() {

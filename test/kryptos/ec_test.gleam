@@ -478,25 +478,23 @@ pub fn to_bytes_from_bytes_roundtrip_property_test() {
       qcheck.return(#(ec.Secp256k1, hash.Sha256, 32)),
     ])
 
-  qcheck.run(
+  use input <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(20),
     gen,
-    fn(input) {
-      let #(curve, hash_alg, expected_size) = input
-      let #(private, public) = ec.generate_key_pair(curve)
-      let bytes = ec.to_bytes(private)
-
-      assert bit_array.byte_size(bytes) == expected_size
-
-      let assert Ok(#(reimported_private, reimported_public)) =
-        ec.from_bytes(curve, bytes)
-
-      let message = <<"roundtrip test":utf8>>
-      let signature = ecdsa.sign(reimported_private, message, hash_alg)
-      assert ecdsa.verify(public, message, signature, hash_alg)
-      assert ecdsa.verify(reimported_public, message, signature, hash_alg)
-    },
   )
+  let #(curve, hash_alg, expected_size) = input
+  let #(private, public) = ec.generate_key_pair(curve)
+  let bytes = ec.to_bytes(private)
+
+  assert bit_array.byte_size(bytes) == expected_size
+
+  let assert Ok(#(reimported_private, reimported_public)) =
+    ec.from_bytes(curve, bytes)
+
+  let message = <<"roundtrip test":utf8>>
+  let signature = ecdsa.sign(reimported_private, message, hash_alg)
+  assert ecdsa.verify(public, message, signature, hash_alg)
+  assert ecdsa.verify(reimported_public, message, signature, hash_alg)
 }
 
 pub fn from_bytes_rejects_way_too_long_scalar_test() {
