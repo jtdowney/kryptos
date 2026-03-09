@@ -18,6 +18,8 @@ pub fn compute_crt_params(
   use e <- result.try(bigi.from_bytes(e_bytes, bigi.BigEndian, bigi.Unsigned))
   use d <- result.try(bigi.from_bytes(d_bytes, bigi.BigEndian, bigi.Unsigned))
 
+  use <- validate_components(n, e, d)
+
   let byte_len = bit_array.byte_size(n_bytes)
 
   use #(p, q) <- result.try(factor_rsa_modulus(n, e, d, byte_len, 500))
@@ -35,6 +37,25 @@ pub fn compute_crt_params(
   use qi_bytes <- result.try(to_bytes_trimmed(qi, byte_len))
 
   Ok(#(p_bytes, q_bytes, dp_bytes, dq_bytes, qi_bytes))
+}
+
+fn validate_components(
+  n: BigInt,
+  e: BigInt,
+  d: BigInt,
+  next: fn() -> Result(a, Nil),
+) -> Result(a, Nil) {
+  let zero = bigi.from_int(0)
+  let one = bigi.from_int(1)
+
+  case
+    bigi.compare(n, one) == order.Gt
+    && bigi.compare(e, one) == order.Gt
+    && bigi.compare(d, zero) == order.Gt
+  {
+    True -> next()
+    False -> Error(Nil)
+  }
 }
 
 @external(erlang, "kryptos_ffi", "mod_pow")

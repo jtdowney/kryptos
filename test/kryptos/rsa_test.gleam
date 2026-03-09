@@ -598,6 +598,17 @@ pub fn from_components_crt_accessors_work_test() {
   )
 }
 
+pub fn from_components_rejects_invalid_components_test() {
+  // n=0 is invalid
+  assert rsa.from_components(<<0>>, <<1, 0, 1>>, <<1>>) == Error(Nil)
+  // n=1 is invalid (must be > 1)
+  assert rsa.from_components(<<1>>, <<1, 0, 1>>, <<1>>) == Error(Nil)
+  // e=1 is invalid (must be > 1)
+  assert rsa.from_components(<<2>>, <<1>>, <<1>>) == Error(Nil)
+  // d=0 is invalid (must be > 0)
+  assert rsa.from_components(<<2>>, <<1, 0, 1>>, <<0>>) == Error(Nil)
+}
+
 pub fn public_key_from_components_roundtrip_property_test() {
   use message <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(5),
