@@ -121,7 +121,13 @@ pub fn to_bytes(key: PrivateKey) -> BitArray
 /// - Ed25519: 32 bytes
 /// - Ed448: 57 bytes
 ///
-/// Returns the public key or `Error(Nil)` if the bytes are invalid.
+/// Returns the public key or `Error(Nil)` if the bytes have an invalid length.
+///
+/// **Security note:** This function only validates the byte length, not that the
+/// bytes encode a valid curve point or that the key is in the prime-order
+/// subgroup. Callers that accept public keys from untrusted sources should
+/// perform their own validation to reject small-order or invalid points, as
+/// such keys can allow trivial signature forgery.
 @external(erlang, "kryptos_ffi", "eddsa_public_key_from_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaPublicKeyFromBytes")
 pub fn public_key_from_bytes(
