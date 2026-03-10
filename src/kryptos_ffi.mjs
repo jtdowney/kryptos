@@ -606,11 +606,6 @@ export function xdhPublicKeyCurve(key) {
   return keyTypeToXdhCurve(key.asymmetricKeyType);
 }
 
-// OID 1.2.840.10045.2.1 (id-ecPublicKey)
-const EC_PUBLIC_KEY_OID = Buffer.from([
-  0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-]);
-
 // Extracts DER bytes from a PEM-encoded string.
 function pemToDer(pem) {
   const lines = pem.split("\n");
@@ -620,6 +615,11 @@ function pemToDer(pem) {
   const base64 = base64Lines.join("");
   return Buffer.from(base64, "base64");
 }
+
+// OID 1.2.840.10045.2.1 (id-ecPublicKey)
+const EC_PUBLIC_KEY_OID = Buffer.from([
+  0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+]);
 
 // Validates that an EC SPKI DER uses a named curve OID (not explicit parameters).
 // This mirrors Erlang's behavior which only accepts {namedCurve, OID} format.
@@ -714,6 +714,10 @@ export function ecPublicKeyFromDer(derBytes) {
       format: "der",
       type: "spki",
     });
+
+    if (publicKey.asymmetricKeyType !== "ec") {
+      return Result$Error(undefined);
+    }
 
     return Result$Ok(publicKey);
   } catch {
