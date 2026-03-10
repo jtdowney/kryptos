@@ -537,7 +537,12 @@ ec_public_key_from_x509(DerBytes) ->
             public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
         #'AlgorithmIdentifier'{parameters = {namedCurve, OID}} = AlgId,
         CurveName = oid_to_curve(OID),
-        {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}}
+        case PublicKeyBits of
+            <<Prefix, _/binary>> when Prefix == 4; Prefix == 2; Prefix == 3 ->
+                {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
+            _ ->
+                {error, nil}
+        end
     catch
         _:_ ->
             {error, nil}
@@ -728,7 +733,12 @@ ec_import_public_key_from_der(DerBytes) ->
             case extract_ec_curve_oid(Params) of
                 {ok, OID} ->
                     CurveName = oid_to_curve(OID),
-                    {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
+                    case PublicKeyBits of
+                        <<Prefix, _/binary>> when Prefix == 4; Prefix == 2; Prefix == 3 ->
+                            {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
+                        _ ->
+                            {error, nil}
+                    end;
                 error ->
                     {error, nil}
             end;
