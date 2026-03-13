@@ -83,28 +83,32 @@ pub fn verify_signature(
   signature_algorithm: x509.SignatureAlgorithm,
 ) -> Bool {
   case public_key, signature_algorithm {
-    x509.EcPublicKey(key), x509.EcdsaSha1 ->
-      ecdsa.verify(key, data, signature, hash.Sha1)
-    x509.EcPublicKey(key), x509.EcdsaSha256 ->
-      ecdsa.verify(key, data, signature, hash.Sha256)
-    x509.EcPublicKey(key), x509.EcdsaSha384 ->
-      ecdsa.verify(key, data, signature, hash.Sha384)
-    x509.EcPublicKey(key), x509.EcdsaSha512 ->
-      ecdsa.verify(key, data, signature, hash.Sha512)
-    x509.RsaPublicKey(key), x509.RsaSha1 ->
-      rsa.verify(key, data, signature, hash.Sha1, rsa.Pkcs1v15)
-    x509.RsaPublicKey(key), x509.RsaSha256 ->
-      rsa.verify(key, data, signature, hash.Sha256, rsa.Pkcs1v15)
-    x509.RsaPublicKey(key), x509.RsaSha384 ->
-      rsa.verify(key, data, signature, hash.Sha384, rsa.Pkcs1v15)
-    x509.RsaPublicKey(key), x509.RsaSha512 ->
-      rsa.verify(key, data, signature, hash.Sha512, rsa.Pkcs1v15)
-    x509.EdPublicKey(key), x509.Ed25519 -> eddsa.verify(key, data, signature)
-    x509.EdPublicKey(key), x509.Ed448 -> eddsa.verify(key, data, signature)
-    x509.EcPublicKey(_), _ -> False
-    x509.RsaPublicKey(_), _ -> False
+    x509.EcPublicKey(key), sig_alg ->
+      case sig_alg_to_hash(sig_alg) {
+        Ok(hash_alg) -> ecdsa.verify(key, data, signature, hash_alg)
+        Error(Nil) -> False
+      }
+    x509.RsaPublicKey(key), sig_alg ->
+      case sig_alg_to_hash(sig_alg) {
+        Ok(hash_alg) -> rsa.verify(key, data, signature, hash_alg, rsa.Pkcs1v15)
+        Error(Nil) -> False
+      }
+    x509.EdPublicKey(key), x509.Ed25519 | x509.EdPublicKey(key), x509.Ed448 ->
+      eddsa.verify(key, data, signature)
     x509.EdPublicKey(_), _ -> False
     x509.XdhPublicKey(_), _ -> False
+  }
+}
+
+fn sig_alg_to_hash(
+  sig_alg: x509.SignatureAlgorithm,
+) -> Result(hash.HashAlgorithm, Nil) {
+  case sig_alg {
+    x509.EcdsaSha1 | x509.RsaSha1 -> Ok(hash.Sha1)
+    x509.EcdsaSha256 | x509.RsaSha256 -> Ok(hash.Sha256)
+    x509.EcdsaSha384 | x509.RsaSha384 -> Ok(hash.Sha384)
+    x509.EcdsaSha512 | x509.RsaSha512 -> Ok(hash.Sha512)
+    x509.Ed25519 | x509.Ed448 -> Error(Nil)
   }
 }
 
@@ -305,23 +309,13 @@ fn dispatch_public_key_parse(
       rsa.public_key_from_der(spki_bytes, rsa.Spki)
       |> result.map(x509.RsaPublicKey)
       |> result.replace_error(x509.Oid(alg_oid))
-    // id-X25519 (RFC 8410)
-    [1, 3, 101, 110] ->
+    // id-X25519 / id-X448 (RFC 8410)
+    [1, 3, 101, 110] | [1, 3, 101, 111] ->
       xdh.public_key_from_der(spki_bytes)
       |> result.map(x509.XdhPublicKey)
       |> result.replace_error(x509.Oid(alg_oid))
-    // id-X448 (RFC 8410)
-    [1, 3, 101, 111] ->
-      xdh.public_key_from_der(spki_bytes)
-      |> result.map(x509.XdhPublicKey)
-      |> result.replace_error(x509.Oid(alg_oid))
-    // id-Ed25519 (RFC 8410)
-    [1, 3, 101, 112] ->
-      eddsa.public_key_from_der(spki_bytes)
-      |> result.map(x509.EdPublicKey)
-      |> result.replace_error(x509.Oid(alg_oid))
-    // id-Ed448 (RFC 8410)
-    [1, 3, 101, 113] ->
+    // id-Ed25519 / id-Ed448 (RFC 8410)
+    [1, 3, 101, 112] | [1, 3, 101, 113] ->
       eddsa.public_key_from_der(spki_bytes)
       |> result.map(x509.EdPublicKey)
       |> result.replace_error(x509.Oid(alg_oid))
