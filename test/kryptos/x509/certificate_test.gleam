@@ -20,6 +20,20 @@ import qcheck
 import shellout
 import simplifile
 
+fn make_builder(domain: String) -> Result(certificate.Builder, Nil) {
+  let subject = x509.name([x509.cn(domain)])
+  let now = timestamp.system_time()
+  let later =
+    timestamp.from_unix_seconds_and_nanoseconds(
+      seconds: 2_000_000_000,
+      nanoseconds: 0,
+    )
+  certificate.new()
+  |> certificate.with_subject(subject)
+  |> certificate.with_validity(Validity(not_before: now, not_after: later))
+  |> certificate.with_dns_name(domain)
+}
+
 fn mask_dynamic_values_with_serial(output: String) -> String {
   let output = mask_dynamic_values(output)
   let assert Ok(serial_re) =
@@ -52,19 +66,7 @@ pub fn from_der_truncated_test() {
 
 pub fn from_der_trailing_bytes_rejected_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("trailing.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("trailing.example.com")
+  let assert Ok(builder) = make_builder("trailing.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -78,19 +80,7 @@ pub fn from_der_trailing_bytes_rejected_test() {
 
 pub fn verify_with_issuer_key_test() {
   let #(private_key, public_key) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("verify.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("verify.example.com")
+  let assert Ok(builder) = make_builder("verify.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -102,19 +92,7 @@ pub fn verify_with_issuer_key_test() {
 pub fn verify_fails_with_wrong_key_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
   let #(_, wrong_public_key) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("verify.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("verify.example.com")
+  let assert Ok(builder) = make_builder("verify.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -127,19 +105,7 @@ pub fn verify_fails_with_wrong_key_test() {
 pub fn verify_fails_with_xdh_key_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
   let #(_, xdh_public_key) = xdh.generate_key_pair(xdh.X25519)
-  let subject = x509.name([x509.cn("verify.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("verify.example.com")
+  let assert Ok(builder) = make_builder("verify.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -152,19 +118,7 @@ pub fn verify_fails_with_xdh_key_test() {
 
 pub fn self_signed_rsa_roundtrip_test() {
   let assert Ok(#(private_key, _)) = rsa.generate_key_pair(2048)
-  let subject = x509.name([x509.cn("rsa.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("rsa.example.com")
+  let assert Ok(builder) = make_builder("rsa.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_rsa(builder, private_key, hash.Sha256)
@@ -178,19 +132,7 @@ pub fn self_signed_rsa_roundtrip_test() {
 
 pub fn self_signed_eddsa_roundtrip_test() {
   let #(ed25519_key, _) = eddsa.generate_key_pair(eddsa.Ed25519)
-  let subject = x509.name([x509.cn("ed25519.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("ed25519.example.com")
+  let assert Ok(builder) = make_builder("ed25519.example.com")
 
   let assert Ok(cert) = certificate.self_signed_with_eddsa(builder, ed25519_key)
   let assert Ok(parsed) = certificate.from_der(certificate.to_der(cert))
@@ -200,13 +142,7 @@ pub fn self_signed_eddsa_roundtrip_test() {
   let assert Ok(_) = certificate.verify_self_signed(parsed)
 
   let #(ed448_key, _) = eddsa.generate_key_pair(eddsa.Ed448)
-  let subject448 = x509.name([x509.cn("ed448.example.com")])
-
-  let assert Ok(builder448) =
-    certificate.new()
-    |> certificate.with_subject(subject448)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("ed448.example.com")
+  let assert Ok(builder448) = make_builder("ed448.example.com")
 
   let assert Ok(cert448) =
     certificate.self_signed_with_eddsa(builder448, ed448_key)
@@ -439,23 +375,13 @@ pub fn eku_with_unknown_oids_non_critical_allowed_test() {
 
 pub fn extensions_includes_all_extensions_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("ext.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
+  let assert Ok(builder) = make_builder("ext.example.com")
+  let builder =
+    builder
     |> certificate.with_basic_constraints(ca: False, path_len_constraint: None)
     |> certificate.with_key_usage(DigitalSignature)
     |> certificate.with_extended_key_usage(ServerAuth)
     |> certificate.with_subject_key_identifier(certificate.SkiAuto)
-    |> certificate.with_dns_name("ext.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -607,20 +533,9 @@ pub fn parse_authority_key_identifier_test() {
 
 pub fn generated_certificate_has_ski_test() {
   let #(private_key, public_key) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("ski-test.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_subject_key_identifier(certificate.SkiAuto)
-    |> certificate.with_dns_name("ski-test.example.com")
+  let assert Ok(builder) = make_builder("ski-test.example.com")
+  let builder =
+    certificate.with_subject_key_identifier(builder, certificate.SkiAuto)
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -636,20 +551,9 @@ pub fn generated_certificate_has_ski_test() {
 
 pub fn self_signed_certificate_has_aki_matching_ski_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("aki-test.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_subject_key_identifier(certificate.SkiAuto)
-    |> certificate.with_dns_name("aki-test.example.com")
+  let assert Ok(builder) = make_builder("aki-test.example.com")
+  let builder =
+    certificate.with_subject_key_identifier(builder, certificate.SkiAuto)
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -665,19 +569,7 @@ pub fn self_signed_certificate_has_aki_matching_ski_test() {
 
 pub fn certificate_has_aki_by_default_test() {
   let #(private_key, public_key) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("default-aki.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("default-aki.example.com")
+  let assert Ok(builder) = make_builder("default-aki.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -693,20 +585,9 @@ pub fn certificate_has_aki_by_default_test() {
 
 pub fn certificate_without_aki_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("no-aki.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_authority_key_identifier(certificate.AkiExclude)
-    |> certificate.with_dns_name("no-aki.example.com")
+  let assert Ok(builder) = make_builder("no-aki.example.com")
+  let builder =
+    certificate.with_authority_key_identifier(builder, certificate.AkiExclude)
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -718,25 +599,15 @@ pub fn certificate_without_aki_test() {
 
 pub fn certificate_with_explicit_aki_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("explicit-aki.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
   let assert Ok(custom_aki) =
     bit_array.base16_decode("DEADBEEF0102030405060708090A0B0C0D0E0F10")
 
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_authority_key_identifier(certificate.AkiExplicit(
-      custom_aki,
-    ))
-    |> certificate.with_dns_name("explicit-aki.example.com")
+  let assert Ok(builder) = make_builder("explicit-aki.example.com")
+  let builder =
+    certificate.with_authority_key_identifier(
+      builder,
+      certificate.AkiExplicit(custom_aki),
+    )
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -780,28 +651,18 @@ pub fn from_pem_partial_failure_returns_error_test() {
 
 pub fn custom_ski_override_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("custom-ski.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
   let assert Ok(custom_ski) =
     bit_array.base16_decode("DEADBEEF0102030405060708090A0B0C0D0E0F10")
 
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
+  let assert Ok(builder) = make_builder("custom-ski.example.com")
+  let builder =
+    builder
     |> certificate.with_subject_key_identifier(certificate.SkiExplicit(
       custom_ski,
     ))
     |> certificate.with_authority_key_identifier(certificate.AkiExplicit(
       custom_ski,
     ))
-    |> certificate.with_dns_name("custom-ski.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -817,19 +678,7 @@ pub fn custom_ski_override_test() {
 
 pub fn certificate_without_ski_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
-  let subject = x509.name([x509.cn("no-ski.example.com")])
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("no-ski.example.com")
+  let assert Ok(builder) = make_builder("no-ski.example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
@@ -915,20 +764,7 @@ pub fn empty_subject_without_san_rejected_test() {
 
 pub fn san_not_critical_when_subject_present_test() {
   let #(private_key, _) = ec.generate_key_pair(ec.P256)
-  let now = timestamp.system_time()
-  let later =
-    timestamp.from_unix_seconds_and_nanoseconds(
-      seconds: 2_000_000_000,
-      nanoseconds: 0,
-    )
-
-  let subject = x509.name([x509.cn("example.com")])
-
-  let assert Ok(builder) =
-    certificate.new()
-    |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_dns_name("example.com")
+  let assert Ok(builder) = make_builder("example.com")
 
   let assert Ok(cert) =
     certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
