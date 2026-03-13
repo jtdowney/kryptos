@@ -122,8 +122,8 @@ pub fn byte_size(algorithm: HashAlgorithm) -> Int {
     Sha3x256 -> 32
     Sha3x384 -> 48
     Sha3x512 -> 64
-    Shake128(len) -> len
-    Shake256(len) -> len
+    Shake128(output_length) -> output_length
+    Shake256(output_length) -> output_length
   }
 }
 
@@ -145,7 +145,8 @@ pub type Hasher
 /// supported by the runtime.
 pub fn new(algorithm: HashAlgorithm) -> Result(Hasher, Nil) {
   case algorithm {
-    Shake128(len) | Shake256(len) if len <= 0 -> Error(Nil)
+    Shake128(output_length) | Shake256(output_length) if output_length <= 0 ->
+      Error(Nil)
     _ -> do_new(algorithm)
   }
 }

@@ -532,8 +532,8 @@ pub fn coefficient(key: PrivateKey) -> BitArray
 @external(erlang, "kryptos_ffi", "rsa_public_key_from_components")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyFromComponents")
 pub fn public_key_from_components(
-  n: BitArray,
-  e: BitArray,
+  modulus n: BitArray,
+  public_exponent e: BitArray,
 ) -> Result(PublicKey, Nil)
 
 /// Constructs an RSA private key from its components.
@@ -566,9 +566,9 @@ pub fn public_key_from_components(
 /// let assert Ok(#(reconstructed, _pub)) = rsa.from_components(n, e, d)
 /// ```
 pub fn from_components(
-  n: BitArray,
-  e: BitArray,
-  d: BitArray,
+  modulus n: BitArray,
+  public_exponent e: BitArray,
+  private_exponent d: BitArray,
 ) -> Result(#(PrivateKey, PublicKey), Nil) {
   use #(p, q, dp, dq, qi) <- result.try(rsa_crt.compute_crt_params(n, e, d))
   from_full_components(n, e, d, p, q, dp, dq, qi)
@@ -593,12 +593,12 @@ pub fn from_components(
 @external(erlang, "kryptos_ffi", "rsa_private_key_from_full_components")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyFromFullComponents")
 pub fn from_full_components(
-  n: BitArray,
-  e: BitArray,
-  d: BitArray,
-  p: BitArray,
-  q: BitArray,
-  dp: BitArray,
-  dq: BitArray,
-  qi: BitArray,
+  modulus n: BitArray,
+  public_exponent e: BitArray,
+  private_exponent d: BitArray,
+  prime1 p: BitArray,
+  prime2 q: BitArray,
+  exponent1 dp: BitArray,
+  exponent2 dq: BitArray,
+  coefficient qi: BitArray,
 ) -> Result(#(PrivateKey, PublicKey), Nil)

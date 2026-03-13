@@ -136,29 +136,29 @@ fn perform_rounds(state: State, remaining: Int) -> State {
 /// Operates on 4 32-bit words in the state.
 fn quarter_round(a: Int, b: Int, c: Int, d: Int) -> #(Int, Int, Int, Int) {
   // a += b; d ^= a; d <<<= 16;
-  let a = add32(a, b)
-  let d = rotl32(int.bitwise_exclusive_or(d, a), 16)
+  let a = add_modulo_32(a, b)
+  let d = rotate_left_32(int.bitwise_exclusive_or(d, a), 16)
 
   // c += d; b ^= c; b <<<= 12;
-  let c = add32(c, d)
-  let b = rotl32(int.bitwise_exclusive_or(b, c), 12)
+  let c = add_modulo_32(c, d)
+  let b = rotate_left_32(int.bitwise_exclusive_or(b, c), 12)
 
   // a += b; d ^= a; d <<<= 8;
-  let a = add32(a, b)
-  let d = rotl32(int.bitwise_exclusive_or(d, a), 8)
+  let a = add_modulo_32(a, b)
+  let d = rotate_left_32(int.bitwise_exclusive_or(d, a), 8)
 
   // c += d; b ^= c; b <<<= 7;
-  let c = add32(c, d)
-  let b = rotl32(int.bitwise_exclusive_or(b, c), 7)
+  let c = add_modulo_32(c, d)
+  let b = rotate_left_32(int.bitwise_exclusive_or(b, c), 7)
 
   #(a, b, c, d)
 }
 
-fn add32(a: Int, b: Int) -> Int {
+fn add_modulo_32(a: Int, b: Int) -> Int {
   int.bitwise_and(a + b, 0xFFFFFFFF)
 }
 
-fn rotl32(x: Int, n: Int) -> Int {
+fn rotate_left_32(x: Int, n: Int) -> Int {
   let shifted_left = int.bitwise_shift_left(x, n)
   let shifted_right = int.bitwise_shift_right(x, 32 - n)
   int.bitwise_and(int.bitwise_or(shifted_left, shifted_right), 0xFFFFFFFF)
