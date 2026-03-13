@@ -294,127 +294,65 @@ pub fn public_key_from_private_key_test() {
   assert valid2
 }
 
+fn assert_sign_verify(private: rsa.PrivateKey, public: rsa.PublicKey) -> Nil {
+  let message = <<"too many secrets":utf8>>
+  let signature = rsa.sign(private, message, hash.Sha256, rsa.Pkcs1v15)
+  assert rsa.verify(public, message, signature, hash.Sha256, rsa.Pkcs1v15)
+}
+
 pub fn import_rsa2048_pkcs8_pem_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
   let assert Ok(#(private, public)) = rsa.from_pem(pem, rsa.Pkcs8)
-  let signature =
-    rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
-  assert rsa.verify(
-    public,
-    <<"too many secrets":utf8>>,
-    signature,
-    hash.Sha256,
-    rsa.Pkcs1v15,
-  )
+  assert_sign_verify(private, public)
 }
 
 pub fn import_rsa2048_pkcs8_der_test() {
   let assert Ok(der) = simplifile.read_bits("test/fixtures/rsa2048_pkcs8.der")
   let assert Ok(#(private, public)) = rsa.from_der(der, rsa.Pkcs8)
-  let signature =
-    rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
-  assert rsa.verify(
-    public,
-    <<"too many secrets":utf8>>,
-    signature,
-    hash.Sha256,
-    rsa.Pkcs1v15,
-  )
+  assert_sign_verify(private, public)
 }
 
 pub fn import_rsa2048_pkcs1_pem_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/rsa2048_pkcs1.pem")
   let assert Ok(#(private, public)) = rsa.from_pem(pem, rsa.Pkcs1)
-  let signature =
-    rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
-  assert rsa.verify(
-    public,
-    <<"too many secrets":utf8>>,
-    signature,
-    hash.Sha256,
-    rsa.Pkcs1v15,
-  )
+  assert_sign_verify(private, public)
 }
 
 pub fn import_rsa2048_pkcs1_der_test() {
   let assert Ok(der) = simplifile.read_bits("test/fixtures/rsa2048_pkcs1.der")
   let assert Ok(#(private, public)) = rsa.from_der(der, rsa.Pkcs1)
-  let signature =
-    rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
-  assert rsa.verify(
-    public,
-    <<"too many secrets":utf8>>,
-    signature,
-    hash.Sha256,
-    rsa.Pkcs1v15,
-  )
+  assert_sign_verify(private, public)
 }
 
 pub fn import_rsa2048_spki_pub_pem_test() {
-  let assert Ok(priv_pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
-  let assert Ok(#(private, _)) = rsa.from_pem(priv_pem, rsa.Pkcs8)
+  let #(private, _) = load_test_key_pair()
   let assert Ok(pub_pem) = simplifile.read("test/fixtures/rsa2048_spki_pub.pem")
   let assert Ok(public) = rsa.public_key_from_pem(pub_pem, rsa.Spki)
-  let signature =
-    rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
-  assert rsa.verify(
-    public,
-    <<"too many secrets":utf8>>,
-    signature,
-    hash.Sha256,
-    rsa.Pkcs1v15,
-  )
+  assert_sign_verify(private, public)
 }
 
 pub fn import_rsa2048_spki_pub_der_test() {
-  let assert Ok(priv_pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
-  let assert Ok(#(private, _)) = rsa.from_pem(priv_pem, rsa.Pkcs8)
+  let #(private, _) = load_test_key_pair()
   let assert Ok(pub_der) =
     simplifile.read_bits("test/fixtures/rsa2048_spki_pub.der")
   let assert Ok(public) = rsa.public_key_from_der(pub_der, rsa.Spki)
-  let signature =
-    rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
-  assert rsa.verify(
-    public,
-    <<"too many secrets":utf8>>,
-    signature,
-    hash.Sha256,
-    rsa.Pkcs1v15,
-  )
+  assert_sign_verify(private, public)
 }
 
 pub fn import_rsa2048_pkcs1_pub_pem_test() {
-  let assert Ok(priv_pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
-  let assert Ok(#(private, _)) = rsa.from_pem(priv_pem, rsa.Pkcs8)
+  let #(private, _) = load_test_key_pair()
   let assert Ok(pub_pem) =
     simplifile.read("test/fixtures/rsa2048_pkcs1_pub.pem")
   let assert Ok(public) = rsa.public_key_from_pem(pub_pem, rsa.RsaPublicKey)
-  let signature =
-    rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
-  assert rsa.verify(
-    public,
-    <<"too many secrets":utf8>>,
-    signature,
-    hash.Sha256,
-    rsa.Pkcs1v15,
-  )
+  assert_sign_verify(private, public)
 }
 
 pub fn import_rsa2048_pkcs1_pub_der_test() {
-  let assert Ok(priv_pem) = simplifile.read("test/fixtures/rsa2048_pkcs8.pem")
-  let assert Ok(#(private, _)) = rsa.from_pem(priv_pem, rsa.Pkcs8)
+  let #(private, _) = load_test_key_pair()
   let assert Ok(pub_der) =
     simplifile.read_bits("test/fixtures/rsa2048_pkcs1_pub.der")
   let assert Ok(public) = rsa.public_key_from_der(pub_der, rsa.RsaPublicKey)
-  let signature =
-    rsa.sign(private, <<"too many secrets":utf8>>, hash.Sha256, rsa.Pkcs1v15)
-  assert rsa.verify(
-    public,
-    <<"too many secrets":utf8>>,
-    signature,
-    hash.Sha256,
-    rsa.Pkcs1v15,
-  )
+  assert_sign_verify(private, public)
 }
 
 pub fn private_key_modulus_bits_2048_test() {
