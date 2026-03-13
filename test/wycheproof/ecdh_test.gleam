@@ -7,13 +7,7 @@ import gleam/string
 import kryptos/ec
 import kryptos/ecdh
 import unitest
-import wycheproof/utils
-
-type TestResult {
-  Valid
-  Acceptable
-  Invalid
-}
+import wycheproof/utils.{type TestResult, Acceptable, Invalid, Valid}
 
 type TestCase {
   TestCase(
@@ -34,23 +28,13 @@ type TestFile {
   TestFile(test_groups: List(TestGroup))
 }
 
-fn test_result_decoder() -> decode.Decoder(TestResult) {
-  use value <- decode.then(decode.string)
-  case value {
-    "valid" -> decode.success(Valid)
-    "acceptable" -> decode.success(Acceptable)
-    "invalid" -> decode.success(Invalid)
-    _ -> decode.failure(Invalid, "TestResult")
-  }
-}
-
 fn test_case_decoder() -> decode.Decoder(TestCase) {
   use tc_id <- decode.field("tcId", decode.int)
   use comment <- decode.field("comment", decode.string)
   use public <- decode.field("public", decode.string)
   use private <- decode.field("private", decode.string)
   use shared <- decode.field("shared", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(TestCase(tc_id:, comment:, public:, private:, shared:, result:))
 }
 
@@ -254,7 +238,7 @@ fn webcrypto_test_case_decoder() -> decode.Decoder(WebCryptoTestCase) {
   use public <- decode.field("public", webcrypto_jwk_decoder())
   use private <- decode.field("private", webcrypto_jwk_decoder())
   use shared <- decode.field("shared", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(WebCryptoTestCase(
     tc_id:,
     comment:,

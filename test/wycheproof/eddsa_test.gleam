@@ -2,13 +2,7 @@ import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/eddsa
 import unitest
-import wycheproof/utils
-
-type TestResult {
-  Valid
-  Acceptable
-  Invalid
-}
+import wycheproof/utils.{type TestResult, Acceptable, Invalid, Valid}
 
 type PublicKeyInfo {
   PublicKeyInfo(curve: String, pk: String)
@@ -32,16 +26,6 @@ type TestFile {
   TestFile(test_groups: List(TestGroup))
 }
 
-fn test_result_decoder() -> decode.Decoder(TestResult) {
-  use value <- decode.then(decode.string)
-  case value {
-    "valid" -> decode.success(Valid)
-    "acceptable" -> decode.success(Acceptable)
-    "invalid" -> decode.success(Invalid)
-    _ -> decode.failure(Invalid, "TestResult")
-  }
-}
-
 fn public_key_decoder() -> decode.Decoder(PublicKeyInfo) {
   use curve <- decode.field("curve", decode.string)
   use pk <- decode.field("pk", decode.string)
@@ -53,7 +37,7 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
   use comment <- decode.field("comment", decode.string)
   use msg <- decode.field("msg", decode.string)
   use sig <- decode.field("sig", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(TestCase(tc_id:, comment:, msg:, sig:, result:))
 }
 

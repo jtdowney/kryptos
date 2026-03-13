@@ -6,13 +6,7 @@ import gleam/result
 import kryptos/hash
 import kryptos/rsa
 import unitest
-import wycheproof/utils
-
-type TestResult {
-  Valid
-  Acceptable
-  Invalid
-}
+import wycheproof/utils.{type TestResult, Acceptable, Invalid, Valid}
 
 type SignatureTestCase {
   SignatureTestCase(
@@ -132,22 +126,12 @@ type SigGenTestFile {
   SigGenTestFile(test_groups: List(SigGenTestGroup))
 }
 
-fn test_result_decoder() -> decode.Decoder(TestResult) {
-  use value <- decode.then(decode.string)
-  case value {
-    "valid" -> decode.success(Valid)
-    "acceptable" -> decode.success(Acceptable)
-    "invalid" -> decode.success(Invalid)
-    _ -> decode.failure(Invalid, "TestResult")
-  }
-}
-
 fn signature_test_case_decoder() -> decode.Decoder(SignatureTestCase) {
   use tc_id <- decode.field("tcId", decode.int)
   use comment <- decode.field("comment", decode.string)
   use msg <- decode.field("msg", decode.string)
   use sig <- decode.field("sig", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(SignatureTestCase(tc_id:, comment:, msg:, sig:, result:))
 }
 
@@ -172,7 +156,7 @@ fn pss_test_case_decoder() -> decode.Decoder(PssTestCase) {
   use comment <- decode.field("comment", decode.string)
   use msg <- decode.field("msg", decode.string)
   use sig <- decode.field("sig", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(PssTestCase(tc_id:, comment:, msg:, sig:, result:))
 }
 
@@ -207,7 +191,7 @@ fn oaep_test_case_decoder() -> decode.Decoder(OaepTestCase) {
   use msg <- decode.field("msg", decode.string)
   use ct <- decode.field("ct", decode.string)
   use label <- decode.field("label", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(OaepTestCase(tc_id:, comment:, msg:, ct:, label:, result:))
 }
 
@@ -239,7 +223,7 @@ fn pkcs1_decrypt_test_case_decoder() -> decode.Decoder(Pkcs1DecryptTestCase) {
   use comment <- decode.field("comment", decode.string)
   use msg <- decode.field("msg", decode.string)
   use ct <- decode.field("ct", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(Pkcs1DecryptTestCase(tc_id:, comment:, msg:, ct:, result:))
 }
 
@@ -265,7 +249,7 @@ fn sig_gen_test_case_decoder() -> decode.Decoder(SigGenTestCase) {
   use comment <- decode.field("comment", decode.string)
   use msg <- decode.field("msg", decode.string)
   use sig <- decode.field("sig", decode.string)
-  use result <- decode.field("result", test_result_decoder())
+  use result <- decode.field("result", utils.test_result_decoder())
   decode.success(SigGenTestCase(tc_id:, comment:, msg:, sig:, result:))
 }
 

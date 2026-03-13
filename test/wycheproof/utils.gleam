@@ -16,7 +16,7 @@ pub fn test_result_decoder() -> decode.Decoder(TestResult) {
     "valid" -> decode.success(Valid)
     "invalid" -> decode.success(Invalid)
     "acceptable" -> decode.success(Acceptable)
-    _ -> decode.failure(Valid, "TestResult")
+    _ -> decode.failure(Invalid, "TestResult")
   }
 }
 
