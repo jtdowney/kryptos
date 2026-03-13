@@ -500,604 +500,283 @@ fn run_sig_gen_test(group: SigGenTestGroup, tc: SigGenTestCase) -> Nil {
   }
 }
 
-pub fn wycheproof_rsa_signature_2048_sha256_test() {
+fn run_wycheproof_signature_test(filename: String) -> Nil {
   use <- unitest.tag("wycheproof")
   let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha256_test.json",
-      signature_test_file_decoder(),
-    )
+    utils.load_test_file(filename, signature_test_file_decoder())
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+}
+
+fn run_wycheproof_pss_test(filename: String) -> Nil {
+  use <- unitest.tag("wycheproof")
+  let assert Ok(test_file) =
+    utils.load_test_file(filename, pss_test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+}
+
+fn run_wycheproof_oaep_test(filename: String) -> Nil {
+  use <- unitest.tag("wycheproof")
+  let assert Ok(test_file) =
+    utils.load_test_file(filename, oaep_test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+}
+
+fn run_wycheproof_pkcs1_decrypt_test(filename: String) -> Nil {
+  use <- unitest.tag("wycheproof")
+  let assert Ok(test_file) =
+    utils.load_test_file(filename, pkcs1_decrypt_test_file_decoder())
+  utils.run_tests(
+    test_file.test_groups,
+    fn(g) { g.tests },
+    run_pkcs1_decrypt_test,
+  )
+}
+
+fn run_wycheproof_sig_gen_test(filename: String) -> Nil {
+  use <- unitest.tag("wycheproof")
+  let assert Ok(test_file) =
+    utils.load_test_file(filename, sig_gen_test_file_decoder())
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_sig_gen_test)
+}
+
+pub fn wycheproof_rsa_signature_2048_sha256_test() {
+  run_wycheproof_signature_test("rsa_signature_2048_sha256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha384_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha384_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha384_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha512_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha512_test.json")
 }
 
 pub fn wycheproof_rsa_signature_3072_sha256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_3072_sha256_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_3072_sha256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_4096_sha512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_4096_sha512_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
-}
-
-pub fn wycheproof_rsa_pss_2048_sha256_mgf1_32_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_2048_sha256_mgf1_32_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
-}
-
-pub fn wycheproof_rsa_pss_3072_sha256_mgf1_32_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_3072_sha256_mgf1_32_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
-}
-
-pub fn wycheproof_rsa_pss_4096_sha256_mgf1_32_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_4096_sha256_mgf1_32_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
-}
-
-pub fn wycheproof_rsa_pss_4096_sha512_mgf1_64_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_4096_sha512_mgf1_64_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
-}
-
-pub fn wycheproof_rsa_oaep_2048_sha256_mgf1sha256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_2048_sha256_mgf1sha256_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
-}
-
-pub fn wycheproof_rsa_oaep_2048_sha384_mgf1sha384_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_2048_sha384_mgf1sha384_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
-}
-
-pub fn wycheproof_rsa_oaep_2048_sha512_mgf1sha512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_2048_sha512_mgf1sha512_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
-}
-
-pub fn wycheproof_rsa_oaep_3072_sha256_mgf1sha256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_3072_sha256_mgf1sha256_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
-}
-
-pub fn wycheproof_rsa_oaep_4096_sha256_mgf1sha256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_4096_sha256_mgf1sha256_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
-}
-
-pub fn wycheproof_rsa_oaep_4096_sha512_mgf1sha512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_4096_sha512_mgf1sha512_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
-}
-
-pub fn wycheproof_rsa_pkcs1_2048_decrypt_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pkcs1_2048_test.json",
-      pkcs1_decrypt_test_file_decoder(),
-    )
-  utils.run_tests(
-    test_file.test_groups,
-    fn(g) { g.tests },
-    run_pkcs1_decrypt_test,
-  )
-}
-
-pub fn wycheproof_rsa_pkcs1_3072_decrypt_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pkcs1_3072_test.json",
-      pkcs1_decrypt_test_file_decoder(),
-    )
-  utils.run_tests(
-    test_file.test_groups,
-    fn(g) { g.tests },
-    run_pkcs1_decrypt_test,
-  )
-}
-
-pub fn wycheproof_rsa_pkcs1_4096_decrypt_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pkcs1_4096_test.json",
-      pkcs1_decrypt_test_file_decoder(),
-    )
-  utils.run_tests(
-    test_file.test_groups,
-    fn(g) { g.tests },
-    run_pkcs1_decrypt_test,
-  )
+  run_wycheproof_signature_test("rsa_signature_4096_sha512_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha224_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha224_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha224_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha3_224_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha3_224_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha3_224_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha3_256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha3_256_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha3_256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha3_384_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha3_384_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha3_384_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha3_512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha3_512_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha3_512_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha512_224_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha512_224_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha512_224_test.json")
 }
 
 pub fn wycheproof_rsa_signature_2048_sha512_256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_2048_sha512_256_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_2048_sha512_256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_3072_sha3_256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_3072_sha3_256_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_3072_sha3_256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_3072_sha3_384_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_3072_sha3_384_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_3072_sha3_384_test.json")
 }
 
 pub fn wycheproof_rsa_signature_3072_sha3_512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_3072_sha3_512_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_3072_sha3_512_test.json")
 }
 
 pub fn wycheproof_rsa_signature_3072_sha384_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_3072_sha384_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_3072_sha384_test.json")
 }
 
 pub fn wycheproof_rsa_signature_3072_sha512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_3072_sha512_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_3072_sha512_test.json")
 }
 
 pub fn wycheproof_rsa_signature_3072_sha512_256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_3072_sha512_256_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_3072_sha512_256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_4096_sha256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_4096_sha256_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_4096_sha256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_4096_sha384_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_4096_sha384_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_4096_sha384_test.json")
 }
 
 pub fn wycheproof_rsa_signature_4096_sha512_256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_4096_sha512_256_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_4096_sha512_256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_8192_sha256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_8192_sha256_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_8192_sha256_test.json")
 }
 
 pub fn wycheproof_rsa_signature_8192_sha384_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_8192_sha384_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_8192_sha384_test.json")
 }
 
 pub fn wycheproof_rsa_signature_8192_sha512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_signature_8192_sha512_test.json",
-      signature_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_signature_test)
+  run_wycheproof_signature_test("rsa_signature_8192_sha512_test.json")
 }
 
-// Additional PSS tests
+pub fn wycheproof_rsa_pss_2048_sha256_mgf1_32_test() {
+  run_wycheproof_pss_test("rsa_pss_2048_sha256_mgf1_32_test.json")
+}
+
+pub fn wycheproof_rsa_pss_3072_sha256_mgf1_32_test() {
+  run_wycheproof_pss_test("rsa_pss_3072_sha256_mgf1_32_test.json")
+}
+
+pub fn wycheproof_rsa_pss_4096_sha256_mgf1_32_test() {
+  run_wycheproof_pss_test("rsa_pss_4096_sha256_mgf1_32_test.json")
+}
+
+pub fn wycheproof_rsa_pss_4096_sha512_mgf1_64_test() {
+  run_wycheproof_pss_test("rsa_pss_4096_sha512_mgf1_64_test.json")
+}
 
 pub fn wycheproof_rsa_pss_2048_sha1_mgf1_20_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_2048_sha1_mgf1_20_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+  run_wycheproof_pss_test("rsa_pss_2048_sha1_mgf1_20_test.json")
 }
 
 pub fn wycheproof_rsa_pss_2048_sha256_mgf1_0_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_2048_sha256_mgf1_0_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+  run_wycheproof_pss_test("rsa_pss_2048_sha256_mgf1_0_test.json")
 }
 
 pub fn wycheproof_rsa_pss_2048_sha384_mgf1_48_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_2048_sha384_mgf1_48_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+  run_wycheproof_pss_test("rsa_pss_2048_sha384_mgf1_48_test.json")
 }
 
 pub fn wycheproof_rsa_pss_2048_sha512_224_mgf1_28_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_2048_sha512_224_mgf1_28_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+  run_wycheproof_pss_test("rsa_pss_2048_sha512_224_mgf1_28_test.json")
 }
 
 pub fn wycheproof_rsa_pss_2048_sha512_256_mgf1_32_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_2048_sha512_256_mgf1_32_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+  run_wycheproof_pss_test("rsa_pss_2048_sha512_256_mgf1_32_test.json")
 }
 
 pub fn wycheproof_rsa_pss_4096_sha384_mgf1_48_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_4096_sha384_mgf1_48_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+  run_wycheproof_pss_test("rsa_pss_4096_sha384_mgf1_48_test.json")
 }
 
 pub fn wycheproof_rsa_pss_4096_sha512_mgf1_32_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pss_4096_sha512_mgf1_32_test.json",
-      pss_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+  run_wycheproof_pss_test("rsa_pss_4096_sha512_mgf1_32_test.json")
 }
 
 pub fn wycheproof_rsa_pss_misc_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file("rsa_pss_misc_test.json", pss_test_file_decoder())
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_pss_test)
+  run_wycheproof_pss_test("rsa_pss_misc_test.json")
 }
 
-// Additional OAEP tests
+pub fn wycheproof_rsa_oaep_2048_sha256_mgf1sha256_test() {
+  run_wycheproof_oaep_test("rsa_oaep_2048_sha256_mgf1sha256_test.json")
+}
+
+pub fn wycheproof_rsa_oaep_2048_sha384_mgf1sha384_test() {
+  run_wycheproof_oaep_test("rsa_oaep_2048_sha384_mgf1sha384_test.json")
+}
+
+pub fn wycheproof_rsa_oaep_2048_sha512_mgf1sha512_test() {
+  run_wycheproof_oaep_test("rsa_oaep_2048_sha512_mgf1sha512_test.json")
+}
+
+pub fn wycheproof_rsa_oaep_3072_sha256_mgf1sha256_test() {
+  run_wycheproof_oaep_test("rsa_oaep_3072_sha256_mgf1sha256_test.json")
+}
+
+pub fn wycheproof_rsa_oaep_4096_sha256_mgf1sha256_test() {
+  run_wycheproof_oaep_test("rsa_oaep_4096_sha256_mgf1sha256_test.json")
+}
+
+pub fn wycheproof_rsa_oaep_4096_sha512_mgf1sha512_test() {
+  run_wycheproof_oaep_test("rsa_oaep_4096_sha512_mgf1sha512_test.json")
+}
 
 pub fn wycheproof_rsa_oaep_2048_sha1_mgf1sha1_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_2048_sha1_mgf1sha1_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test("rsa_oaep_2048_sha1_mgf1sha1_test.json")
 }
 
 pub fn wycheproof_rsa_oaep_2048_sha224_mgf1sha224_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_2048_sha224_mgf1sha224_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test("rsa_oaep_2048_sha224_mgf1sha224_test.json")
 }
 
 pub fn wycheproof_rsa_oaep_2048_sha512_224_mgf1sha512_224_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_2048_sha512_224_mgf1sha512_224_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test("rsa_oaep_2048_sha512_224_mgf1sha512_224_test.json")
 }
 
 pub fn wycheproof_rsa_oaep_3072_sha512_256_mgf1sha512_256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_3072_sha512_256_mgf1sha512_256_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test("rsa_oaep_3072_sha512_256_mgf1sha512_256_test.json")
 }
 
 pub fn wycheproof_rsa_oaep_3072_sha512_mgf1sha512_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_oaep_3072_sha512_mgf1sha512_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test("rsa_oaep_3072_sha512_mgf1sha512_test.json")
 }
 
 pub fn wycheproof_rsa_oaep_misc_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file("rsa_oaep_misc_test.json", oaep_test_file_decoder())
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test("rsa_oaep_misc_test.json")
 }
 
 pub fn wycheproof_rsa_three_primes_oaep_2048_sha1_mgf1sha1_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_three_primes_oaep_2048_sha1_mgf1sha1_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test("rsa_three_primes_oaep_2048_sha1_mgf1sha1_test.json")
 }
 
 pub fn wycheproof_rsa_three_primes_oaep_3072_sha224_mgf1sha224_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_three_primes_oaep_3072_sha224_mgf1sha224_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test(
+    "rsa_three_primes_oaep_3072_sha224_mgf1sha224_test.json",
+  )
 }
 
 pub fn wycheproof_rsa_three_primes_oaep_4096_sha256_mgf1sha256_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_three_primes_oaep_4096_sha256_mgf1sha256_test.json",
-      oaep_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_oaep_test)
+  run_wycheproof_oaep_test(
+    "rsa_three_primes_oaep_4096_sha256_mgf1sha256_test.json",
+  )
+}
+
+pub fn wycheproof_rsa_pkcs1_2048_decrypt_test() {
+  run_wycheproof_pkcs1_decrypt_test("rsa_pkcs1_2048_test.json")
+}
+
+pub fn wycheproof_rsa_pkcs1_3072_decrypt_test() {
+  run_wycheproof_pkcs1_decrypt_test("rsa_pkcs1_3072_test.json")
+}
+
+pub fn wycheproof_rsa_pkcs1_4096_decrypt_test() {
+  run_wycheproof_pkcs1_decrypt_test("rsa_pkcs1_4096_test.json")
 }
 
 // Signature generation tests
 
 pub fn wycheproof_rsa_pkcs1_1024_sig_gen_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pkcs1_1024_sig_gen_test.json",
-      sig_gen_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_sig_gen_test)
+  run_wycheproof_sig_gen_test("rsa_pkcs1_1024_sig_gen_test.json")
 }
 
 pub fn wycheproof_rsa_pkcs1_1536_sig_gen_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pkcs1_1536_sig_gen_test.json",
-      sig_gen_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_sig_gen_test)
+  run_wycheproof_sig_gen_test("rsa_pkcs1_1536_sig_gen_test.json")
 }
 
 pub fn wycheproof_rsa_pkcs1_2048_sig_gen_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pkcs1_2048_sig_gen_test.json",
-      sig_gen_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_sig_gen_test)
+  run_wycheproof_sig_gen_test("rsa_pkcs1_2048_sig_gen_test.json")
 }
 
 pub fn wycheproof_rsa_pkcs1_3072_sig_gen_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pkcs1_3072_sig_gen_test.json",
-      sig_gen_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_sig_gen_test)
+  run_wycheproof_sig_gen_test("rsa_pkcs1_3072_sig_gen_test.json")
 }
 
 pub fn wycheproof_rsa_pkcs1_4096_sig_gen_test() {
-  use <- unitest.tag("wycheproof")
-  let assert Ok(test_file) =
-    utils.load_test_file(
-      "rsa_pkcs1_4096_sig_gen_test.json",
-      sig_gen_test_file_decoder(),
-    )
-  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_sig_gen_test)
+  run_wycheproof_sig_gen_test("rsa_pkcs1_4096_sig_gen_test.json")
 }
