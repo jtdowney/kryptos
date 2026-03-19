@@ -15,17 +15,18 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28"
-          gleam-version: "1.14.0"
+          gleam-version: "1.15.2"
           rebar3-version: "3"
       - run: gleam deps download
       - run: gleam format --check src test
 
   test-erlang:
-    name: Erlang (OTP ${{ matrix.otp-version }})
+    name: Erlang (OTP ${{ matrix.otp-version }}, Gleam ${{ matrix.gleam-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         otp-version: ["27", "28"]
+        gleam-version: ["1.14.0", "1.15.2"]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -33,7 +34,7 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{ matrix.otp-version }}
-          gleam-version: "1.14.0"
+          gleam-version: ${{ matrix.gleam-version }}
           rebar3-version: "3"
       - run: gleam deps download
       - run: gleam test --target erlang
@@ -41,11 +42,12 @@ jobs:
       - run: gleam format --check src test
 
   test-javascript:
-    name: JavaScript (Node ${{ matrix.node-version }})
+    name: JavaScript (Node ${{ matrix.node-version }}, Gleam ${{ matrix.gleam-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node-version: ["22", "24"]
+        gleam-version: ["1.14.0", "1.15.2"]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -56,7 +58,7 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28"
-          gleam-version: "1.14.0"
+          gleam-version: ${{ matrix.gleam-version }}
           rebar3-version: "3"
       - run: gleam deps download
       - run: gleam test --target javascript
