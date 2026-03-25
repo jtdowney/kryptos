@@ -2,14 +2,11 @@
 /// https://github.com/pyca/cryptography/tree/main/vectors/cryptography_vectors/x509
 import filepath
 import gleam/list
-import gleam/option.{Some}
+import gleam/option
 import gleam/string
-import kryptos/x509.{
-  CrlSign, DigitalSignature, DnsName, EcPublicKey, EdPublicKey, Email, IpAddress,
-  KeyCertSign, Oid, RsaPublicKey, ServerAuth, XdhPublicKey,
-}
+import kryptos/x509
 import kryptos/x509/certificate
-import kryptos/x509/test_helpers.{has_oid}
+import kryptos/x509/test_helpers
 import simplifile
 
 const vectors_dir = "test/cryptography_testvectors/vectors/x509/certificates"
@@ -36,7 +33,7 @@ pub fn parse_cryptography_io_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.RsaSha256
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
   assert string.contains(subject_str, "CN=www.cryptography.io")
@@ -49,7 +46,7 @@ pub fn parse_ecdsa_root_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.EcdsaSha384
-  let assert EcPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.EcPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
   assert string.contains(subject_str, "CN=DigiCert Global Root G3")
@@ -60,9 +57,9 @@ pub fn parse_ecdsa_root_pem_test() {
   assert bc.ca
 
   let ku = certificate.key_usage(parsed)
-  assert list.contains(ku, DigitalSignature)
-  assert list.contains(ku, KeyCertSign)
-  assert list.contains(ku, CrlSign)
+  assert list.contains(ku, x509.DigitalSignature)
+  assert list.contains(ku, x509.KeyCertSign)
+  assert list.contains(ku, x509.CrlSign)
 }
 
 /// v1_cert.pem uses MD5 signature which is not supported
@@ -72,7 +69,7 @@ pub fn parse_v1_cert_pem_fails_unsupported_signature_test() {
 
   assert result
     == Error(
-      certificate.UnsupportedAlgorithm(Oid([1, 2, 840, 113_549, 1, 1, 4])),
+      certificate.UnsupportedAlgorithm(x509.Oid([1, 2, 840, 113_549, 1, 1, 4])),
     )
 }
 
@@ -82,11 +79,11 @@ pub fn parse_letsencrypt_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.RsaSha256
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let assert Ok(bc) = certificate.basic_constraints(parsed)
   assert bc.ca
-  assert bc.path_len_constraint == Some(0)
+  assert bc.path_len_constraint == option.Some(0)
 }
 
 pub fn parse_wildcard_san_pem_test() {
@@ -94,11 +91,11 @@ pub fn parse_wildcard_san_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let sans = certificate.subject_alt_names(parsed)
-  assert list.contains(sans, DnsName("*.langui.sh"))
-  assert list.contains(sans, DnsName("langui.sh"))
+  assert list.contains(sans, x509.DnsName("*.langui.sh"))
+  assert list.contains(sans, x509.DnsName("langui.sh"))
 }
 
 pub fn parse_chain_pem_test() {
@@ -107,7 +104,7 @@ pub fn parse_chain_pem_test() {
 
   // Verify we got the leaf certificate (first in chain)
   assert certificate.version(parsed) == 2
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 }
 
 /// "BEGIN X509 CERTIFICATE" header is not supported (only "BEGIN CERTIFICATE")
@@ -126,7 +123,7 @@ pub fn parse_e_trust_der_fails_unsupported_signature_test() {
   let result = certificate.from_der(der)
 
   assert result
-    == Error(certificate.UnsupportedAlgorithm(Oid([1, 2, 643, 2, 2, 3])))
+    == Error(certificate.UnsupportedAlgorithm(x509.Oid([1, 2, 643, 2, 2, 3])))
 }
 
 /// ed25519-rfc8410.pem is signed with Ed25519 but contains an X25519 public key
@@ -137,7 +134,7 @@ pub fn parse_ed25519_rfc8410_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.Ed25519
-  let assert XdhPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.XdhPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
   assert string.contains(subject_str, "CN=IETF Test Demo")
@@ -149,7 +146,7 @@ pub fn parse_ed25519_root_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.Ed25519
-  let assert EdPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.EdPublicKey(_) = certificate.public_key(parsed)
 
   let assert Ok(bc) = certificate.basic_constraints(parsed)
   assert bc.ca
@@ -160,13 +157,13 @@ pub fn parse_ed25519_server_cert_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  let assert EdPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.EdPublicKey(_) = certificate.public_key(parsed)
 
   let sans = certificate.subject_alt_names(parsed)
-  assert list.contains(sans, DnsName("Ed25519"))
+  assert list.contains(sans, x509.DnsName("Ed25519"))
 
   let eku = certificate.extended_key_usage(parsed)
-  assert list.contains(eku, ServerAuth)
+  assert list.contains(eku, x509.ServerAuth)
 }
 
 pub fn parse_ed448_root_pem_test() {
@@ -175,7 +172,7 @@ pub fn parse_ed448_root_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.Ed448
-  let assert EdPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.EdPublicKey(_) = certificate.public_key(parsed)
 
   let assert Ok(bc) = certificate.basic_constraints(parsed)
   assert bc.ca
@@ -186,10 +183,10 @@ pub fn parse_ed448_server_cert_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  let assert EdPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.EdPublicKey(_) = certificate.public_key(parsed)
 
   let sans = certificate.subject_alt_names(parsed)
-  assert list.contains(sans, DnsName("Ed448"))
+  assert list.contains(sans, x509.DnsName("Ed448"))
 }
 
 pub fn parse_san_email_dns_ip_dirname_uri_pem_test() {
@@ -198,12 +195,12 @@ pub fn parse_san_email_dns_ip_dirname_uri_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let sans = certificate.subject_alt_names(parsed)
-  assert list.contains(sans, Email("user@cryptography.io"))
-  assert list.contains(sans, DnsName("cryptography.io"))
-  assert list.contains(sans, IpAddress(<<127, 0, 0, 1>>))
+  assert list.contains(sans, x509.Email("user@cryptography.io"))
+  assert list.contains(sans, x509.DnsName("cryptography.io"))
+  assert list.contains(sans, x509.IpAddress(<<127, 0, 0, 1>>))
 }
 
 pub fn parse_san_ipaddr_pem_test() {
@@ -212,7 +209,7 @@ pub fn parse_san_ipaddr_pem_test() {
 
   assert certificate.version(parsed) == 2
   let sans = certificate.subject_alt_names(parsed)
-  assert list.contains(sans, IpAddress(<<127, 0, 0, 1>>))
+  assert list.contains(sans, x509.IpAddress(<<127, 0, 0, 1>>))
 }
 
 pub fn parse_san_rfc822_names_pem_test() {
@@ -221,11 +218,11 @@ pub fn parse_san_rfc822_names_pem_test() {
 
   assert certificate.version(parsed) == 2
   let sans = certificate.subject_alt_names(parsed)
-  assert list.contains(sans, Email("email"))
-  assert list.contains(sans, Email("email <email>"))
-  assert list.contains(sans, Email("email <email@email>"))
-  assert list.contains(sans, Email("email <email@xn--eml-vla4c.com>"))
-  assert list.contains(sans, Email("myemail:"))
+  assert list.contains(sans, x509.Email("email"))
+  assert list.contains(sans, x509.Email("email <email>"))
+  assert list.contains(sans, x509.Email("email <email@email>"))
+  assert list.contains(sans, x509.Email("email <email@xn--eml-vla4c.com>"))
+  assert list.contains(sans, x509.Email("myemail:"))
   assert list.length(sans) == 5
 }
 
@@ -236,9 +233,9 @@ pub fn parse_all_key_usages_pem_test() {
   assert certificate.version(parsed) == 2
 
   let ku = certificate.key_usage(parsed)
-  assert list.contains(ku, DigitalSignature)
-  assert list.contains(ku, KeyCertSign)
-  assert list.contains(ku, CrlSign)
+  assert list.contains(ku, x509.DigitalSignature)
+  assert list.contains(ku, x509.KeyCertSign)
+  assert list.contains(ku, x509.CrlSign)
 }
 
 pub fn parse_extended_key_usage_pem_test() {
@@ -248,7 +245,7 @@ pub fn parse_extended_key_usage_pem_test() {
   assert certificate.version(parsed) == 2
 
   let eku = certificate.extended_key_usage(parsed)
-  assert list.contains(eku, ServerAuth)
+  assert list.contains(eku, x509.ServerAuth)
 }
 
 pub fn parse_basic_constraints_not_critical_pem_test() {
@@ -268,7 +265,7 @@ pub fn parse_bc_path_length_zero_pem_test() {
   assert certificate.version(parsed) == 2
   let assert Ok(bc) = certificate.basic_constraints(parsed)
   assert bc.ca
-  assert bc.path_len_constraint == Some(0)
+  assert bc.path_len_constraint == option.Some(0)
 }
 
 pub fn parse_no_sans_pem_test() {
@@ -314,7 +311,7 @@ pub fn parse_invalid_signature_cert_parses_successfully_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 0
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 }
 
 pub fn parse_valid_signature_cert_passes_verification_test() {
@@ -330,7 +327,9 @@ pub fn parse_dsa_cert_fails_with_unsupported_signature_algorithm_test() {
   let result = certificate.from_pem(pem)
 
   assert result
-    == Error(certificate.UnsupportedAlgorithm(Oid([1, 2, 840, 10_040, 4, 3])))
+    == Error(
+      certificate.UnsupportedAlgorithm(x509.Oid([1, 2, 840, 10_040, 4, 3])),
+    )
 }
 
 fn assert_pem_der_roundtrip(pem_path: String) {
@@ -371,7 +370,7 @@ pub fn parse_accvraiz1_root_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.RsaSha1
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
   assert string.contains(subject_str, "CN=ACCVRAIZ1")
@@ -384,7 +383,9 @@ pub fn parse_department_of_state_root_pem_rejects_critical_extension_test() {
     simplifile.read(vector_path("department-of-state-root.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 30])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 30])),
+    )
 }
 
 pub fn parse_rapidssl_sha256_ca_g3_pem_test() {
@@ -393,7 +394,7 @@ pub fn parse_rapidssl_sha256_ca_g3_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.RsaSha256
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
   assert string.contains(subject_str, "RapidSSL")
@@ -406,7 +407,7 @@ pub fn parse_verisign_md2_root_pem_fails_unsupported_signature_test() {
 
   assert result
     == Error(
-      certificate.UnsupportedAlgorithm(Oid([1, 2, 840, 113_549, 1, 1, 2])),
+      certificate.UnsupportedAlgorithm(x509.Oid([1, 2, 840, 113_549, 1, 1, 2])),
     )
 }
 
@@ -417,7 +418,7 @@ pub fn parse_chain_with_garbage_pem_test() {
 
   // Verify we got the leaf certificate (first in chain)
   assert certificate.version(parsed) == 2
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 }
 
 pub fn parse_with_garbage_pem_test() {
@@ -442,7 +443,7 @@ pub fn parse_badssl_sct_pem_test() {
 
   assert certificate.version(parsed) == 2
   assert certificate.signature_algorithm(parsed) == x509.RsaSha256
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
   assert string.contains(subject_str, "badssl.com")
@@ -453,7 +454,7 @@ pub fn parse_cryptography_scts_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 }
 
 /// Precerts contain CT Poison (1.3.6.1.4.1.11129.2.4.3) marked critical - rejected per RFC 5280
@@ -464,7 +465,7 @@ pub fn parse_cryptography_io_precert_pem_rejects_critical_extension_test() {
   assert result
     == Error(
       certificate.UnrecognizedCriticalExtension(
-        Oid([1, 3, 6, 1, 4, 1, 11_129, 2, 4, 3]),
+        x509.Oid([1, 3, 6, 1, 4, 1, 11_129, 2, 4, 3]),
       ),
     )
 }
@@ -491,9 +492,9 @@ pub fn parse_utf8_dnsname_pem_test() {
 
   assert certificate.version(parsed) == 2
   let sans = certificate.subject_alt_names(parsed)
-  assert list.contains(sans, DnsName("partner.biztositas.hu"))
-  assert list.contains(sans, DnsName("biztositas.hu"))
-  assert list.contains(sans, DnsName("xn--biztosts-fza2j.hu"))
+  assert list.contains(sans, x509.DnsName("partner.biztositas.hu"))
+  assert list.contains(sans, x509.DnsName("biztositas.hu"))
+  assert list.contains(sans, x509.DnsName("xn--biztosts-fza2j.hu"))
 }
 
 pub fn parse_tls_feature_ocsp_staple_pem_test() {
@@ -502,7 +503,7 @@ pub fn parse_tls_feature_ocsp_staple_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 }
 
 pub fn parse_san_dirname_pem_test() {
@@ -528,8 +529,8 @@ pub fn parse_san_idna_names_pem_test() {
 
   assert certificate.version(parsed) == 2
   let sans = certificate.subject_alt_names(parsed)
-  assert list.contains(sans, Email("email@xn--80ato2c.cryptography"))
-  assert list.contains(sans, DnsName("xn--80ato2c.cryptography"))
+  assert list.contains(sans, x509.Email("email@xn--80ato2c.cryptography"))
+  assert list.contains(sans, x509.DnsName("xn--80ato2c.cryptography"))
   let has_uri =
     list.any(sans, fn(san) {
       case san {
@@ -595,7 +596,7 @@ pub fn parse_all_supported_names_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  let assert RsaPublicKey(_) = certificate.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   assert list.is_empty(certificate.subject_alt_names(parsed))
 }
@@ -605,7 +606,17 @@ pub fn parse_aia_ca_issuers_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [1, 3, 6, 1, 5, 5, 7, 1, 1])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [
+    1,
+    3,
+    6,
+    1,
+    5,
+    5,
+    7,
+    1,
+    1,
+  ])
 }
 
 pub fn parse_aia_ocsp_pem_test() {
@@ -613,7 +624,17 @@ pub fn parse_aia_ocsp_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [1, 3, 6, 1, 5, 5, 7, 1, 1])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [
+    1,
+    3,
+    6,
+    1,
+    5,
+    5,
+    7,
+    1,
+    1,
+  ])
 }
 
 pub fn parse_aia_ocsp_ca_issuers_pem_test() {
@@ -621,7 +642,17 @@ pub fn parse_aia_ocsp_ca_issuers_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [1, 3, 6, 1, 5, 5, 7, 1, 1])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [
+    1,
+    3,
+    6,
+    1,
+    5,
+    5,
+    7,
+    1,
+    1,
+  ])
 }
 
 pub fn parse_authority_key_identifier_no_keyid_pem_test() {
@@ -640,7 +671,7 @@ pub fn parse_cdp_all_reasons_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [2, 5, 29, 31])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [2, 5, 29, 31])
 }
 
 pub fn parse_cdp_crl_issuer_pem_test() {
@@ -648,7 +679,7 @@ pub fn parse_cdp_crl_issuer_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [2, 5, 29, 31])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [2, 5, 29, 31])
 }
 
 pub fn parse_cdp_empty_hostname_pem_test() {
@@ -664,7 +695,7 @@ pub fn parse_cdp_fullname_reasons_crl_issuer_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [2, 5, 29, 31])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [2, 5, 29, 31])
 }
 
 pub fn parse_cdp_reason_aa_compromise_pem_test() {
@@ -680,7 +711,7 @@ pub fn parse_cp_cps_uri_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [2, 5, 29, 32])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [2, 5, 29, 32])
 }
 
 pub fn parse_cp_user_notice_no_explicit_text_pem_test() {
@@ -712,7 +743,9 @@ pub fn parse_nc_permitted_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("nc_permitted.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 30])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 30])),
+    )
 }
 
 /// Name Constraints (2.5.29.30) is typically marked critical - rejected per RFC 5280
@@ -720,7 +753,9 @@ pub fn parse_nc_permitted_2_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("nc_permitted_2.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 30])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 30])),
+    )
 }
 
 /// Name Constraints (2.5.29.30) is typically marked critical - rejected per RFC 5280
@@ -728,7 +763,9 @@ pub fn parse_nc_excluded_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("nc_excluded.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 30])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 30])),
+    )
 }
 
 /// Name Constraints (2.5.29.30) is typically marked critical - rejected per RFC 5280
@@ -736,7 +773,9 @@ pub fn parse_nc_permitted_excluded_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("nc_permitted_excluded.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 30])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 30])),
+    )
 }
 
 /// Name Constraints (2.5.29.30) is typically marked critical - rejected per RFC 5280
@@ -745,7 +784,9 @@ pub fn parse_nc_permitted_excluded_2_pem_rejects_critical_extension_test() {
     simplifile.read(custom_path("nc_permitted_excluded_2.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 30])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 30])),
+    )
 }
 
 /// Name Constraints (2.5.29.30) is typically marked critical - rejected per RFC 5280
@@ -753,7 +794,9 @@ pub fn parse_nc_single_ip_netmask_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("nc_single_ip_netmask.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 30])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 30])),
+    )
 }
 
 /// Policy Constraints (2.5.29.36) is marked critical - rejected per RFC 5280
@@ -761,7 +804,9 @@ pub fn parse_pc_inhibit_require_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("pc_inhibit_require.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 36])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 36])),
+    )
 }
 
 /// Policy Constraints (2.5.29.36) is marked critical - rejected per RFC 5280
@@ -769,7 +814,9 @@ pub fn parse_pc_inhibit_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("pc_inhibit.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 36])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 36])),
+    )
 }
 
 /// Policy Constraints (2.5.29.36) is marked critical - rejected per RFC 5280
@@ -777,7 +824,9 @@ pub fn parse_pc_require_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("pc_require.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 36])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 36])),
+    )
 }
 
 /// Policy Constraints (2.5.29.36) is marked critical - rejected per RFC 5280
@@ -786,7 +835,9 @@ pub fn parse_policy_constraints_explicit_pem_rejects_critical_extension_test() {
     simplifile.read(custom_path("policy_constraints_explicit.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 36])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 36])),
+    )
 }
 
 /// Inhibit Any Policy (2.5.29.54) is marked critical - rejected per RFC 5280
@@ -794,7 +845,9 @@ pub fn parse_inhibit_any_policy_5_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("inhibit_any_policy_5.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 54])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 54])),
+    )
 }
 
 pub fn parse_sia_pem_test() {
@@ -802,7 +855,17 @@ pub fn parse_sia_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [1, 3, 6, 1, 5, 5, 7, 1, 11])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [
+    1,
+    3,
+    6,
+    1,
+    5,
+    5,
+    7,
+    1,
+    11,
+  ])
 }
 
 pub fn parse_ian_uri_pem_test() {
@@ -810,7 +873,7 @@ pub fn parse_ian_uri_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [2, 5, 29, 18])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [2, 5, 29, 18])
 }
 
 pub fn parse_ocsp_nocheck_pem_test() {
@@ -818,7 +881,18 @@ pub fn parse_ocsp_nocheck_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [1, 3, 6, 1, 5, 5, 7, 48, 1, 5])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [
+    1,
+    3,
+    6,
+    1,
+    5,
+    5,
+    7,
+    48,
+    1,
+    5,
+  ])
 }
 
 pub fn parse_freshestcrl_pem_test() {
@@ -826,7 +900,7 @@ pub fn parse_freshestcrl_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [2, 5, 29, 46])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [2, 5, 29, 46])
 }
 
 pub fn parse_private_key_usage_period_both_dates_pem_test() {
@@ -835,7 +909,7 @@ pub fn parse_private_key_usage_period_both_dates_pem_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   assert certificate.version(parsed) == 2
-  assert has_oid(certificate.extensions(parsed), [2, 5, 29, 16])
+  assert test_helpers.has_oid(certificate.extensions(parsed), [2, 5, 29, 16])
 }
 
 pub fn parse_private_key_usage_period_only_not_after_pem_test() {
@@ -860,7 +934,7 @@ pub fn parse_rsa_pss_pem_fails_unsupported_signature_test() {
 
   assert result
     == Error(
-      certificate.UnsupportedAlgorithm(Oid([1, 2, 840, 113_549, 1, 1, 10])),
+      certificate.UnsupportedAlgorithm(x509.Oid([1, 2, 840, 113_549, 1, 1, 10])),
     )
 }
 
@@ -870,7 +944,7 @@ pub fn parse_rsa_pss_cert_pem_fails_unsupported_signature_test() {
 
   assert result
     == Error(
-      certificate.UnsupportedAlgorithm(Oid([1, 2, 840, 113_549, 1, 1, 10])),
+      certificate.UnsupportedAlgorithm(x509.Oid([1, 2, 840, 113_549, 1, 1, 10])),
     )
 }
 
@@ -881,7 +955,7 @@ pub fn parse_rsa_pss_sha256_no_null_pem_fails_unsupported_signature_test() {
 
   assert result
     == Error(
-      certificate.UnsupportedAlgorithm(Oid([1, 2, 840, 113_549, 1, 1, 10])),
+      certificate.UnsupportedAlgorithm(x509.Oid([1, 2, 840, 113_549, 1, 1, 10])),
     )
 }
 
@@ -890,7 +964,9 @@ pub fn parse_negative_serial_pem_rejects_critical_extension_test() {
   let assert Ok(pem) = simplifile.read(custom_path("negative_serial.pem"))
   let result = certificate.from_pem(pem)
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([2, 5, 29, 31])))
+    == Error(
+      certificate.UnrecognizedCriticalExtension(x509.Oid([2, 5, 29, 31])),
+    )
 }
 
 pub fn parse_post2000utctime_pem_test() {
@@ -944,7 +1020,7 @@ pub fn parse_unsupported_extension_critical_pem_test() {
   let result = certificate.from_pem(pem)
   // OID 1.2.3.4 is unknown and marked critical - must be rejected per RFC 5280
   assert result
-    == Error(certificate.UnrecognizedCriticalExtension(Oid([1, 2, 3, 4])))
+    == Error(certificate.UnrecognizedCriticalExtension(x509.Oid([1, 2, 3, 4])))
 }
 
 pub fn parse_admissions_extension_authority_not_provided_pem_test() {

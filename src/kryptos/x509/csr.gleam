@@ -40,7 +40,7 @@ import kryptos/ecdsa
 import kryptos/eddsa
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/der
-import kryptos/internal/utils.{parse_ip}
+import kryptos/internal/utils
 import kryptos/internal/x509.{type SigAlgInfo} as x509_internal
 import kryptos/rsa
 import kryptos/x509
@@ -190,7 +190,7 @@ pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
 /// - `Ok(Builder)` with the updated builder
 /// - `Error(Nil)` if the IP address cannot be parsed
 pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
-  use parsed <- result.try(parse_ip(ip))
+  use parsed <- result.try(utils.parse_ip(ip))
   let x509.Extensions(sans) = builder.extensions
   Ok(
     Builder(

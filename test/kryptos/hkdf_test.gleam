@@ -1,5 +1,5 @@
 import gleam/bit_array
-import gleam/option.{None, Some}
+import gleam/option
 import kryptos/crypto
 import kryptos/hash
 import qcheck
@@ -19,7 +19,7 @@ pub fn hkdf_output_length_property_test() {
   use input <- qcheck.given(gen)
   let #(algorithm, ikm, length) = input
   let assert Ok(result) =
-    crypto.hkdf(algorithm, input: ikm, salt: None, info: <<>>, length:)
+    crypto.hkdf(algorithm, input: ikm, salt: option.None, info: <<>>, length:)
   assert bit_array.byte_size(result) == length
 }
 
@@ -37,9 +37,21 @@ pub fn hkdf_deterministic_property_test() {
   let length = 32
 
   let assert Ok(result1) =
-    crypto.hkdf(hash.Sha256, input: ikm, salt: Some(salt), info:, length:)
+    crypto.hkdf(
+      hash.Sha256,
+      input: ikm,
+      salt: option.Some(salt),
+      info:,
+      length:,
+    )
   let assert Ok(result2) =
-    crypto.hkdf(hash.Sha256, input: ikm, salt: Some(salt), info:, length:)
+    crypto.hkdf(
+      hash.Sha256,
+      input: ikm,
+      salt: option.Some(salt),
+      info:,
+      length:,
+    )
 
   assert result1 == result2
 }
@@ -53,7 +65,7 @@ pub fn hkdf_sha256_rfc5869_test_case_1_test() {
   let length = 42
 
   let assert Ok(result) =
-    crypto.hkdf(hash.Sha256, input:, salt: Some(salt), info:, length:)
+    crypto.hkdf(hash.Sha256, input:, salt: option.Some(salt), info:, length:)
 
   let assert Ok(expected) =
     bit_array.base16_decode(
@@ -79,7 +91,7 @@ pub fn hkdf_sha256_rfc5869_test_case_2_test() {
   let length = 82
 
   let assert Ok(result) =
-    crypto.hkdf(hash.Sha256, input:, salt: Some(salt), info:, length:)
+    crypto.hkdf(hash.Sha256, input:, salt: option.Some(salt), info:, length:)
 
   let assert Ok(expected) =
     bit_array.base16_decode(
@@ -96,7 +108,7 @@ pub fn hkdf_sha256_rfc5869_test_case_3_test() {
   let length = 42
 
   let assert Ok(result) =
-    crypto.hkdf(hash.Sha256, input:, salt: None, info:, length:)
+    crypto.hkdf(hash.Sha256, input:, salt: option.None, info:, length:)
 
   let assert Ok(expected) =
     bit_array.base16_decode(
@@ -113,7 +125,7 @@ pub fn hkdf_sha1_rfc5869_test_case_4_test() {
   let length = 42
 
   let assert Ok(result) =
-    crypto.hkdf(hash.Sha1, input:, salt: Some(salt), info:, length:)
+    crypto.hkdf(hash.Sha1, input:, salt: option.Some(salt), info:, length:)
 
   let assert Ok(expected) =
     bit_array.base16_decode(
@@ -139,7 +151,7 @@ pub fn hkdf_sha1_rfc5869_test_case_5_test() {
   let length = 82
 
   let assert Ok(result) =
-    crypto.hkdf(hash.Sha1, input:, salt: Some(salt), info:, length:)
+    crypto.hkdf(hash.Sha1, input:, salt: option.Some(salt), info:, length:)
 
   let assert Ok(expected) =
     bit_array.base16_decode(
@@ -156,7 +168,7 @@ pub fn hkdf_sha1_rfc5869_test_case_6_test() {
   let length = 42
 
   let assert Ok(result) =
-    crypto.hkdf(hash.Sha1, input:, salt: None, info:, length:)
+    crypto.hkdf(hash.Sha1, input:, salt: option.None, info:, length:)
 
   let assert Ok(expected) =
     bit_array.base16_decode(
@@ -173,7 +185,7 @@ pub fn hkdf_sha1_rfc5869_test_case_7_test() {
   let length = 42
 
   let assert Ok(result) =
-    crypto.hkdf(hash.Sha1, input:, salt: None, info:, length:)
+    crypto.hkdf(hash.Sha1, input:, salt: option.None, info:, length:)
 
   let assert Ok(expected) =
     bit_array.base16_decode(
@@ -189,11 +201,11 @@ pub fn unsupported_algorithm_test() {
   let length = 32
 
   // BLAKE2b is not supported for HKDF
-  assert crypto.hkdf(hash.Blake2b, input:, salt: None, info:, length:)
+  assert crypto.hkdf(hash.Blake2b, input:, salt: option.None, info:, length:)
     == Error(Nil)
-  assert crypto.hkdf(hash.Blake2s, input:, salt: None, info:, length:)
+  assert crypto.hkdf(hash.Blake2s, input:, salt: option.None, info:, length:)
     == Error(Nil)
-  assert crypto.hkdf(hash.Sha3x256, input:, salt: None, info:, length:)
+  assert crypto.hkdf(hash.Sha3x256, input:, salt: option.None, info:, length:)
     == Error(Nil)
 }
 
@@ -204,12 +216,12 @@ pub fn length_too_large_test() {
 
   // SHA-256 has hash length 32, so max is 255 * 32 = 8160
   let length = 255 * 32 + 1
-  assert crypto.hkdf(hash.Sha256, input:, salt: None, info:, length:)
+  assert crypto.hkdf(hash.Sha256, input:, salt: option.None, info:, length:)
     == Error(Nil)
 
   // SHA-1 has hash length 20, so max is 255 * 20 = 5100
   let length = 255 * 20 + 1
-  assert crypto.hkdf(hash.Sha1, input:, salt: None, info:, length:)
+  assert crypto.hkdf(hash.Sha1, input:, salt: option.None, info:, length:)
     == Error(Nil)
 }
 
@@ -219,6 +231,6 @@ pub fn zero_length_test() {
   let info = <<>>
   let length = 0
 
-  assert crypto.hkdf(hash.Sha256, input:, salt: None, info:, length:)
+  assert crypto.hkdf(hash.Sha256, input:, salt: option.None, info:, length:)
     == Error(Nil)
 }

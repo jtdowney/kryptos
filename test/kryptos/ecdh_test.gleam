@@ -1,15 +1,15 @@
 import gleam/bit_array
-import kryptos/ec.{P256, P384, P521, Secp256k1}
+import kryptos/ec
 import kryptos/ecdh
 import qcheck
 
 // Property: ECDH is commutative - Alice with Bob's public == Bob with Alice's public
 pub fn ecdh_commutativity_property_test() {
   let gen =
-    qcheck.from_generators(qcheck.return(P256), [
-      qcheck.return(P384),
-      qcheck.return(P521),
-      qcheck.return(Secp256k1),
+    qcheck.from_generators(qcheck.return(ec.P256), [
+      qcheck.return(ec.P384),
+      qcheck.return(ec.P521),
+      qcheck.return(ec.Secp256k1),
     ])
 
   use curve <- qcheck.run(
@@ -30,10 +30,10 @@ pub fn ecdh_commutativity_property_test() {
 // Property: shared secret size matches expected curve output size
 pub fn ecdh_shared_secret_size_property_test() {
   let gen =
-    qcheck.from_generators(qcheck.return(#(P256, 32)), [
-      qcheck.return(#(P384, 48)),
-      qcheck.return(#(P521, 66)),
-      qcheck.return(#(Secp256k1, 32)),
+    qcheck.from_generators(qcheck.return(#(ec.P256, 32)), [
+      qcheck.return(#(ec.P384, 48)),
+      qcheck.return(#(ec.P521, 66)),
+      qcheck.return(#(ec.Secp256k1, 32)),
     ])
 
   use input <- qcheck.run(
@@ -52,8 +52,8 @@ pub fn ecdh_shared_secret_size_property_test() {
 // Property: same inputs always produce same shared secret
 pub fn ecdh_deterministic_property_test() {
   let gen =
-    qcheck.from_generators(qcheck.return(P256), [
-      qcheck.return(P384),
+    qcheck.from_generators(qcheck.return(ec.P256), [
+      qcheck.return(ec.P384),
     ])
 
   use curve <- qcheck.run(
@@ -70,9 +70,9 @@ pub fn ecdh_deterministic_property_test() {
 }
 
 pub fn different_keys_different_secrets_test() {
-  let #(alice_private, _) = ec.generate_key_pair(P256)
-  let #(_, bob_public) = ec.generate_key_pair(P256)
-  let #(_, charlie_public) = ec.generate_key_pair(P256)
+  let #(alice_private, _) = ec.generate_key_pair(ec.P256)
+  let #(_, bob_public) = ec.generate_key_pair(ec.P256)
+  let #(_, charlie_public) = ec.generate_key_pair(ec.P256)
 
   let assert Ok(with_bob) =
     ecdh.compute_shared_secret(alice_private, bob_public)
@@ -83,15 +83,15 @@ pub fn different_keys_different_secrets_test() {
 }
 
 pub fn curve_mismatch_p256_p384_test() {
-  let #(alice_private, _) = ec.generate_key_pair(P256)
-  let #(_, bob_public) = ec.generate_key_pair(P384)
+  let #(alice_private, _) = ec.generate_key_pair(ec.P256)
+  let #(_, bob_public) = ec.generate_key_pair(ec.P384)
 
   assert ecdh.compute_shared_secret(alice_private, bob_public) == Error(Nil)
 }
 
 pub fn curve_mismatch_p256_secp256k1_test() {
-  let #(alice_private, _) = ec.generate_key_pair(P256)
-  let #(_, bob_public) = ec.generate_key_pair(Secp256k1)
+  let #(alice_private, _) = ec.generate_key_pair(ec.P256)
+  let #(_, bob_public) = ec.generate_key_pair(ec.Secp256k1)
 
   assert ecdh.compute_shared_secret(alice_private, bob_public) == Error(Nil)
 }

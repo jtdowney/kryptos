@@ -1,13 +1,13 @@
 import gleam/bit_array
 import gleam/dynamic/decode
 import gleam/list
-import gleam/option.{type Option, None}
+import gleam/option.{type Option}
 import gleam/result
 import gleam/string
 import kryptos/ec
 import kryptos/ecdh
 import unitest
-import wycheproof/utils.{type TestResult, Acceptable, Invalid, Valid}
+import wycheproof/utils.{type TestResult}
 
 type TestCase {
   TestCase(
@@ -79,7 +79,7 @@ fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
   let priv_key_result = ec.from_bytes(curve, private_bytes)
 
   case tc.result, pub_key_result, priv_key_result {
-    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case ecdh.compute_shared_secret(priv_key, peer_pub) {
         Error(Nil) -> Nil
         Ok(shared) -> {
@@ -87,22 +87,23 @@ fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
             as { "ECDH succeeded for invalid test: " <> context }
         }
       }
-    Invalid, _, _ -> Nil
+    utils.Invalid, _, _ -> Nil
 
-    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+    utils.Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
       let assert Ok(shared) = ecdh.compute_shared_secret(priv_key, peer_pub)
       assert shared == expected_shared as context
     }
-    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+    utils.Valid, _, _ ->
+      panic as { "Key import failed for valid test: " <> context }
 
-    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case ecdh.compute_shared_secret(priv_key, peer_pub) {
         Ok(shared) -> {
           assert shared == expected_shared as context
         }
         Error(Nil) -> Nil
       }
-    Acceptable, _, _ -> Nil
+    utils.Acceptable, _, _ -> Nil
   }
 }
 
@@ -151,7 +152,7 @@ fn run_pem_test_for_supported_curve(tc: TestCase) -> Nil {
   let priv_key_result = ec.from_pem(tc.private)
 
   case tc.result, pub_key_result, priv_key_result {
-    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case ecdh.compute_shared_secret(priv_key, peer_pub) {
         Error(Nil) -> Nil
         Ok(shared) -> {
@@ -159,22 +160,23 @@ fn run_pem_test_for_supported_curve(tc: TestCase) -> Nil {
             as { "ECDH succeeded for invalid test: " <> context }
         }
       }
-    Invalid, _, _ -> Nil
+    utils.Invalid, _, _ -> Nil
 
-    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+    utils.Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
       let assert Ok(shared) = ecdh.compute_shared_secret(priv_key, peer_pub)
       assert shared == expected_shared as context
     }
-    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+    utils.Valid, _, _ ->
+      panic as { "Key import failed for valid test: " <> context }
 
-    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case ecdh.compute_shared_secret(priv_key, peer_pub) {
         Ok(shared) -> {
           assert shared == expected_shared as context
         }
         Error(Nil) -> Nil
       }
-    Acceptable, _, _ -> Nil
+    utils.Acceptable, _, _ -> Nil
   }
 }
 
@@ -228,7 +230,11 @@ fn webcrypto_jwk_decoder() -> decode.Decoder(WebCryptoJwk) {
   use crv <- decode.field("crv", decode.string)
   use x <- decode.field("x", decode.string)
   use y <- decode.field("y", decode.string)
-  use d <- decode.optional_field("d", None, decode.optional(decode.string))
+  use d <- decode.optional_field(
+    "d",
+    option.None,
+    decode.optional(decode.string),
+  )
   decode.success(WebCryptoJwk(crv:, x:, y:, d:))
 }
 
@@ -319,7 +325,7 @@ fn run_webcrypto_test_for_curve(curve: ec.Curve, tc: WebCryptoTestCase) -> Nil {
   let priv_key_result = jwk_to_private_key(curve, tc.private)
 
   case tc.result, pub_key_result, priv_key_result {
-    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case ecdh.compute_shared_secret(priv_key, peer_pub) {
         Error(Nil) -> Nil
         Ok(shared) -> {
@@ -327,22 +333,23 @@ fn run_webcrypto_test_for_curve(curve: ec.Curve, tc: WebCryptoTestCase) -> Nil {
             as { "ECDH succeeded for invalid test: " <> context }
         }
       }
-    Invalid, _, _ -> Nil
+    utils.Invalid, _, _ -> Nil
 
-    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+    utils.Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
       let assert Ok(shared) = ecdh.compute_shared_secret(priv_key, peer_pub)
       assert shared == expected_shared as context
     }
-    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+    utils.Valid, _, _ ->
+      panic as { "Key import failed for valid test: " <> context }
 
-    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case ecdh.compute_shared_secret(priv_key, peer_pub) {
         Ok(shared) -> {
           assert shared == expected_shared as context
         }
         Error(Nil) -> Nil
       }
-    Acceptable, _, _ -> Nil
+    utils.Acceptable, _, _ -> Nil
   }
 }
 

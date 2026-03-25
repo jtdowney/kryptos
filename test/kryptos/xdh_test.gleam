@@ -1,6 +1,6 @@
 import birdie
 import gleam/bit_array
-import kryptos/xdh.{X25519, X448}
+import kryptos/xdh
 import qcheck
 import simplifile
 
@@ -16,7 +16,8 @@ fn load_x448_key() -> String {
 
 // Property: XDH is commutative - Alice with Bob's public == Bob with Alice's public
 pub fn xdh_commutativity_property_test() {
-  let gen = qcheck.from_generators(qcheck.return(X25519), [qcheck.return(X448)])
+  let gen =
+    qcheck.from_generators(qcheck.return(xdh.X25519), [qcheck.return(xdh.X448)])
 
   use curve <- qcheck.given(gen)
   let #(alice_private, alice_public) = xdh.generate_key_pair(curve)
@@ -33,8 +34,8 @@ pub fn xdh_commutativity_property_test() {
 // Property: shared secret size matches expected curve output size
 pub fn xdh_shared_secret_size_property_test() {
   let gen =
-    qcheck.from_generators(qcheck.return(#(X25519, 32)), [
-      qcheck.return(#(X448, 56)),
+    qcheck.from_generators(qcheck.return(#(xdh.X25519, 32)), [
+      qcheck.return(#(xdh.X448, 56)),
     ])
 
   use input <- qcheck.given(gen)
@@ -49,7 +50,8 @@ pub fn xdh_shared_secret_size_property_test() {
 
 // Property: same inputs always produce same shared secret
 pub fn xdh_deterministic_property_test() {
-  let gen = qcheck.from_generators(qcheck.return(X25519), [qcheck.return(X448)])
+  let gen =
+    qcheck.from_generators(qcheck.return(xdh.X25519), [qcheck.return(xdh.X448)])
 
   use curve <- qcheck.given(gen)
   let #(alice_private, _) = xdh.generate_key_pair(curve)
@@ -63,7 +65,8 @@ pub fn xdh_deterministic_property_test() {
 
 // Property: different public keys produce different shared secrets
 pub fn xdh_different_keys_different_secrets_property_test() {
-  let gen = qcheck.from_generators(qcheck.return(X25519), [qcheck.return(X448)])
+  let gen =
+    qcheck.from_generators(qcheck.return(xdh.X25519), [qcheck.return(xdh.X448)])
 
   use curve <- qcheck.given(gen)
   let #(alice_private, _) = xdh.generate_key_pair(curve)
@@ -78,56 +81,56 @@ pub fn xdh_different_keys_different_secrets_property_test() {
 }
 
 pub fn curve_mismatch_x25519_x448_test() {
-  let #(alice_private, _) = xdh.generate_key_pair(X25519)
-  let #(_, bob_public) = xdh.generate_key_pair(X448)
+  let #(alice_private, _) = xdh.generate_key_pair(xdh.X25519)
+  let #(_, bob_public) = xdh.generate_key_pair(xdh.X448)
 
   assert xdh.compute_shared_secret(alice_private, bob_public) == Error(Nil)
 }
 
 pub fn curve_mismatch_x448_x25519_test() {
-  let #(alice_private, _) = xdh.generate_key_pair(X448)
-  let #(_, bob_public) = xdh.generate_key_pair(X25519)
+  let #(alice_private, _) = xdh.generate_key_pair(xdh.X448)
+  let #(_, bob_public) = xdh.generate_key_pair(xdh.X25519)
 
   assert xdh.compute_shared_secret(alice_private, bob_public) == Error(Nil)
 }
 
 pub fn x25519_invalid_public_key_length_test() {
   let short_key = <<0:size(31)-unit(8)>>
-  assert xdh.public_key_from_bytes(X25519, short_key) == Error(Nil)
+  assert xdh.public_key_from_bytes(xdh.X25519, short_key) == Error(Nil)
 
   let long_key = <<0:size(33)-unit(8)>>
-  assert xdh.public_key_from_bytes(X25519, long_key) == Error(Nil)
+  assert xdh.public_key_from_bytes(xdh.X25519, long_key) == Error(Nil)
 }
 
 pub fn x448_invalid_public_key_length_test() {
   let short_key = <<0:size(55)-unit(8)>>
-  assert xdh.public_key_from_bytes(X448, short_key) == Error(Nil)
+  assert xdh.public_key_from_bytes(xdh.X448, short_key) == Error(Nil)
 
   let long_key = <<0:size(57)-unit(8)>>
-  assert xdh.public_key_from_bytes(X448, long_key) == Error(Nil)
+  assert xdh.public_key_from_bytes(xdh.X448, long_key) == Error(Nil)
 }
 
 pub fn x25519_invalid_private_key_length_test() {
   let short_key = <<0:size(31)-unit(8)>>
-  assert xdh.from_bytes(X25519, short_key) == Error(Nil)
+  assert xdh.from_bytes(xdh.X25519, short_key) == Error(Nil)
 
   let long_key = <<0:size(33)-unit(8)>>
-  assert xdh.from_bytes(X25519, long_key) == Error(Nil)
+  assert xdh.from_bytes(xdh.X25519, long_key) == Error(Nil)
 }
 
 pub fn x448_invalid_private_key_length_test() {
   let short_key = <<0:size(55)-unit(8)>>
-  assert xdh.from_bytes(X448, short_key) == Error(Nil)
+  assert xdh.from_bytes(xdh.X448, short_key) == Error(Nil)
 
   let long_key = <<0:size(57)-unit(8)>>
-  assert xdh.from_bytes(X448, long_key) == Error(Nil)
+  assert xdh.from_bytes(xdh.X448, long_key) == Error(Nil)
 }
 
 pub fn x25519_from_bytes_test() {
   let assert Ok(priv_bytes) =
     simplifile.read_bits("test/fixtures/x25519_raw_priv.bin")
-  let assert Ok(#(private, public)) = xdh.from_bytes(X25519, priv_bytes)
-  let #(other_private, other_public) = xdh.generate_key_pair(X25519)
+  let assert Ok(#(private, public)) = xdh.from_bytes(xdh.X25519, priv_bytes)
+  let #(other_private, other_public) = xdh.generate_key_pair(xdh.X25519)
   let assert Ok(shared1) = xdh.compute_shared_secret(private, other_public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 == shared2
@@ -136,7 +139,7 @@ pub fn x25519_from_bytes_test() {
 pub fn x25519_to_bytes_roundtrip_test() {
   let assert Ok(priv_bytes) =
     simplifile.read_bits("test/fixtures/x25519_raw_priv.bin")
-  let assert Ok(#(private, public)) = xdh.from_bytes(X25519, priv_bytes)
+  let assert Ok(#(private, public)) = xdh.from_bytes(xdh.X25519, priv_bytes)
 
   let exported_priv = xdh.to_bytes(private)
   assert exported_priv == priv_bytes
@@ -150,16 +153,16 @@ pub fn x25519_to_bytes_roundtrip_test() {
 pub fn x25519_public_key_from_bytes_test() {
   let assert Ok(pub_bytes) =
     simplifile.read_bits("test/fixtures/x25519_raw_pub.bin")
-  let assert Ok(public) = xdh.public_key_from_bytes(X25519, pub_bytes)
-  let #(other_private, _) = xdh.generate_key_pair(X25519)
+  let assert Ok(public) = xdh.public_key_from_bytes(xdh.X25519, pub_bytes)
+  let #(other_private, _) = xdh.generate_key_pair(xdh.X25519)
   let assert Ok(_shared) = xdh.compute_shared_secret(other_private, public)
 }
 
 pub fn x448_from_bytes_test() {
   let assert Ok(priv_bytes) =
     simplifile.read_bits("test/fixtures/x448_raw_priv.bin")
-  let assert Ok(#(private, public)) = xdh.from_bytes(X448, priv_bytes)
-  let #(other_private, other_public) = xdh.generate_key_pair(X448)
+  let assert Ok(#(private, public)) = xdh.from_bytes(xdh.X448, priv_bytes)
+  let #(other_private, other_public) = xdh.generate_key_pair(xdh.X448)
   let assert Ok(shared1) = xdh.compute_shared_secret(private, other_public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 == shared2
@@ -168,7 +171,7 @@ pub fn x448_from_bytes_test() {
 pub fn x448_to_bytes_roundtrip_test() {
   let assert Ok(priv_bytes) =
     simplifile.read_bits("test/fixtures/x448_raw_priv.bin")
-  let assert Ok(#(private, public)) = xdh.from_bytes(X448, priv_bytes)
+  let assert Ok(#(private, public)) = xdh.from_bytes(xdh.X448, priv_bytes)
 
   let exported_priv = xdh.to_bytes(private)
   assert exported_priv == priv_bytes
@@ -182,8 +185,8 @@ pub fn x448_to_bytes_roundtrip_test() {
 pub fn x448_public_key_from_bytes_test() {
   let assert Ok(pub_bytes) =
     simplifile.read_bits("test/fixtures/x448_raw_pub.bin")
-  let assert Ok(public) = xdh.public_key_from_bytes(X448, pub_bytes)
-  let #(other_private, _) = xdh.generate_key_pair(X448)
+  let assert Ok(public) = xdh.public_key_from_bytes(xdh.X448, pub_bytes)
+  let #(other_private, _) = xdh.generate_key_pair(xdh.X448)
   let assert Ok(_shared) = xdh.compute_shared_secret(other_private, public)
 }
 
@@ -249,7 +252,7 @@ pub fn x25519_import_private_key_pem_roundtrip_test() {
   let assert Ok(pem) = xdh.to_pem(private_key)
   let assert Ok(#(imported_private, imported_public)) = xdh.from_pem(pem)
 
-  let #(other_private, other_public) = xdh.generate_key_pair(X25519)
+  let #(other_private, other_public) = xdh.generate_key_pair(xdh.X25519)
   let assert Ok(shared1) =
     xdh.compute_shared_secret(imported_private, other_public)
   let assert Ok(shared2) =
@@ -263,7 +266,7 @@ pub fn x448_import_private_key_pem_roundtrip_test() {
   let assert Ok(pem) = xdh.to_pem(private_key)
   let assert Ok(#(imported_private, imported_public)) = xdh.from_pem(pem)
 
-  let #(other_private, other_public) = xdh.generate_key_pair(X448)
+  let #(other_private, other_public) = xdh.generate_key_pair(xdh.X448)
   let assert Ok(shared1) =
     xdh.compute_shared_secret(imported_private, other_public)
   let assert Ok(shared2) =
@@ -281,7 +284,7 @@ pub fn public_key_from_private_key_test() {
   let assert Ok(#(private_key, public_key)) = xdh.from_pem(load_x25519_key())
   let derived_public = xdh.public_key_from_private_key(private_key)
 
-  let #(other_private, _other_public) = xdh.generate_key_pair(X25519)
+  let #(other_private, _other_public) = xdh.generate_key_pair(xdh.X25519)
   let assert Ok(shared1) = xdh.compute_shared_secret(other_private, public_key)
   let assert Ok(shared2) =
     xdh.compute_shared_secret(other_private, derived_public)
@@ -291,7 +294,7 @@ pub fn public_key_from_private_key_test() {
 pub fn import_x25519_pkcs8_der_test() {
   let assert Ok(der) = simplifile.read_bits("test/fixtures/x25519_pkcs8.der")
   let assert Ok(#(private, public)) = xdh.from_der(der)
-  let #(other_private, other_public) = xdh.generate_key_pair(X25519)
+  let #(other_private, other_public) = xdh.generate_key_pair(xdh.X25519)
   let assert Ok(shared1) = xdh.compute_shared_secret(private, other_public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 == shared2
@@ -302,7 +305,7 @@ pub fn import_x25519_spki_pub_pem_test() {
   let assert Ok(#(private, _)) = xdh.from_pem(priv_pem)
   let assert Ok(pub_pem) = simplifile.read("test/fixtures/x25519_spki_pub.pem")
   let assert Ok(public) = xdh.public_key_from_pem(pub_pem)
-  let #(other_private, _) = xdh.generate_key_pair(X25519)
+  let #(other_private, _) = xdh.generate_key_pair(xdh.X25519)
   let assert Ok(shared1) = xdh.compute_shared_secret(private, public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 != shared2
@@ -314,7 +317,7 @@ pub fn import_x25519_spki_pub_der_test() {
   let assert Ok(pub_der) =
     simplifile.read_bits("test/fixtures/x25519_spki_pub.der")
   let assert Ok(public) = xdh.public_key_from_der(pub_der)
-  let #(other_private, _) = xdh.generate_key_pair(X25519)
+  let #(other_private, _) = xdh.generate_key_pair(xdh.X25519)
   let assert Ok(shared1) = xdh.compute_shared_secret(private, public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 != shared2
@@ -323,7 +326,7 @@ pub fn import_x25519_spki_pub_der_test() {
 pub fn import_x448_pkcs8_der_test() {
   let assert Ok(der) = simplifile.read_bits("test/fixtures/x448_pkcs8.der")
   let assert Ok(#(private, public)) = xdh.from_der(der)
-  let #(other_private, other_public) = xdh.generate_key_pair(X448)
+  let #(other_private, other_public) = xdh.generate_key_pair(xdh.X448)
   let assert Ok(shared1) = xdh.compute_shared_secret(private, other_public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 == shared2
@@ -334,7 +337,7 @@ pub fn import_x448_spki_pub_pem_test() {
   let assert Ok(#(private, _)) = xdh.from_pem(priv_pem)
   let assert Ok(pub_pem) = simplifile.read("test/fixtures/x448_spki_pub.pem")
   let assert Ok(public) = xdh.public_key_from_pem(pub_pem)
-  let #(other_private, _) = xdh.generate_key_pair(X448)
+  let #(other_private, _) = xdh.generate_key_pair(xdh.X448)
   let assert Ok(shared1) = xdh.compute_shared_secret(private, public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 != shared2
@@ -346,7 +349,7 @@ pub fn import_x448_spki_pub_der_test() {
   let assert Ok(pub_der) =
     simplifile.read_bits("test/fixtures/x448_spki_pub.der")
   let assert Ok(public) = xdh.public_key_from_der(pub_der)
-  let #(other_private, _) = xdh.generate_key_pair(X448)
+  let #(other_private, _) = xdh.generate_key_pair(xdh.X448)
   let assert Ok(shared1) = xdh.compute_shared_secret(private, public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 != shared2

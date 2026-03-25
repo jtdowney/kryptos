@@ -2,19 +2,19 @@
 import gleam/list
 import gleam/regexp
 import gleam/string
-import kryptos/x509.{type Oid, Oid}
+import kryptos/x509.{type Oid}
 
 pub fn has_oid(items: List(#(Oid, Bool, BitArray)), target: List(Int)) -> Bool {
-  list.any(items, fn(item) { item.0 == Oid(target) })
+  list.any(items, fn(item) { item.0 == x509.Oid(target) })
 }
 
 pub fn count_oid(items: List(#(Oid, Bool, BitArray)), target: List(Int)) -> Int {
-  list.count(items, fn(item) { item.0 == Oid(target) })
+  list.count(items, fn(item) { item.0 == x509.Oid(target) })
 }
 
 /// Check if an attribute (without critical flag) matches a target OID.
 pub fn has_attr_oid(items: List(#(Oid, BitArray)), target: List(Int)) -> Bool {
-  list.any(items, fn(item) { item.0 == Oid(target) })
+  list.any(items, fn(item) { item.0 == x509.Oid(target) })
 }
 
 pub fn mask_dynamic_values(output: String) -> String {

@@ -20,7 +20,7 @@
 import gleam/bit_array
 import gleam/bool
 import gleam/result
-import kryptos/ec.{type Curve, type PrivateKey, type PublicKey}
+import kryptos/ec
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/der
 import kryptos/internal/utils
@@ -41,7 +41,7 @@ import kryptos/internal/utils
 @external(erlang, "kryptos_ffi", "ecdsa_sign")
 @external(javascript, "../kryptos_ffi.mjs", "ecdsaSign")
 pub fn sign(
-  private_key: PrivateKey,
+  private_key: ec.PrivateKey,
   message: BitArray,
   hash: HashAlgorithm,
 ) -> BitArray
@@ -63,7 +63,7 @@ pub fn sign(
 @external(erlang, "kryptos_ffi", "ecdsa_verify")
 @external(javascript, "../kryptos_ffi.mjs", "ecdsaVerify")
 pub fn verify(
-  public_key: PublicKey,
+  public_key: ec.PublicKey,
   message: BitArray,
   signature signature: BitArray,
   hash hash: HashAlgorithm,
@@ -93,7 +93,7 @@ pub fn verify(
 /// let signature = ecdsa.sign_rs(private_key, <<"hello":utf8>>, hash.Sha256)
 /// ```
 pub fn sign_rs(
-  private_key: PrivateKey,
+  private_key: ec.PrivateKey,
   message: BitArray,
   hash: HashAlgorithm,
 ) -> BitArray {
@@ -131,7 +131,7 @@ pub fn sign_rs(
 /// // valid == True
 /// ```
 pub fn verify_rs(
-  public_key: PublicKey,
+  public_key: ec.PublicKey,
   message: BitArray,
   signature: BitArray,
   hash: HashAlgorithm,
@@ -167,7 +167,7 @@ pub fn verify_rs(
 /// let der_sig = ecdsa.sign(private_key, <<"hello":utf8>>, hash.Sha256)
 /// let assert Ok(rs_sig) = ecdsa.der_to_rs(der_sig, ec.P256)
 /// ```
-pub fn der_to_rs(der_sig: BitArray, curve: Curve) -> Result(BitArray, Nil) {
+pub fn der_to_rs(der_sig: BitArray, curve: ec.Curve) -> Result(BitArray, Nil) {
   let coord_size = ec.coordinate_size(curve)
 
   use #(content, remaining) <- result.try(der.parse_sequence(der_sig))
@@ -217,7 +217,7 @@ pub fn der_to_rs(der_sig: BitArray, curve: Curve) -> Result(BitArray, Nil) {
 /// let rs_sig = ecdsa.sign_rs(private_key, <<"hello":utf8>>, hash.Sha256)
 /// let assert Ok(der_sig) = ecdsa.rs_to_der(rs_sig, ec.P256)
 /// ```
-pub fn rs_to_der(rs: BitArray, curve: Curve) -> Result(BitArray, Nil) {
+pub fn rs_to_der(rs: BitArray, curve: ec.Curve) -> Result(BitArray, Nil) {
   let coord_size = ec.coordinate_size(curve)
 
   case rs {

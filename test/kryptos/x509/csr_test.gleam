@@ -8,14 +8,9 @@ import kryptos/ec
 import kryptos/eddsa
 import kryptos/hash
 import kryptos/rsa
-import kryptos/x509.{
-  DnsName, EcPublicKey, EcdsaSha256, Ed25519, Ed448, EdPublicKey, RsaPublicKey,
-  RsaSha256,
-}
+import kryptos/x509
 import kryptos/x509/csr
-import kryptos/x509/test_helpers.{
-  mask_dynamic_values, mask_signature, normalize_subject,
-}
+import kryptos/x509/test_helpers
 import qcheck
 import shellout
 import simplifile
@@ -257,7 +252,7 @@ pub fn csr_ecdsa_dns_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
 
   birdie.snap(
-    mask_dynamic_values(output),
+    test_helpers.mask_dynamic_values(output),
     title: "csr ecdsa dns san openssl output",
   )
 
@@ -266,8 +261,8 @@ pub fn csr_ecdsa_dns_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "csr ecdsa dns san text")
 }
 
@@ -338,7 +333,7 @@ pub fn csr_rsa_dns_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
 
   birdie.snap(
-    mask_dynamic_values(output),
+    test_helpers.mask_dynamic_values(output),
     title: "csr rsa dns san openssl output",
   )
 
@@ -347,8 +342,8 @@ pub fn csr_rsa_dns_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "csr rsa dns san text")
 }
 
@@ -376,7 +371,7 @@ pub fn csr_eddsa_ed25519_dns_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
 
   birdie.snap(
-    mask_dynamic_values(output),
+    test_helpers.mask_dynamic_values(output),
     title: "csr eddsa ed25519 dns san openssl output",
   )
 
@@ -385,8 +380,8 @@ pub fn csr_eddsa_ed25519_dns_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "csr eddsa ed25519 dns san text")
 }
 
@@ -414,7 +409,7 @@ pub fn csr_eddsa_ed448_dns_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
 
   birdie.snap(
-    mask_dynamic_values(output),
+    test_helpers.mask_dynamic_values(output),
     title: "csr eddsa ed448 dns san openssl output",
   )
 
@@ -423,8 +418,8 @@ pub fn csr_eddsa_ed448_dns_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "csr eddsa ed448 dns san text")
 }
 
@@ -447,7 +442,7 @@ pub fn csr_ecdsa_email_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
 
   birdie.snap(
-    mask_dynamic_values(output),
+    test_helpers.mask_dynamic_values(output),
     title: "csr ecdsa email san openssl output",
   )
 
@@ -456,8 +451,8 @@ pub fn csr_ecdsa_email_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "csr ecdsa email san text")
 }
 
@@ -480,7 +475,7 @@ pub fn csr_ecdsa_ipv4_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
 
   birdie.snap(
-    mask_dynamic_values(output),
+    test_helpers.mask_dynamic_values(output),
     title: "csr ecdsa ipv4 san openssl output",
   )
 
@@ -489,8 +484,8 @@ pub fn csr_ecdsa_ipv4_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "csr ecdsa ipv4 san text")
 }
 
@@ -513,7 +508,7 @@ pub fn csr_ecdsa_ipv6_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
 
   birdie.snap(
-    mask_dynamic_values(output),
+    test_helpers.mask_dynamic_values(output),
     title: "csr ecdsa ipv6 san openssl output",
   )
 
@@ -522,8 +517,8 @@ pub fn csr_ecdsa_ipv6_san_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "csr ecdsa ipv6 san text")
 }
 
@@ -604,7 +599,7 @@ pub fn ecdsa_csr_roundtrip_property_test() {
   let assert Ok(parsed) = csr.from_der(der)
 
   assert csr.version(parsed) == 0
-  let assert EcPublicKey(_) = csr.public_key(parsed)
+  let assert x509.EcPublicKey(_) = csr.public_key(parsed)
   assert list.length(csr.subject_alt_names(parsed)) == 2
 
   let pem = csr.to_pem(built_csr)
@@ -630,9 +625,9 @@ pub fn rsa_csr_roundtrip_test() {
   let assert Ok(parsed) = csr.from_der(der)
 
   assert csr.version(parsed) == 0
-  let assert RsaPublicKey(_) = csr.public_key(parsed)
-  assert csr.signature_algorithm(parsed) == RsaSha256
-  assert csr.subject_alt_names(parsed) == [DnsName("rsa.example.com")]
+  let assert x509.RsaPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.RsaSha256
+  assert csr.subject_alt_names(parsed) == [x509.DnsName("rsa.example.com")]
 }
 
 pub fn eddsa_ed25519_csr_roundtrip_test() {
@@ -650,9 +645,9 @@ pub fn eddsa_ed25519_csr_roundtrip_test() {
   let assert Ok(parsed) = csr.from_der(der)
 
   assert csr.version(parsed) == 0
-  let assert EdPublicKey(_) = csr.public_key(parsed)
-  assert csr.signature_algorithm(parsed) == Ed25519
-  assert csr.subject_alt_names(parsed) == [DnsName("ed25519.example.com")]
+  let assert x509.EdPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.Ed25519
+  assert csr.subject_alt_names(parsed) == [x509.DnsName("ed25519.example.com")]
 }
 
 pub fn eddsa_ed448_csr_roundtrip_test() {
@@ -670,9 +665,9 @@ pub fn eddsa_ed448_csr_roundtrip_test() {
   let assert Ok(parsed) = csr.from_der(der)
 
   assert csr.version(parsed) == 0
-  let assert EdPublicKey(_) = csr.public_key(parsed)
-  assert csr.signature_algorithm(parsed) == Ed448
-  assert csr.subject_alt_names(parsed) == [DnsName("ed448.example.com")]
+  let assert x509.EdPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.Ed448
+  assert csr.subject_alt_names(parsed) == [x509.DnsName("ed448.example.com")]
 }
 
 pub fn from_pem_invalid_label_test() {
@@ -747,8 +742,8 @@ pub fn parsed_csr_subject_alt_names_test() {
   let sans = csr.subject_alt_names(parsed)
   assert list.length(sans) == 3
 
-  assert list.contains(sans, DnsName("example.com"))
-  assert list.contains(sans, DnsName("www.example.com"))
+  assert list.contains(sans, x509.DnsName("example.com"))
+  assert list.contains(sans, x509.DnsName("www.example.com"))
   assert list.contains(sans, x509.Email("admin@example.com"))
 }
 
@@ -761,7 +756,7 @@ pub fn parsed_csr_signature_algorithm_test() {
     |> csr.sign_with_ecdsa(private_key, hash.Sha256)
 
   let assert Ok(parsed) = csr.from_der(csr.to_der(built_csr))
-  assert csr.signature_algorithm(parsed) == EcdsaSha256
+  assert csr.signature_algorithm(parsed) == x509.EcdsaSha256
 }
 
 /// Interop test: parse an OpenSSL-generated CSR and verify all fields
@@ -772,9 +767,9 @@ pub fn parse_openssl_generated_csr_test() {
   // Verify version
   assert csr.version(parsed) == 0
 
-  assert csr.signature_algorithm(parsed) == EcdsaSha256
+  assert csr.signature_algorithm(parsed) == x509.EcdsaSha256
 
-  let assert EcPublicKey(_) = csr.public_key(parsed)
+  let assert x509.EcPublicKey(_) = csr.public_key(parsed)
 
   let subject_str =
     parsed
@@ -784,8 +779,8 @@ pub fn parse_openssl_generated_csr_test() {
 
   let sans = csr.subject_alt_names(parsed)
   assert list.length(sans) == 5
-  assert list.contains(sans, DnsName("openssl-test.example.com"))
-  assert list.contains(sans, DnsName("www.openssl-test.example.com"))
+  assert list.contains(sans, x509.DnsName("openssl-test.example.com"))
+  assert list.contains(sans, x509.DnsName("www.openssl-test.example.com"))
   assert list.contains(sans, x509.Email("admin@example.com"))
   assert list.contains(sans, x509.IpAddress(<<192, 168, 1, 100>>))
   assert list.contains(

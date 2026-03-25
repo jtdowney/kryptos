@@ -1,7 +1,7 @@
 import birdie
 import gleam/bit_array
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option
 import gleam/regexp
 import gleam/result
 import gleam/time/timestamp
@@ -10,11 +10,9 @@ import kryptos/ec
 import kryptos/eddsa
 import kryptos/hash
 import kryptos/rsa
-import kryptos/x509.{DigitalSignature, KeyCertSign, ServerAuth, Validity}
+import kryptos/x509
 import kryptos/x509/certificate
-import kryptos/x509/test_helpers.{
-  mask_dynamic_values, mask_serial, mask_signature, normalize_subject,
-}
+import kryptos/x509/test_helpers
 import kryptos/xdh
 import qcheck
 import shellout
@@ -30,12 +28,12 @@ fn make_builder(domain: String) -> Result(certificate.Builder, Nil) {
     )
   certificate.new()
   |> certificate.with_subject(subject)
-  |> certificate.with_validity(Validity(not_before: now, not_after: later))
+  |> certificate.with_validity(x509.Validity(not_before: now, not_after: later))
   |> certificate.with_dns_name(domain)
 }
 
 fn mask_dynamic_values_with_serial(output: String) -> String {
-  let output = mask_dynamic_values(output)
+  let output = test_helpers.mask_dynamic_values(output)
   let assert Ok(serial_re) =
     regexp.from_string("(INTEGER\\s+:)[0-9A-Fa-f]{20,}")
   regexp.replace(serial_re, output, "INTEGER           :[MASKED]")
@@ -169,13 +167,16 @@ pub fn cert_ecdsa_verified_by_openssl_test() {
   let assert Ok(builder) =
     certificate.new()
     |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(
+    |> certificate.with_validity(x509.Validity(
       not_before: not_before,
       not_after: not_after,
     ))
-    |> certificate.with_basic_constraints(ca: False, path_len_constraint: None)
-    |> certificate.with_key_usage(DigitalSignature)
-    |> certificate.with_extended_key_usage(ServerAuth)
+    |> certificate.with_basic_constraints(
+      ca: False,
+      path_len_constraint: option.None,
+    )
+    |> certificate.with_key_usage(x509.DigitalSignature)
+    |> certificate.with_extended_key_usage(x509.ServerAuth)
     |> certificate.with_subject_key_identifier(certificate.SkiAuto)
     |> certificate.with_dns_name("example.com")
     |> result.try(certificate.with_dns_name(_, "www.example.com"))
@@ -199,9 +200,9 @@ pub fn cert_ecdsa_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> mask_serial
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.mask_serial
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "cert ecdsa openssl text")
 }
 
@@ -222,16 +223,16 @@ pub fn cert_rsa_verified_by_openssl_test() {
   let assert Ok(builder) =
     certificate.new()
     |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(
+    |> certificate.with_validity(x509.Validity(
       not_before: not_before,
       not_after: not_after,
     ))
     |> certificate.with_basic_constraints(
       ca: True,
-      path_len_constraint: Some(0),
+      path_len_constraint: option.Some(0),
     )
-    |> certificate.with_key_usage(DigitalSignature)
-    |> certificate.with_key_usage(KeyCertSign)
+    |> certificate.with_key_usage(x509.DigitalSignature)
+    |> certificate.with_key_usage(x509.KeyCertSign)
     |> certificate.with_subject_key_identifier(certificate.SkiAuto)
     |> certificate.with_dns_name("rsa.example.com")
 
@@ -254,9 +255,9 @@ pub fn cert_rsa_verified_by_openssl_test() {
     shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
 
   text_output
-  |> mask_signature
-  |> mask_serial
-  |> normalize_subject
+  |> test_helpers.mask_signature
+  |> test_helpers.mask_serial
+  |> test_helpers.normalize_subject
   |> birdie.snap(title: "cert rsa openssl text")
 }
 
@@ -378,9 +379,12 @@ pub fn extensions_includes_all_extensions_test() {
   let assert Ok(builder) = make_builder("ext.example.com")
   let builder =
     builder
-    |> certificate.with_basic_constraints(ca: False, path_len_constraint: None)
-    |> certificate.with_key_usage(DigitalSignature)
-    |> certificate.with_extended_key_usage(ServerAuth)
+    |> certificate.with_basic_constraints(
+      ca: False,
+      path_len_constraint: option.None,
+    )
+    |> certificate.with_key_usage(x509.DigitalSignature)
+    |> certificate.with_extended_key_usage(x509.ServerAuth)
     |> certificate.with_subject_key_identifier(certificate.SkiAuto)
 
   let assert Ok(cert) =
@@ -465,10 +469,16 @@ pub fn ecdsa_certificate_roundtrip_property_test() {
   let assert Ok(builder) =
     certificate.new()
     |> certificate.with_subject(subject)
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
-    |> certificate.with_basic_constraints(ca: False, path_len_constraint: None)
-    |> certificate.with_key_usage(DigitalSignature)
-    |> certificate.with_extended_key_usage(ServerAuth)
+    |> certificate.with_validity(x509.Validity(
+      not_before: now,
+      not_after: later,
+    ))
+    |> certificate.with_basic_constraints(
+      ca: False,
+      path_len_constraint: option.None,
+    )
+    |> certificate.with_key_usage(x509.DigitalSignature)
+    |> certificate.with_extended_key_usage(x509.ServerAuth)
     |> certificate.with_dns_name("test.example.com")
     |> result.try(certificate.with_dns_name(_, "www.test.example.com"))
 
@@ -490,10 +500,10 @@ pub fn ecdsa_certificate_roundtrip_property_test() {
   assert !bc.ca
 
   let ku = certificate.key_usage(parsed)
-  assert list.contains(ku, DigitalSignature)
+  assert list.contains(ku, x509.DigitalSignature)
 
   let eku = certificate.extended_key_usage(parsed)
-  assert list.contains(eku, ServerAuth)
+  assert list.contains(eku, x509.ServerAuth)
 
   let assert Ok(_) = certificate.verify_self_signed(parsed)
 
@@ -526,9 +536,9 @@ pub fn parse_authority_key_identifier_test() {
     bit_array.base16_decode("C39CF3FCD3460834BBCE467FA07C5BF3E208CB59")
 
   let assert Ok(aki) = certificate.authority_key_identifier(parsed)
-  assert aki.key_identifier == Some(expected_key_id)
-  assert aki.authority_cert_issuer == None
-  assert aki.authority_cert_serial_number == None
+  assert aki.key_identifier == option.Some(expected_key_id)
+  assert aki.authority_cert_issuer == option.None
+  assert aki.authority_cert_serial_number == option.None
 }
 
 pub fn generated_certificate_has_ski_test() {
@@ -562,9 +572,9 @@ pub fn self_signed_certificate_has_aki_matching_ski_test() {
   let assert Ok(ski) = certificate.subject_key_identifier(parsed)
   let assert Ok(aki) = certificate.authority_key_identifier(parsed)
 
-  assert aki.key_identifier == Some(ski)
-  assert aki.authority_cert_issuer == None
-  assert aki.authority_cert_serial_number == None
+  assert aki.key_identifier == option.Some(ski)
+  assert aki.authority_cert_issuer == option.None
+  assert aki.authority_cert_serial_number == option.None
 }
 
 pub fn certificate_has_aki_by_default_test() {
@@ -580,7 +590,7 @@ pub fn certificate_has_aki_by_default_test() {
   let pub_bytes = ec.public_key_to_raw_point(public_key)
   let assert Ok(expected_key_id) = crypto.hash(hash.Sha1, pub_bytes)
 
-  assert aki.key_identifier == Some(expected_key_id)
+  assert aki.key_identifier == option.Some(expected_key_id)
 }
 
 pub fn certificate_without_aki_test() {
@@ -615,7 +625,7 @@ pub fn certificate_with_explicit_aki_test() {
   let assert Ok(parsed) = certificate.from_der(certificate.to_der(cert))
   let assert Ok(aki) = certificate.authority_key_identifier(parsed)
 
-  assert aki.key_identifier == Some(custom_aki)
+  assert aki.key_identifier == option.Some(custom_aki)
 }
 
 pub fn from_pem_single_cert_returns_list_test() {
@@ -673,7 +683,7 @@ pub fn custom_ski_override_test() {
   assert ski == custom_ski
 
   let assert Ok(aki) = certificate.authority_key_identifier(parsed)
-  assert aki.key_identifier == Some(custom_ski)
+  assert aki.key_identifier == option.Some(custom_ski)
 }
 
 pub fn certificate_without_ski_test() {
@@ -708,13 +718,13 @@ pub fn parse_aki_with_authority_cert_issuer_test() {
   let assert Ok([parsed]) = certificate.from_pem(pem)
 
   let assert Ok(aki) = certificate.authority_key_identifier(parsed)
-  let assert Some(key_id) = aki.key_identifier
+  let assert option.Some(key_id) = aki.key_identifier
   assert bit_array.byte_size(key_id) == 20
 
-  let assert Some(issuers) = aki.authority_cert_issuer
+  let assert option.Some(issuers) = aki.authority_cert_issuer
   assert list.length(issuers) >= 1
 
-  let assert Some(serial) = aki.authority_cert_serial_number
+  let assert option.Some(serial) = aki.authority_cert_serial_number
   assert serial == <<3>>
 }
 
@@ -729,7 +739,10 @@ pub fn san_critical_when_subject_empty_test() {
 
   let assert Ok(builder) =
     certificate.new()
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
+    |> certificate.with_validity(x509.Validity(
+      not_before: now,
+      not_after: later,
+    ))
     |> certificate.with_dns_name("example.com")
 
   let assert Ok(cert) =
@@ -756,7 +769,10 @@ pub fn empty_subject_without_san_rejected_test() {
 
   let builder =
     certificate.new()
-    |> certificate.with_validity(Validity(not_before: now, not_after: later))
+    |> certificate.with_validity(x509.Validity(
+      not_before: now,
+      not_after: later,
+    ))
 
   assert certificate.self_signed_with_ecdsa(builder, private_key, hash.Sha256)
     == Error(Nil)

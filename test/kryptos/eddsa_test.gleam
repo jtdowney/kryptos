@@ -1,7 +1,7 @@
 import birdie
 import gleam/bit_array
 import gleam/int
-import kryptos/eddsa.{Ed25519, Ed448}
+import kryptos/eddsa
 import qcheck
 import simplifile
 
@@ -19,7 +19,9 @@ fn load_ed448_key() -> String {
 pub fn eddsa_sign_verify_roundtrip_property_test() {
   let gen =
     qcheck.tuple2(
-      qcheck.from_generators(qcheck.return(Ed25519), [qcheck.return(Ed448)]),
+      qcheck.from_generators(qcheck.return(eddsa.Ed25519), [
+        qcheck.return(eddsa.Ed448),
+      ]),
       qcheck.byte_aligned_bit_array(),
     )
 
@@ -34,7 +36,9 @@ pub fn eddsa_sign_verify_roundtrip_property_test() {
 pub fn eddsa_deterministic_signature_property_test() {
   let gen =
     qcheck.tuple2(
-      qcheck.from_generators(qcheck.return(Ed25519), [qcheck.return(Ed448)]),
+      qcheck.from_generators(qcheck.return(eddsa.Ed25519), [
+        qcheck.return(eddsa.Ed448),
+      ]),
       qcheck.byte_aligned_bit_array(),
     )
 
@@ -50,7 +54,9 @@ pub fn eddsa_deterministic_signature_property_test() {
 pub fn eddsa_wrong_public_key_fails_property_test() {
   let gen =
     qcheck.tuple2(
-      qcheck.from_generators(qcheck.return(Ed25519), [qcheck.return(Ed448)]),
+      qcheck.from_generators(qcheck.return(eddsa.Ed25519), [
+        qcheck.return(eddsa.Ed448),
+      ]),
       qcheck.byte_aligned_bit_array(),
     )
 
@@ -66,7 +72,9 @@ pub fn eddsa_wrong_public_key_fails_property_test() {
 pub fn eddsa_tampered_message_fails_property_test() {
   let gen =
     qcheck.tuple2(
-      qcheck.from_generators(qcheck.return(Ed25519), [qcheck.return(Ed448)]),
+      qcheck.from_generators(qcheck.return(eddsa.Ed25519), [
+        qcheck.return(eddsa.Ed448),
+      ]),
       qcheck.non_empty_byte_aligned_bit_array(),
     )
 
@@ -83,7 +91,7 @@ pub fn eddsa_tampered_message_fails_property_test() {
 }
 
 pub fn verify_tampered_signature_test() {
-  let #(private_key, public_key) = eddsa.generate_key_pair(Ed25519)
+  let #(private_key, public_key) = eddsa.generate_key_pair(eddsa.Ed25519)
   let message = <<"message":utf8>>
   let signature = eddsa.sign(private_key, message)
 
@@ -95,11 +103,11 @@ pub fn verify_tampered_signature_test() {
 }
 
 pub fn ed25519_key_size_test() {
-  assert eddsa.key_size(Ed25519) == 32
+  assert eddsa.key_size(eddsa.Ed25519) == 32
 }
 
 pub fn ed448_key_size_test() {
-  assert eddsa.key_size(Ed448) == 57
+  assert eddsa.key_size(eddsa.Ed448) == 57
 }
 
 // from_bytes import tests
@@ -107,7 +115,8 @@ pub fn ed448_key_size_test() {
 pub fn ed25519_from_bytes_test() {
   let assert Ok(priv_bytes) =
     simplifile.read_bits("test/fixtures/ed25519_raw_priv.bin")
-  let assert Ok(#(private, public)) = eddsa.from_bytes(Ed25519, priv_bytes)
+  let assert Ok(#(private, public)) =
+    eddsa.from_bytes(eddsa.Ed25519, priv_bytes)
   let message = <<"ed25519 from_bytes test":utf8>>
   let signature = eddsa.sign(private, message)
   assert eddsa.verify(public, message, signature)
@@ -116,7 +125,8 @@ pub fn ed25519_from_bytes_test() {
 pub fn ed25519_to_bytes_roundtrip_test() {
   let assert Ok(priv_bytes) =
     simplifile.read_bits("test/fixtures/ed25519_raw_priv.bin")
-  let assert Ok(#(private, public)) = eddsa.from_bytes(Ed25519, priv_bytes)
+  let assert Ok(#(private, public)) =
+    eddsa.from_bytes(eddsa.Ed25519, priv_bytes)
 
   let exported_priv = eddsa.to_bytes(private)
   assert exported_priv == priv_bytes
@@ -130,7 +140,7 @@ pub fn ed25519_to_bytes_roundtrip_test() {
 pub fn ed25519_public_key_from_bytes_test() {
   let assert Ok(pub_bytes) =
     simplifile.read_bits("test/fixtures/ed25519_raw_pub.bin")
-  let assert Ok(public) = eddsa.public_key_from_bytes(Ed25519, pub_bytes)
+  let assert Ok(public) = eddsa.public_key_from_bytes(eddsa.Ed25519, pub_bytes)
   let assert Ok(priv_pem) = simplifile.read("test/fixtures/ed25519_pkcs8.pem")
   let assert Ok(#(private, _)) = eddsa.from_pem(priv_pem)
   let message = <<"ed25519 public_key_from_bytes test":utf8>>
@@ -141,7 +151,7 @@ pub fn ed25519_public_key_from_bytes_test() {
 pub fn ed448_from_bytes_test() {
   let assert Ok(priv_bytes) =
     simplifile.read_bits("test/fixtures/ed448_raw_priv.bin")
-  let assert Ok(#(private, public)) = eddsa.from_bytes(Ed448, priv_bytes)
+  let assert Ok(#(private, public)) = eddsa.from_bytes(eddsa.Ed448, priv_bytes)
   let message = <<"ed448 from_bytes test":utf8>>
   let signature = eddsa.sign(private, message)
   assert eddsa.verify(public, message, signature)
@@ -150,7 +160,7 @@ pub fn ed448_from_bytes_test() {
 pub fn ed448_to_bytes_roundtrip_test() {
   let assert Ok(priv_bytes) =
     simplifile.read_bits("test/fixtures/ed448_raw_priv.bin")
-  let assert Ok(#(private, public)) = eddsa.from_bytes(Ed448, priv_bytes)
+  let assert Ok(#(private, public)) = eddsa.from_bytes(eddsa.Ed448, priv_bytes)
 
   let exported_priv = eddsa.to_bytes(private)
   assert exported_priv == priv_bytes
@@ -164,7 +174,7 @@ pub fn ed448_to_bytes_roundtrip_test() {
 pub fn ed448_public_key_from_bytes_test() {
   let assert Ok(pub_bytes) =
     simplifile.read_bits("test/fixtures/ed448_raw_pub.bin")
-  let assert Ok(public) = eddsa.public_key_from_bytes(Ed448, pub_bytes)
+  let assert Ok(public) = eddsa.public_key_from_bytes(eddsa.Ed448, pub_bytes)
   let assert Ok(priv_pem) = simplifile.read("test/fixtures/ed448_pkcs8.pem")
   let assert Ok(#(private, _)) = eddsa.from_pem(priv_pem)
   let message = <<"ed448 public_key_from_bytes test":utf8>>

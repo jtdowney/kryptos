@@ -6,7 +6,7 @@
 //// ## Example
 ////
 //// ```gleam
-//// import gleam/option.{None}
+//// import gleam/option
 //// import gleam/time/duration
 //// import gleam/time/timestamp
 //// import kryptos/ec
@@ -31,7 +31,7 @@
 ////   certificate.new()
 ////   |> certificate.with_subject(subject)
 ////   |> certificate.with_validity(validity)
-////   |> certificate.with_basic_constraints(ca: False, path_len_constraint: None)
+////   |> certificate.with_basic_constraints(ca: False, path_len_constraint: option.None)
 ////   |> certificate.with_key_usage(x509.DigitalSignature)
 ////   |> certificate.with_extended_key_usage(x509.ServerAuth)
 ////   |> certificate.with_dns_name("example.com")
@@ -64,7 +64,7 @@ import gleam/bit_array
 import gleam/bool
 import gleam/int
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option}
 import gleam/result
 import gleam/set.{type Set}
 import gleam/time/timestamp.{type Timestamp}
@@ -74,8 +74,8 @@ import kryptos/ecdsa
 import kryptos/eddsa
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/der
-import kryptos/internal/utils.{parse_ip}
-import kryptos/internal/x509.{type SigAlgInfo, SigAlgInfo} as x509_internal
+import kryptos/internal/utils
+import kryptos/internal/x509.{type SigAlgInfo} as x509_internal
 import kryptos/rsa
 import kryptos/x509
 import kryptos/xdh
@@ -147,12 +147,12 @@ type ExtensionsAcc {
 
 fn empty_extensions_acc() -> ExtensionsAcc {
   ExtensionsAcc(
-    basic_constraints: None,
+    basic_constraints: option.None,
     key_usage: [],
     extended_key_usage: [],
     subject_alt_names: [],
-    subject_key_identifier: None,
-    authority_key_identifier: None,
+    subject_key_identifier: option.None,
+    authority_key_identifier: option.None,
     raw: [],
     seen_oids: set.new(),
   )
@@ -239,13 +239,13 @@ pub opaque type Builder {
 pub fn new() -> Builder {
   Builder(
     subject: x509.name([]),
-    validity: None,
-    basic_constraints: None,
+    validity: option.None,
+    basic_constraints: option.None,
     key_usage: [],
     extended_key_usage: [],
     subject_alt_names: [],
-    serial_number: None,
-    subject_key_identifier: None,
+    serial_number: option.None,
+    subject_key_identifier: option.None,
     authority_key_identifier: AkiAuto,
   )
 }
@@ -273,7 +273,7 @@ pub fn with_subject(builder: Builder, subject: x509.Name) -> Builder {
 /// ## Returns
 /// The updated builder.
 pub fn with_validity(builder: Builder, validity: x509.Validity) -> Builder {
-  Builder(..builder, validity: Some(validity))
+  Builder(..builder, validity: option.Some(validity))
 }
 
 /// Sets the Basic Constraints extension.
@@ -299,9 +299,9 @@ pub fn with_basic_constraints(
 ) -> Builder {
   let effective_path_len = case ca {
     True -> path_len_constraint
-    False -> None
+    False -> option.None
   }
-  Builder(..builder, basic_constraints: Some(#(ca, effective_path_len)))
+  Builder(..builder, basic_constraints: option.Some(#(ca, effective_path_len)))
 }
 
 /// Adds a Key Usage flag to the certificate.
@@ -392,7 +392,7 @@ pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
 /// - `Ok(Builder)` with the updated builder
 /// - `Error(Nil)` if the IP address cannot be parsed
 pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
-  parse_ip(ip)
+  utils.parse_ip(ip)
   |> result.map(fn(parsed) {
     Builder(..builder, subject_alt_names: [
       x509.IpAddress(parsed),
@@ -412,7 +412,7 @@ pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
 /// ## Returns
 /// The updated builder.
 pub fn with_serial_number(builder: Builder, serial: BitArray) -> Builder {
-  Builder(..builder, serial_number: Some(serial))
+  Builder(..builder, serial_number: option.Some(serial))
 }
 
 /// Enables the Subject Key Identifier extension in the certificate.
@@ -430,7 +430,7 @@ pub fn with_subject_key_identifier(
   builder: Builder,
   ski: SubjectKeyIdentifierConfig,
 ) -> Builder {
-  Builder(..builder, subject_key_identifier: Some(ski))
+  Builder(..builder, subject_key_identifier: option.Some(ski))
 }
 
 /// Configures the Authority Key Identifier extension for the certificate.
@@ -487,8 +487,8 @@ pub fn self_signed_with_ecdsa(
   use spki <- result.try(ec.public_key_to_der(public_key))
 
   let serial = case builder.serial_number {
-    Some(s) -> s
-    None -> generate_serial_number()
+    option.Some(s) -> s
+    option.None -> generate_serial_number()
   }
 
   use tbs <- result.try(encode_tbs_certificate(
@@ -529,8 +529,8 @@ pub fn self_signed_with_rsa(
   use spki <- result.try(rsa.public_key_to_der(public_key, rsa.Spki))
 
   let serial = case builder.serial_number {
-    Some(s) -> s
-    None -> generate_serial_number()
+    option.Some(s) -> s
+    option.None -> generate_serial_number()
   }
 
   use tbs <- result.try(encode_tbs_certificate(
@@ -564,15 +564,15 @@ pub fn self_signed_with_eddsa(
 ) -> Result(Certificate(Built), Nil) {
   use validity <- result.try(option.to_result(builder.validity, Nil))
   let sig_alg = case eddsa.curve(key) {
-    eddsa.Ed25519 -> SigAlgInfo(oid_ed25519, False)
-    eddsa.Ed448 -> SigAlgInfo(oid_ed448, False)
+    eddsa.Ed25519 -> x509_internal.SigAlgInfo(oid_ed25519, False)
+    eddsa.Ed448 -> x509_internal.SigAlgInfo(oid_ed448, False)
   }
   let public_key = eddsa.public_key_from_private_key(key)
   use spki <- result.try(eddsa.public_key_to_der(public_key))
 
   let serial = case builder.serial_number {
-    Some(s) -> s
-    None -> generate_serial_number()
+    option.Some(s) -> s
+    option.None -> generate_serial_number()
   }
 
   use tbs <- result.try(encode_tbs_certificate(
@@ -1149,7 +1149,9 @@ fn process_extension(
     x509.Oid([2, 5, 29, 19]) -> {
       parse_basic_constraints_ext(value)
       |> result.replace_error(ParseError)
-      |> result.map(fn(bc) { ExtensionsAcc(..acc, basic_constraints: Some(bc)) })
+      |> result.map(fn(bc) {
+        ExtensionsAcc(..acc, basic_constraints: option.Some(bc))
+      })
     }
     x509.Oid([2, 5, 29, 15]) -> {
       parse_key_usage_ext(value)
@@ -1173,14 +1175,14 @@ fn process_extension(
       parse_subject_key_identifier_ext(value)
       |> result.replace_error(ParseError)
       |> result.map(fn(ski) {
-        ExtensionsAcc(..acc, subject_key_identifier: Some(ski))
+        ExtensionsAcc(..acc, subject_key_identifier: option.Some(ski))
       })
     }
     x509.Oid([2, 5, 29, 35]) -> {
       parse_authority_key_identifier_ext(value)
       |> result.replace_error(ParseError)
       |> result.map(fn(aki) {
-        ExtensionsAcc(..acc, authority_key_identifier: Some(aki))
+        ExtensionsAcc(..acc, authority_key_identifier: option.Some(aki))
       })
     }
     _ -> {
@@ -1224,14 +1226,19 @@ fn parse_authority_key_identifier_ext(
 ) -> Result(x509.AuthorityKeyIdentifier, Nil) {
   use #(inner, remaining) <- result.try(der.parse_sequence(bytes))
   use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
-  parse_aki_fields(inner, None, None, None)
+  parse_aki_fields(
+    inner,
+    key_id: option.None,
+    issuer: option.None,
+    serial: option.None,
+  )
 }
 
 fn parse_aki_fields(
   bytes: BitArray,
-  key_id: Option(BitArray),
-  issuer: Option(List(x509.SubjectAltName)),
-  serial: Option(BitArray),
+  key_id key_id: Option(BitArray),
+  issuer issuer: Option(List(x509.SubjectAltName)),
+  serial serial: Option(BitArray),
 ) -> Result(x509.AuthorityKeyIdentifier, Nil) {
   case bytes {
     <<>> ->
@@ -1253,7 +1260,12 @@ fn parse_aki_fields(
         bit_array.byte_size(rest) - len,
       ))
 
-      parse_aki_fields(remaining, Some(key_bytes), issuer, serial)
+      parse_aki_fields(
+        remaining,
+        key_id: option.Some(key_bytes),
+        issuer:,
+        serial:,
+      )
     }
     <<0xa1, _:bits>> -> {
       use #(issuer_content, remaining) <- result.try(der.parse_context_tag(
@@ -1266,7 +1278,12 @@ fn parse_aki_fields(
         False,
       ))
 
-      parse_aki_fields(remaining, key_id, Some(parsed_issuers), serial)
+      parse_aki_fields(
+        remaining,
+        key_id:,
+        issuer: option.Some(parsed_issuers),
+        serial:,
+      )
     }
     <<0x82, len:8, rest:bits>> -> {
       use <- bool.guard(
@@ -1281,7 +1298,12 @@ fn parse_aki_fields(
         bit_array.byte_size(rest) - len,
       ))
 
-      parse_aki_fields(remaining, key_id, issuer, Some(serial_bytes))
+      parse_aki_fields(
+        remaining,
+        key_id:,
+        issuer:,
+        serial: option.Some(serial_bytes),
+      )
     }
     _ -> Error(Nil)
   }
@@ -1294,24 +1316,30 @@ fn parse_basic_constraints_ext(
   use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
   use <- bool.guard(
     when: bit_array.byte_size(seq_content) == 0,
-    return: Ok(x509.BasicConstraints(ca: False, path_len_constraint: None)),
+    return: Ok(x509.BasicConstraints(
+      ca: False,
+      path_len_constraint: option.None,
+    )),
   )
 
   use #(ca, after_ca) <- result.try(der.parse_bool(seq_content))
   use <- bool.guard(
     when: bit_array.byte_size(after_ca) == 0,
-    return: Ok(x509.BasicConstraints(ca: ca, path_len_constraint: None)),
+    return: Ok(x509.BasicConstraints(ca: ca, path_len_constraint: option.None)),
   )
 
   use <- bool.guard(
     when: !ca,
-    return: Ok(x509.BasicConstraints(ca: False, path_len_constraint: None)),
+    return: Ok(x509.BasicConstraints(
+      ca: False,
+      path_len_constraint: option.None,
+    )),
   )
 
   use #(path_len_bytes, remaining) <- result.try(der.parse_integer(after_ca))
   use <- bool.guard(when: remaining != <<>>, return: Error(Nil))
   use path_len <- result.try(bytes_to_int(path_len_bytes))
-  Ok(x509.BasicConstraints(ca: ca, path_len_constraint: Some(path_len)))
+  Ok(x509.BasicConstraints(ca: ca, path_len_constraint: option.Some(path_len)))
 }
 
 fn bytes_to_int(bytes: BitArray) -> Result(Int, Nil) {
@@ -1397,17 +1425,17 @@ fn parse_eku_oids(
         der.parse_oid(bytes) |> result.replace_error(ParseError),
       )
       let eku = case oid_components {
-        [1, 3, 6, 1, 5, 5, 7, 3, 1] -> Some(x509.ServerAuth)
-        [1, 3, 6, 1, 5, 5, 7, 3, 2] -> Some(x509.ClientAuth)
-        [1, 3, 6, 1, 5, 5, 7, 3, 3] -> Some(x509.CodeSigning)
-        [1, 3, 6, 1, 5, 5, 7, 3, 4] -> Some(x509.EmailProtection)
-        [1, 3, 6, 1, 5, 5, 7, 3, 9] -> Some(x509.OcspSigning)
-        _ -> None
+        [1, 3, 6, 1, 5, 5, 7, 3, 1] -> option.Some(x509.ServerAuth)
+        [1, 3, 6, 1, 5, 5, 7, 3, 2] -> option.Some(x509.ClientAuth)
+        [1, 3, 6, 1, 5, 5, 7, 3, 3] -> option.Some(x509.CodeSigning)
+        [1, 3, 6, 1, 5, 5, 7, 3, 4] -> option.Some(x509.EmailProtection)
+        [1, 3, 6, 1, 5, 5, 7, 3, 9] -> option.Some(x509.OcspSigning)
+        _ -> option.None
       }
       case eku, is_critical {
-        Some(e), _ -> parse_eku_oids(rest, [e, ..acc], is_critical)
-        None, False -> parse_eku_oids(rest, acc, is_critical)
-        None, True ->
+        option.Some(e), _ -> parse_eku_oids(rest, [e, ..acc], is_critical)
+        option.None, False -> parse_eku_oids(rest, acc, is_critical)
+        option.None, True ->
           Error(UnrecognizedCriticalExtension(x509.Oid(oid_components)))
       }
     }
@@ -1490,8 +1518,8 @@ fn encode_basic_constraints_opt(
   config: Option(#(Bool, Option(Int))),
 ) -> Result(Result(BitArray, Nil), Nil) {
   case config {
-    None -> Ok(Error(Nil))
-    Some(#(ca, path_len)) ->
+    option.None -> Ok(Error(Nil))
+    option.Some(#(ca, path_len)) ->
       result.map(encode_basic_constraints_extension(ca, path_len), Ok)
   }
 }
@@ -1523,12 +1551,12 @@ fn encode_ski_opt(
   spki: BitArray,
 ) -> Result(Result(BitArray, Nil), Nil) {
   case config {
-    None -> Ok(Error(Nil))
-    Some(SkiAuto) ->
+    option.None -> Ok(Error(Nil))
+    option.Some(SkiAuto) ->
       compute_ski(spki)
       |> result.try(encode_subject_key_identifier_extension)
       |> result.map(Ok)
-    Some(SkiExplicit(ski)) ->
+    option.Some(SkiExplicit(ski)) ->
       encode_subject_key_identifier_extension(ski)
       |> result.map(Ok)
   }
@@ -1563,8 +1591,8 @@ fn encode_basic_constraints_extension(
   }
 
   case path_len {
-    Some(n) -> der.encode_small_int(n)
-    None -> Ok(<<>>)
+    option.Some(n) -> der.encode_small_int(n)
+    option.None -> Ok(<<>>)
   }
   |> result.map(fn(path_len_int) { bit_array.concat([ca_bool, path_len_int]) })
   |> result.try(der.encode_sequence)

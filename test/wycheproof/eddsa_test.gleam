@@ -2,7 +2,7 @@ import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/eddsa
 import unitest
-import wycheproof/utils.{type TestResult, Acceptable, Invalid, Valid}
+import wycheproof/utils.{type TestResult}
 
 type PublicKeyInfo {
   PublicKeyInfo(curve: String, pk: String)
@@ -72,7 +72,7 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
   let assert Ok(sig_bytes) = bit_array.base16_decode(tc.sig)
 
   case tc.result {
-    Invalid -> {
+    utils.Invalid -> {
       case eddsa.public_key_from_bytes(curve, pk_bytes) {
         Ok(pub_key) -> {
           assert !eddsa.verify(pub_key, msg_bytes, sig_bytes)
@@ -81,7 +81,7 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
         Error(Nil) -> Nil
       }
     }
-    Valid -> {
+    utils.Valid -> {
       let assert Ok(pub_key) = eddsa.public_key_from_bytes(curve, pk_bytes)
         as { "Public key import failed: " <> context }
       assert eddsa.verify(pub_key, msg_bytes, sig_bytes)
@@ -91,7 +91,7 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
       assert exported_pk == pk_bytes
         as { "Public key roundtrip failed: " <> context }
     }
-    Acceptable -> {
+    utils.Acceptable -> {
       case eddsa.public_key_from_bytes(curve, pk_bytes) {
         Ok(pub_key) -> {
           let _ = eddsa.verify(pub_key, msg_bytes, sig_bytes)
