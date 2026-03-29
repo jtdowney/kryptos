@@ -1,15 +1,14 @@
 //// X.509 certificate and CSR types and utilities.
 ////
-//// This module provides foundational types and helpers for working with X.509
-//// public key infrastructure. It includes:
+//// Types and helpers for X.509 public key infrastructure:
 ////
-//// - **Distinguished Names**: Type-safe construction of subject/issuer names
-//// - **Extensions**: Subject Alternative Names, Basic Constraints, Key Usage, etc.
-//// - **Public Keys**: Unified representation for RSA, ECDSA, EdDSA, and XDH keys
-//// - **Signature Algorithms**: Common signing algorithms for certificates and CSRs
-//// - **Certificate Fields**: Validity periods, authority key identifiers
+//// - Distinguished Names: Type-safe construction of subject/issuer names
+//// - Extensions: Subject Alternative Names, Basic Constraints, Key Usage, etc.
+//// - Public Keys: Unified representation for RSA, ECDSA, EdDSA, and XDH keys
+//// - Signature Algorithms: Common signing algorithms for certificates and CSRs
+//// - Certificate Fields: Validity periods, authority key identifiers
 ////
-//// Use this module with:
+//// See also:
 //// - `x509/csr` for creating and parsing Certificate Signing Requests
 //// - `x509/certificate` for parsing and working with X.509 certificates
 ////
@@ -220,15 +219,8 @@ pub type AuthorityKeyIdentifier {
 /// Builds a distinguished name from a list of attribute-value pairs.
 ///
 /// Creates a Name with each attribute in its own Relative Distinguished Name
-/// (RDN). This produces the standard X.509 format where attributes are
-/// displayed as "CN = x, O = y".
-///
-/// ## Parameters
-/// - `attributes`: A list of OID and value tuples (use helper functions like
-///   `cn`, `organization`, `country`, etc.)
-///
-/// ## Returns
-/// A Name suitable for use as a CSR subject.
+/// (RDN). Use helper functions like `cn`, `organization`, `country`, etc.
+/// to construct the attribute list.
 pub fn name(attributes: List(#(Oid, AttributeValue))) -> Name {
   Name(list.map(attributes, fn(attr) { Rdn([attr]) }))
 }
@@ -238,39 +230,16 @@ pub fn name(attributes: List(#(Oid, AttributeValue))) -> Name {
 /// The Common Name typically contains the primary identifier for the subject,
 /// such as a domain name for server certificates or a person's name for
 /// client certificates.
-///
-/// ## Parameters
-/// - `value`: The common name value (e.g., "example.com")
-///
-/// ## Returns
-/// A Common Name attribute tuple.
 pub fn cn(value: String) -> #(Oid, AttributeValue) {
   #(oid_common_name, Utf8String(value))
 }
 
 /// Creates an Organization (O) attribute.
-///
-/// Identifies the organization or company name associated with the certificate.
-///
-/// ## Parameters
-/// - `value`: The organization name (e.g., "Acme Inc")
-///
-/// ## Returns
-/// An Organization attribute tuple.
 pub fn organization(value: String) -> #(Oid, AttributeValue) {
   #(oid_organization, Utf8String(value))
 }
 
 /// Creates an Organizational Unit (OU) attribute.
-///
-/// Identifies a subdivision within an organization, such as a department
-/// or team name.
-///
-/// ## Parameters
-/// - `value`: The organizational unit name (e.g., "Engineering")
-///
-/// ## Returns
-/// An Organizational Unit attribute tuple.
 pub fn organizational_unit(value: String) -> #(Oid, AttributeValue) {
   #(oid_organizational_unit, Utf8String(value))
 }
@@ -282,34 +251,16 @@ pub fn organizational_unit(value: String) -> #(Oid, AttributeValue) {
 /// **Important:** The value must be a two-letter uppercase ISO 3166-1 alpha-2
 /// country code (e.g., "US", "GB", "DE"). Non-ASCII or incorrectly formatted
 /// values will produce non-compliant DER that may be rejected by CAs and clients.
-///
-/// ## Parameters
-/// - `value`: The two-letter country code (e.g., "US", "GB", "DE")
-///
-/// ## Returns
-/// A Country attribute tuple.
 pub fn country(value: String) -> #(Oid, AttributeValue) {
   #(oid_country, PrintableString(value))
 }
 
 /// Creates a State or Province (ST) attribute.
-///
-/// ## Parameters
-/// - `value`: The state or province name (e.g., "California")
-///
-/// ## Returns
-/// A State/Province attribute tuple.
 pub fn state(value: String) -> #(Oid, AttributeValue) {
   #(oid_state, Utf8String(value))
 }
 
 /// Creates a Locality (L) attribute.
-///
-/// ## Parameters
-/// - `value`: The city or locality name (e.g., "San Francisco")
-///
-/// ## Returns
-/// A Locality attribute tuple.
 pub fn locality(value: String) -> #(Oid, AttributeValue) {
   #(oid_locality, Utf8String(value))
 }
@@ -322,12 +273,6 @@ pub fn locality(value: String) -> #(Oid, AttributeValue) {
 /// **Important:** The value must contain only ASCII characters.
 /// Non-ASCII values will produce non-compliant DER that may be rejected
 /// by CAs and clients.
-///
-/// ## Parameters
-/// - `value`: The email address (e.g., "admin@example.com")
-///
-/// ## Returns
-/// An Email Address attribute tuple.
 pub fn email_address(value: String) -> #(Oid, AttributeValue) {
   #(oid_email_address, Ia5String(value))
 }

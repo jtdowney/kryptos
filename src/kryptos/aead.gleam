@@ -51,12 +51,6 @@ pub opaque type AeadContext {
 /// **Note:** This library only supports the full 16-byte authentication tag.
 /// Truncated tags (as permitted by NIST SP 800-38D) are not supported due to
 /// their reduced security guarantees.
-///
-/// ## Parameters
-/// - `cipher`: The AES block cipher (128, 192, or 256 bit)
-///
-/// ## Returns
-/// An AES-GCM context ready for encryption or decryption.
 pub fn gcm(cipher: BlockCipher) -> AeadContext {
   Gcm(cipher:, nonce_size: 12)
 }
@@ -65,14 +59,6 @@ pub fn gcm(cipher: BlockCipher) -> AeadContext {
 ///
 /// GCM supports variable nonce sizes, though 12 bytes is strongly recommended.
 /// This function is primarily useful for compatibility testing with test vectors.
-///
-/// ## Parameters
-/// - `cipher`: The AES block cipher (128, 192, or 256 bit)
-/// - `nonce_size`: The nonce size in bytes (1-64)
-///
-/// ## Returns
-/// `Ok(AeadContext)` if the nonce size is valid, `Error(Nil)` if the
-/// nonce size is out of range.
 pub fn gcm_with_nonce_size(
   cipher: BlockCipher,
   nonce_size: Int,
@@ -87,12 +73,6 @@ pub fn gcm_with_nonce_size(
 ///
 /// Uses standard parameters: 16-byte (128-bit) authentication tag and
 /// 13-byte (104-bit) nonce, which allows messages up to 64KB.
-///
-/// ## Parameters
-/// - `cipher`: The AES block cipher (128, 192, or 256 bit)
-///
-/// ## Returns
-/// An AES-CCM context ready for encryption or decryption.
 pub fn ccm(cipher: BlockCipher) -> AeadContext {
   Ccm(cipher:, nonce_size: 13, tag_size: 16)
 }
@@ -103,14 +83,7 @@ pub fn ccm(cipher: BlockCipher) -> AeadContext {
 /// - Nonce size affects maximum message length (larger nonce = smaller max message)
 /// - Tag size affects authentication strength (larger tag = stronger)
 ///
-/// ## Parameters
-/// - `cipher`: The AES block cipher (128, 192, or 256 bit)
-/// - `nonce_size`: Nonce size in bytes (7-13)
-/// - `tag_size`: Authentication tag size in bytes (4, 6, 8, 10, 12, 14, or 16)
-///
-/// ## Returns
-/// `Ok(AeadContext)` if the sizes are valid, `Error(Nil)` if any size
-/// is out of range.
+/// Nonce must be 7-13 bytes. Tag must be 4, 6, 8, 10, 12, 14, or 16 bytes.
 pub fn ccm_with_sizes(
   cipher: BlockCipher,
   nonce_size nonce_size: Int,
@@ -127,14 +100,7 @@ pub fn ccm_with_sizes(
 /// Creates a ChaCha20-Poly1305 AEAD context with the given key.
 ///
 /// Uses standard parameters per RFC 8439: 12-byte (96-bit) nonce and
-/// 16-byte (128-bit) authentication tag.
-///
-/// ## Parameters
-/// - `key`: A 32-byte (256-bit) key
-///
-/// ## Returns
-/// `Ok(AeadContext)` if the key is exactly 32 bytes, `Error(Nil)` if the
-/// key size is incorrect.
+/// 16-byte (128-bit) authentication tag. The key must be exactly 32 bytes.
 pub fn chacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
   case bit_array.byte_size(key) == 32 {
     True -> Ok(ChaCha20Poly1305(key))
@@ -146,14 +112,7 @@ pub fn chacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
 ///
 /// Uses extended parameters: 24-byte (192-bit) nonce and 16-byte (128-bit)
 /// authentication tag. The extended nonce provides better collision resistance
-/// when generating random nonces.
-///
-/// ## Parameters
-/// - `key`: A 32-byte (256-bit) key
-///
-/// ## Returns
-/// `Ok(AeadContext)` if the key is exactly 32 bytes, `Error(Nil)` if the
-/// key size is incorrect.
+/// when generating random nonces. The key must be exactly 32 bytes.
 pub fn xchacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
   case bit_array.byte_size(key) == 32 {
     True -> Ok(XChaCha20Poly1305(key))
@@ -162,15 +121,6 @@ pub fn xchacha20_poly1305(key: BitArray) -> Result(AeadContext, Nil) {
 }
 
 /// Returns the required nonce size in bytes for an AEAD context.
-///
-/// ## Parameters
-/// - `ctx`: The AEAD context
-///
-/// ## Returns
-/// The nonce size in bytes. Default 12 for GCM (configurable 1-64 via
-/// `gcm_with_nonce_size`), 13 for CCM (configurable 7-13 via
-/// `ccm_with_sizes`), 12 for ChaCha20-Poly1305, or 24 for
-/// XChaCha20-Poly1305.
 pub fn nonce_size(ctx: AeadContext) -> Int {
   case ctx {
     Gcm(nonce_size:, ..) -> nonce_size
@@ -181,14 +131,6 @@ pub fn nonce_size(ctx: AeadContext) -> Int {
 }
 
 /// Returns the authentication tag size in bytes for an AEAD context.
-///
-/// ## Parameters
-/// - `ctx`: The AEAD context
-///
-/// ## Returns
-/// The tag size in bytes. 16 for GCM, ChaCha20-Poly1305, and
-/// XChaCha20-Poly1305. Configurable 4-16 (even values) for CCM via
-/// `ccm_with_sizes`.
 pub fn tag_size(ctx: AeadContext) -> Int {
   case ctx {
     Gcm(..) -> 16
@@ -200,15 +142,8 @@ pub fn tag_size(ctx: AeadContext) -> Int {
 
 /// Encrypts and authenticates plaintext using AEAD.
 ///
-/// ## Parameters
-/// - `ctx`: The AEAD context to use
-/// - `nonce`: A unique nonce (must be exactly `nonce_size` bytes).
-///   Never reuse a nonce with the same key.
-/// - `plaintext`: The data to encrypt
-///
-/// ## Returns
-/// `Ok(#(ciphertext, tag))` with the encrypted data and authentication tag,
-/// or `Error(Nil)` if the nonce size is incorrect.
+/// The nonce must be exactly `nonce_size` bytes. Never reuse a nonce with
+/// the same key.
 pub fn seal(
   ctx: AeadContext,
   nonce nonce: BitArray,
@@ -221,16 +156,6 @@ pub fn seal(
 ///
 /// The AAD is authenticated but not encrypted. It can be used for headers,
 /// metadata, or context that should be tamper-proof but remain readable.
-///
-/// ## Parameters
-/// - `ctx`: The AEAD context to use
-/// - `nonce`: A unique nonce (must be exactly `nonce_size` bytes and non-empty)
-/// - `plaintext`: The data to encrypt
-/// - `additional_data`: Data to authenticate but not encrypt
-///
-/// ## Returns
-/// `Ok(#(ciphertext, tag))` with the encrypted data and authentication tag,
-/// or `Error(Nil)` if the nonce size is incorrect or empty.
 pub fn seal_with_aad(
   ctx: AeadContext,
   nonce nonce: BitArray,
@@ -263,16 +188,6 @@ fn do_seal(
 
 /// Decrypts and verifies AEAD-encrypted data.
 ///
-/// ## Parameters
-/// - `ctx`: The AEAD context to use
-/// - `nonce`: The nonce used during encryption
-/// - `tag`: The authentication tag from encryption
-/// - `ciphertext`: The encrypted data
-///
-/// ## Returns
-/// `Ok(plaintext)` if authentication succeeds, `Error(Nil)` if
-/// authentication fails or nonce size is incorrect.
-///
 /// ## Example
 ///
 /// ```gleam
@@ -298,17 +213,6 @@ pub fn open(
 /// Decrypts and verifies AEAD-encrypted data with additional authenticated data.
 ///
 /// The AAD must match exactly what was provided during encryption.
-///
-/// ## Parameters
-/// - `ctx`: The AEAD context to use
-/// - `nonce`: The nonce used during encryption (must be non-empty)
-/// - `tag`: The authentication tag from encryption
-/// - `ciphertext`: The encrypted data
-/// - `additional_data`: The same AAD used during encryption
-///
-/// ## Returns
-/// `Ok(plaintext)` if authentication succeeds, `Error(Nil)` if
-/// authentication fails, AAD mismatch, or nonce size is incorrect/empty.
 ///
 /// ## Example
 ///

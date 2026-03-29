@@ -1,9 +1,9 @@
-//// The crypto module provides cryptographic primitives.
+//// Convenience wrappers for hashing, key derivation, random bytes, and constant-time comparison.
 ////
-//// - **One-shot hashing** via `hash()` and **HMAC** via `hmac()`
-//// - **Key derivation**: HKDF (RFC 5869), PBKDF2 (RFC 8018), Concat KDF (NIST SP 800-56A)
-//// - **Random bytes** via `random_bytes()` and **UUID v4** via `random_uuid()`
-//// - **Constant-time comparison** via `constant_time_equal()`
+//// - One-shot hashing via `hash()` and HMAC via `hmac()`
+//// - Key derivation: HKDF (RFC 5869), PBKDF2 (RFC 8018), Concat KDF (NIST SP 800-56A)
+//// - Random bytes via `random_bytes()` and UUID v4 via `random_uuid()`
+//// - Constant-time comparison via `constant_time_equal()`
 ////
 //// ## Example
 ////
@@ -30,14 +30,6 @@ import kryptos/internal/subtle
 
 /// Computes the hash digest of input data in one call.
 ///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to use
-/// - `data`: The data to hash
-///
-/// ## Returns
-/// `Ok(BitArray)` containing the hash digest, or `Error(Nil)` if the hash
-/// algorithm is not supported by the runtime.
-///
 /// ## Example
 ///
 /// ```gleam
@@ -55,15 +47,6 @@ pub fn hash(algorithm: HashAlgorithm, data: BitArray) -> Result(BitArray, Nil) {
 }
 
 /// Computes the HMAC of input data in one call.
-///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to use for the HMAC
-/// - `key`: The secret key for authentication
-/// - `data`: The data to authenticate
-///
-/// ## Returns
-/// `Ok(BitArray)` containing the message authentication code, or
-/// `Error(Nil)` if the hash algorithm is not supported.
 ///
 /// ## Example
 ///
@@ -89,19 +72,9 @@ pub fn hmac(
 /// Derives key material using HKDF (RFC 5869).
 ///
 /// HKDF combines an extract-then-expand approach to derive cryptographically
-/// strong key material from input key material.
-///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to use (must be HMAC-compatible)
-/// - `input`: Input key material (IKM) - the source keying material
-/// - `salt`: Optional salt value (None uses hash-length zeros per RFC 5869)
-/// - `info`: Context and application specific information
-/// - `length`: Desired output length in bytes (max: 255 * hash_length)
-///
-/// ## Returns
-/// `Ok(BitArray)` containing the derived key material of the requested
-/// length, or `Error(Nil)` if the algorithm is not supported or length
-/// exceeds the maximum.
+/// strong key material from input key material. The algorithm must be
+/// HMAC-compatible. Maximum output length is 255 * hash_length bytes.
+/// A `None` salt uses hash-length zeros per RFC 5869.
 ///
 /// ## Example
 ///
@@ -138,20 +111,9 @@ pub fn hkdf(
 /// Derives key material using Concat KDF (NIST SP 800-56A). Also called the
 /// single-step or one-step key derivation function.
 ///
-/// Concat KDF is a single-step key derivation function that uses a hash
-/// function to derive key material from a shared secret and context-specific
-/// information.
-///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to use (SHA-1, SHA-2, or SHA-3 family)
-/// - `secret`: The shared secret from key agreement (e.g., ECDH)
-/// - `info`: Context and application specific information
-/// - `length`: Desired output length in bytes (max: 255 * hash_length)
-///
-/// ## Returns
-/// `Ok(BitArray)` containing the derived key material of the requested
-/// length, or `Error(Nil)` if the algorithm is not supported or length
-/// is invalid.
+/// Concat KDF uses a hash function to derive key material from a shared secret
+/// and context-specific information. Supports SHA-1, SHA-2, and SHA-3 family
+/// algorithms. Maximum output length is 255 * hash_length bytes.
 ///
 /// ## Example
 ///
@@ -215,18 +177,8 @@ fn concat_kdf_supported_hash(algorithm: HashAlgorithm) -> Bool {
 /// algorithm specifically designed for password storage. PBKDF2 is primarily
 /// useful for interoperability with systems that require it.
 ///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to use for HMAC (must be HMAC-compatible).
-///   SHA-256 or stronger is recommended; MD5 and SHA-1 are weak for password hashing.
-/// - `password`: The password to derive the key from
-/// - `salt`: A random salt value (should be unique per password)
-/// - `iterations`: Number of iterations (higher = slower but more secure)
-/// - `length`: Desired output length in bytes
-///
-/// ## Returns
-/// `Ok(BitArray)` containing the derived key material of the requested
-/// length, or `Error(Nil)` if the algorithm is not supported,
-/// iterations <= 0, or length <= 0.
+/// The algorithm must be HMAC-compatible. SHA-256 or stronger is recommended;
+/// MD5 and SHA-1 are weak for password hashing.
 ///
 /// ## Example
 ///
@@ -261,20 +213,12 @@ pub fn pbkdf2(
 /// Generates cryptographically secure random bytes using the platform's
 /// cryptographically secure random number generator.
 ///
-/// ## Parameters
-/// - `length`: The number of random bytes to generate. If negative, returns
-///   an empty `BitArray`.
-///
-/// ## Returns
-/// A `BitArray` containing the generated random bytes.
+/// A negative length returns an empty `BitArray`.
 @external(erlang, "kryptos_ffi", "random_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "randomBytes")
 pub fn random_bytes(length: Int) -> BitArray
 
 /// Generates a cryptographically secure random UUID v4.
-///
-/// ## Returns
-/// A `String` containing a UUID v4.
 @external(javascript, "../kryptos_ffi.mjs", "randomUuid")
 pub fn random_uuid() -> String {
   let assert <<a:32, b:16, c_raw:16, d_raw:16, e:48>> = random_bytes(16)
@@ -298,16 +242,9 @@ pub fn random_uuid() -> String {
 /// Compares two `BitArray` in constant time.
 ///
 /// Use this function when comparing secrets like MACs, password hashes,
-/// API tokens, or any other security-sensitive data.
-///
-/// ## Parameters
-/// - `a`: The first bit array to compare
-/// - `b`: The second bit array to compare
-///
-/// ## Returns
-/// `True` if `a` and `b` are equal, `False` otherwise. The comparison
-/// takes the same amount of time regardless of where the arrays differ,
-/// preventing timing attacks.
+/// API tokens, or any other security-sensitive data. The comparison takes
+/// the same amount of time regardless of where the arrays differ, preventing
+/// timing attacks.
 ///
 /// ## Example
 ///

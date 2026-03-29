@@ -1,6 +1,6 @@
 //// Elliptic Curve Cryptography key generation and management.
 ////
-//// This module provides key pair generation for elliptic curve cryptography,
+//// Key pair generation and management for elliptic curve cryptography,
 //// supporting standard NIST curves and secp256k1. EC keys can be used for
 //// both ECDSA signatures and ECDH key agreement.
 ////
@@ -46,13 +46,6 @@ pub type Curve {
 /// Returns the coordinate size in bytes for the given curve.
 ///
 /// This is the size of each coordinate (x or y) in an EC point.
-///
-/// ## Parameters
-/// - `curve`: The elliptic curve
-///
-/// ## Returns
-/// The coordinate size in bytes (32 for P256/Secp256k1, 48 for P384,
-/// 66 for P521).
 pub fn coordinate_size(curve: Curve) -> Int {
   case curve {
     P256 | Secp256k1 -> 32
@@ -62,15 +55,6 @@ pub fn coordinate_size(curve: Curve) -> Int {
 }
 
 /// Generates a new elliptic curve key pair.
-///
-/// The private key should be kept secret and used for signing or ECDH key agreement.
-/// The public key can be shared and is used for signature verification or ECDH key agreement.
-///
-/// ## Parameters
-/// - `curve`: The elliptic curve to use for key generation
-///
-/// ## Returns
-/// A tuple of `#(private_key, public_key)`.
 @external(erlang, "kryptos_ffi", "ec_generate_key_pair")
 @external(javascript, "../kryptos_ffi.mjs", "ecGenerateKeyPair")
 pub fn generate_key_pair(curve: Curve) -> #(PrivateKey, PublicKey)
@@ -78,12 +62,6 @@ pub fn generate_key_pair(curve: Curve) -> #(PrivateKey, PublicKey)
 /// Imports an EC private key from PEM-encoded data.
 ///
 /// The key must be in PKCS#8 format.
-///
-/// ## Parameters
-/// - `pem`: PEM-encoded key string
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_import_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPrivateKeyPem")
 pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), Nil)
@@ -91,12 +69,6 @@ pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), Nil)
 /// Imports an EC private key from DER-encoded data.
 ///
 /// The key must be in PKCS#8 format.
-///
-/// ## Parameters
-/// - `der`: DER-encoded key data
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_import_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPrivateKeyDer")
 pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), Nil)
@@ -104,12 +76,6 @@ pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), Nil)
 /// Exports an EC private key to PEM format.
 ///
 /// The key is exported in PKCS#8 format.
-///
-/// ## Parameters
-/// - `key`: The private key to export
-///
-/// ## Returns
-/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
 pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
   do_to_pem(key) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
 }
@@ -121,12 +87,6 @@ fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 /// Exports an EC private key to DER format.
 ///
 /// The key is exported in PKCS#8 format.
-///
-/// ## Parameters
-/// - `key`: The private key to export
-///
-/// ## Returns
-/// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_export_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "ecExportPrivateKeyDer")
 pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
@@ -134,12 +94,6 @@ pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 /// Imports an EC public key from PEM-encoded data.
 ///
 /// The key must be in SPKI format.
-///
-/// ## Parameters
-/// - `pem`: PEM-encoded key string
-///
-/// ## Returns
-/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_import_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPublicKeyPem")
 pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
@@ -147,12 +101,6 @@ pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
 /// Imports an EC public key from DER-encoded data.
 ///
 /// The key must be in SPKI format.
-///
-/// ## Parameters
-/// - `der`: DER-encoded key data
-///
-/// ## Returns
-/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_import_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPublicKeyDer")
 pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
@@ -161,14 +109,6 @@ pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
 ///
 /// The point must be in uncompressed format: `0x04 || x || y`
 /// where x and y are the coordinates padded to the curve's coordinate size.
-///
-/// ## Parameters
-/// - `curve`: The elliptic curve (P256, P384, P521, or Secp256k1)
-/// - `point`: The uncompressed point bytes (1 + 2 * coordinate_size bytes)
-///
-/// ## Returns
-/// `Ok(public_key)` on success, `Error(Nil)` if the format is invalid
-/// or the point is not on the curve.
 ///
 /// ## Example
 ///
@@ -203,12 +143,6 @@ pub fn public_key_to_raw_point(key: PublicKey) -> BitArray
 /// Exports an EC public key to PEM format.
 ///
 /// The key is exported in SPKI format.
-///
-/// ## Parameters
-/// - `key`: The public key to export
-///
-/// ## Returns
-/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
 pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
   do_public_key_to_pem(key)
   |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
@@ -221,45 +155,21 @@ fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 /// Exports an EC public key to DER format.
 ///
 /// The key is exported in SPKI format.
-///
-/// ## Parameters
-/// - `key`: The public key to export
-///
-/// ## Returns
-/// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "ec_export_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "ecExportPublicKeyDer")
 pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 
 /// Derives the public key from an EC private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The corresponding public key.
 @external(erlang, "kryptos_ffi", "ec_public_key_from_private")
 @external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyFromPrivate")
 pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey
 
 /// Returns the curve for an EC private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The curve used by this key.
 @external(erlang, "kryptos_ffi", "ec_private_key_curve")
 @external(javascript, "../kryptos_ffi.mjs", "ecPrivateKeyCurve")
 pub fn curve(key: PrivateKey) -> Curve
 
 /// Returns the curve for an EC public key.
-///
-/// ## Parameters
-/// - `key`: The public key
-///
-/// ## Returns
-/// The curve used by this key.
 @external(erlang, "kryptos_ffi", "ec_public_key_curve")
 @external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyCurve")
 pub fn public_key_curve(key: PublicKey) -> Curve
@@ -268,12 +178,6 @@ pub fn public_key_curve(key: PublicKey) -> Curve
 ///
 /// Returns the private scalar (the "d" value in JWK terminology) as
 /// big-endian bytes. The size matches the curve's coordinate size.
-///
-/// ## Parameters
-/// - `key`: The private key to export
-///
-/// ## Returns
-/// The raw private scalar bytes.
 ///
 /// ## Example
 ///
@@ -292,13 +196,6 @@ pub fn to_bytes(key: PrivateKey) -> BitArray
 /// The scalar should be in big-endian format with size matching the
 /// curve's coordinate size (32 bytes for P256/Secp256k1, 48 for P384,
 /// 66 for P521).
-///
-/// ## Parameters
-/// - `curve`: The elliptic curve
-/// - `private_bytes`: The raw private scalar bytes
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if invalid.
 ///
 /// ## Example
 ///

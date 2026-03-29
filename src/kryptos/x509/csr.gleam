@@ -1,7 +1,7 @@
 //// X.509 Certificate Signing Request (CSR) generation.
 ////
-//// This module provides a builder for creating PKCS#10 Certificate Signing
-//// Requests. CSRs are used to request certificates from a Certificate Authority.
+//// Builder for creating PKCS#10 Certificate Signing Requests (CSRs).
+//// CSRs are used to request certificates from a Certificate Authority.
 ////
 //// ## Example
 ////
@@ -102,9 +102,6 @@ pub opaque type Builder {
 ///
 /// Use the `with_*` functions to configure the builder, then call
 /// `sign_with_ecdsa` or `sign_with_rsa` to generate the signed CSR.
-///
-/// ## Returns
-/// A new Builder ready for configuration.
 pub fn new() -> Builder {
   Builder(
     subject: x509.name([]),
@@ -113,15 +110,6 @@ pub fn new() -> Builder {
 }
 
 /// Sets the distinguished name subject for the CSR.
-///
-/// The subject identifies who the certificate will be issued to.
-///
-/// ## Parameters
-/// - `builder`: The CSR builder
-/// - `subject`: A distinguished name created with `x509.name`
-///
-/// ## Returns
-/// The updated builder.
 pub fn with_subject(builder: Builder, subject: x509.Name) -> Builder {
   Builder(..builder, subject:)
 }
@@ -130,15 +118,7 @@ pub fn with_subject(builder: Builder, subject: x509.Name) -> Builder {
 ///
 /// SANs allow a certificate to be valid for multiple hostnames. Modern
 /// browsers require the domain to appear in the SAN extension, not just
-/// the Common Name.
-///
-/// ## Parameters
-/// - `builder`: The CSR builder
-/// - `name`: A DNS hostname (e.g., "example.com" or "*.example.com")
-///
-/// ## Returns
-/// - `Ok(Builder)` with the updated builder
-/// - `Error(Nil)` if the DNS name contains non-ASCII characters
+/// the Common Name. The name must contain only ASCII characters.
 pub fn with_dns_name(builder: Builder, name: String) -> Result(Builder, Nil) {
   use <- bool.guard(when: !utils.is_ascii(name), return: Error(Nil))
   let x509.Extensions(sans) = builder.extensions
@@ -155,16 +135,7 @@ pub fn with_dns_name(builder: Builder, name: String) -> Result(Builder, Nil) {
 
 /// Adds an email address to the Subject Alternative Names extension.
 ///
-/// Used for S/MIME certificates where the certificate should be valid
-/// for a specific email address.
-///
-/// ## Parameters
-/// - `builder`: The CSR builder
-/// - `email`: An email address (e.g., "user@example.com")
-///
-/// ## Returns
-/// - `Ok(Builder)` with the updated builder
-/// - `Error(Nil)` if the email contains non-ASCII characters
+/// Used for S/MIME certificates. The email must contain only ASCII characters.
 pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
   use <- bool.guard(when: !utils.is_ascii(email), return: Error(Nil))
   let x509.Extensions(sans) = builder.extensions
@@ -178,17 +149,7 @@ pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
 
 /// Adds an IP address to the Subject Alternative Names extension.
 ///
-/// Allows the certificate to be valid when accessed by IP address instead
-/// of hostname.
-///
-/// ## Parameters
-/// - `builder`: The CSR builder
-/// - `ip`: An IPv4 address (e.g., "192.168.1.1") or IPv6 address
-///   (e.g., "2001:db8::1", "::1")
-///
-/// ## Returns
-/// - `Ok(Builder)` with the updated builder
-/// - `Error(Nil)` if the IP address cannot be parsed
+/// Accepts IPv4 (e.g., "192.168.1.1") or IPv6 (e.g., "2001:db8::1") addresses.
 pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
   use parsed <- result.try(utils.parse_ip(ip))
   let x509.Extensions(sans) = builder.extensions
@@ -206,19 +167,9 @@ pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
 /// Signs the CSR with an ECDSA private key.
 ///
 /// The public key is derived from the private key and included in the CSR.
-/// The resulting CSR can be submitted to a Certificate Authority.
-///
-/// ## Parameters
-/// - `builder`: The configured CSR builder
-/// - `key`: An EC private key from `ec.generate_key_pair`
-/// - `hash`: The hash algorithm for signing. Recommended: `Sha256` for P-256,
-///   `Sha384` for P-384, `Sha512` for P-521. Note: `Sha1` is supported for
-///   legacy compatibility but is cryptographically weak and should be avoided.
-///
-/// ## Returns
-/// - `Ok(Csr(Built))` containing the signed CSR
-/// - `Error(Nil)` if the hash algorithm is not supported or the public key
-///   cannot be encoded
+/// Recommended hash: `Sha256` for P-256, `Sha384` for P-384, `Sha512` for
+/// P-521. `Sha1` is supported for legacy compatibility but is
+/// cryptographically weak.
 pub fn sign_with_ecdsa(
   builder: Builder,
   key: ec.PrivateKey,
@@ -239,20 +190,9 @@ pub fn sign_with_ecdsa(
 /// Signs the CSR with an RSA private key using PKCS#1 v1.5 padding.
 ///
 /// The public key is derived from the private key and included in the CSR.
-/// The resulting CSR can be submitted to a Certificate Authority.
-///
-/// ## Parameters
-/// - `builder`: The configured CSR builder
-/// - `key`: An RSA private key from `rsa.generate_key_pair`
-/// - `hash`: The hash algorithm for signing. Recommended: `Sha256` for 2048-bit
-///   keys, `Sha384` or `Sha512` for 3072-bit or larger keys. Note: `Sha1` is
-///   supported for legacy compatibility but is cryptographically weak and
-///   should be avoided.
-///
-/// ## Returns
-/// - `Ok(Csr(Built))` containing the signed CSR
-/// - `Error(Nil)` if the hash algorithm is not supported or the public key
-///   cannot be encoded
+/// Recommended hash: `Sha256` for 2048-bit keys, `Sha384` or `Sha512` for
+/// 3072-bit or larger keys. `Sha1` is supported for legacy compatibility
+/// but is cryptographically weak.
 pub fn sign_with_rsa(
   builder: Builder,
   key: rsa.PrivateKey,
@@ -274,14 +214,6 @@ pub fn sign_with_rsa(
 ///
 /// **Note**: Support for EdDSA is limited with browsers and certificate
 /// authorities.
-///
-/// ## Parameters
-/// - `builder`: The configured CSR builder
-/// - `key`: An EdDSA private key from `eddsa.generate_key_pair`
-///
-/// ## Returns
-/// - `Ok(Csr(Built))` containing the signed CSR
-/// - `Error(Nil)` if the public key cannot be encoded
 pub fn sign_with_eddsa(
   builder: Builder,
   key: eddsa.PrivateKey,
@@ -299,15 +231,6 @@ pub fn sign_with_eddsa(
 }
 
 /// Exports the CSR as DER-encoded bytes.
-///
-/// DER (Distinguished Encoding Rules) is a binary format commonly used
-/// for programmatic certificate handling.
-///
-/// ## Parameters
-/// - `csr`: The signed CSR (either built or parsed)
-///
-/// ## Returns
-/// The raw DER-encoded CSR bytes.
 pub fn to_der(csr: Csr(a)) -> BitArray {
   case csr {
     BuiltCsr(der) -> der
@@ -317,15 +240,8 @@ pub fn to_der(csr: Csr(a)) -> BitArray {
 
 /// Exports the CSR as a PEM-encoded string.
 ///
-/// PEM (Privacy-Enhanced Mail) is a Base64-encoded format with header and
-/// footer lines. This is the format typically required when submitting
-/// a CSR to a Certificate Authority.
-///
-/// ## Parameters
-/// - `csr`: The signed CSR (either built or parsed)
-///
-/// ## Returns
-/// A PEM-encoded string with `-----BEGIN CERTIFICATE REQUEST-----` headers.
+/// This is the format typically required when submitting a CSR to a
+/// Certificate Authority.
 pub fn to_pem(csr: Csr(a)) -> String {
   x509_internal.encode_pem(to_der(csr), pem_begin, pem_end)
 }
@@ -447,65 +363,30 @@ pub fn from_der_unverified(der: BitArray) -> Result(Csr(Parsed), CsrError) {
 /// Returns the version of a parsed CSR.
 ///
 /// PKCS#10 v1 CSRs always have version 0.
-///
-/// ## Parameters
-/// - `csr`: A parsed CSR
-///
-/// ## Returns
-/// The version number (always 0 for PKCS#10 v1).
 pub fn version(csr: Csr(Parsed)) -> Int {
   let assert ParsedCsr(version:, ..) = csr
   version
 }
 
 /// Returns the subject (distinguished name) of a parsed CSR.
-///
-/// The subject identifies who the certificate is being requested for.
-///
-/// ## Parameters
-/// - `csr`: A parsed CSR
-///
-/// ## Returns
-/// The subject as a distinguished name.
 pub fn subject(csr: Csr(Parsed)) -> x509.Name {
   let assert ParsedCsr(subject:, ..) = csr
   subject
 }
 
 /// Returns the public key embedded in a parsed CSR.
-///
-/// This is the key that the requester wants certified.
-///
-/// ## Parameters
-/// - `csr`: A parsed CSR
-///
-/// ## Returns
-/// The subject's public key (RSA, EC, or EdDSA).
 pub fn public_key(csr: Csr(Parsed)) -> x509.PublicKey {
   let assert ParsedCsr(public_key:, ..) = csr
   public_key
 }
 
 /// Returns the signature algorithm used to sign the CSR.
-///
-/// ## Parameters
-/// - `csr`: A parsed CSR
-///
-/// ## Returns
-/// The signature algorithm identifier.
 pub fn signature_algorithm(csr: Csr(Parsed)) -> x509.SignatureAlgorithm {
   let assert ParsedCsr(signature_algorithm:, ..) = csr
   signature_algorithm
 }
 
 /// Returns the Subject Alternative Names from the CSR.
-///
-/// ## Parameters
-/// - `csr`: A parsed CSR
-///
-/// ## Returns
-/// List of SANs (DNS names, emails, IPs), or empty list if no SAN extension
-/// was requested.
 pub fn subject_alt_names(csr: Csr(Parsed)) -> List(x509.SubjectAltName) {
   let assert ParsedCsr(subject_alt_names:, ..) = csr
   subject_alt_names

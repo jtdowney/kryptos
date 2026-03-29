@@ -1,7 +1,7 @@
 //// X.509 Certificate generation and parsing.
 ////
-//// This module provides a builder for creating X.509 certificates.
-//// Certificates can be self-signed. CA-signing is not currently supported.
+//// Builder for creating self-signed X.509 certificates.
+//// CA-signing is not currently supported.
 ////
 //// ## Example
 ////
@@ -233,9 +233,6 @@ pub opaque type Builder {
 ///
 /// Use the `with_*` functions to configure the builder, then call
 /// a signing function to generate the certificate.
-///
-/// ## Returns
-/// A new Builder ready for configuration.
 pub fn new() -> Builder {
   Builder(
     subject: x509.name([]),
@@ -251,27 +248,11 @@ pub fn new() -> Builder {
 }
 
 /// Sets the distinguished name subject for the certificate.
-///
-/// The subject identifies who the certificate is issued to.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `subject`: A distinguished name created with `x509.name`
-///
-/// ## Returns
-/// The updated builder.
 pub fn with_subject(builder: Builder, subject: x509.Name) -> Builder {
   Builder(..builder, subject:)
 }
 
 /// Sets the validity period for the certificate.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `validity`: The validity period with not_before and not_after timestamps
-///
-/// ## Returns
-/// The updated builder.
 pub fn with_validity(builder: Builder, validity: x509.Validity) -> Builder {
   Builder(..builder, validity: option.Some(validity))
 }
@@ -280,18 +261,7 @@ pub fn with_validity(builder: Builder, validity: x509.Validity) -> Builder {
 ///
 /// This extension indicates whether the certificate is a CA certificate
 /// and optionally limits the path length of the certification chain.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `ca`: True if this is a CA certificate
-/// - `path_len_constraint`: Maximum path length (only valid for CA certs)
-///
-/// ## Returns
-/// The updated builder.
-///
-/// ## Notes
 /// Per RFC 5280, path_len_constraint is only meaningful when ca is True.
-/// If ca is False and path_len_constraint is present, the constraint is ignored.
 pub fn with_basic_constraints(
   builder: Builder,
   ca ca: Bool,
@@ -306,30 +276,15 @@ pub fn with_basic_constraints(
 
 /// Adds a Key Usage flag to the certificate.
 ///
-/// Key Usage defines the cryptographic operations the key may be used for.
 /// Multiple usages can be added by chaining calls.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `usage`: The key usage flag to add
-///
-/// ## Returns
-/// The updated builder.
 pub fn with_key_usage(builder: Builder, usage: x509.KeyUsage) -> Builder {
   Builder(..builder, key_usage: [usage, ..builder.key_usage])
 }
 
 /// Adds an Extended Key Usage purpose to the certificate.
 ///
-/// Extended Key Usage provides more specific purposes than Key Usage,
-/// such as server authentication or code signing.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `usage`: The extended key usage purpose to add
-///
-/// ## Returns
-/// The updated builder.
+/// EKU narrows allowed purposes beyond Key Usage (e.g., ServerAuth,
+/// CodeSigning). Multiple usages can be added by chaining calls.
 pub fn with_extended_key_usage(
   builder: Builder,
   usage: x509.ExtendedKeyUsage,
@@ -339,15 +294,7 @@ pub fn with_extended_key_usage(
 
 /// Adds a DNS name to the Subject Alternative Names extension.
 ///
-/// SANs allow a certificate to be valid for multiple hostnames.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `name`: A DNS hostname (e.g., "example.com" or "*.example.com")
-///
-/// ## Returns
-/// - `Ok(Builder)` with the updated builder
-/// - `Error(Nil)` if the DNS name contains non-ASCII characters
+/// The name must contain only ASCII characters.
 pub fn with_dns_name(builder: Builder, name: String) -> Result(Builder, Nil) {
   case utils.is_ascii(name) {
     True ->
@@ -362,13 +309,7 @@ pub fn with_dns_name(builder: Builder, name: String) -> Result(Builder, Nil) {
 
 /// Adds an email address to the Subject Alternative Names extension.
 ///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `email`: An email address (e.g., "user@example.com")
-///
-/// ## Returns
-/// - `Ok(Builder)` with the updated builder
-/// - `Error(Nil)` if the email contains non-ASCII characters
+/// The email must contain only ASCII characters.
 pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
   case utils.is_ascii(email) {
     True ->
@@ -383,14 +324,7 @@ pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
 
 /// Adds an IP address to the Subject Alternative Names extension.
 ///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `ip`: An IPv4 address (e.g., "192.168.1.1") or IPv6 address
-///   (e.g., "2001:db8::1", "::1")
-///
-/// ## Returns
-/// - `Ok(Builder)` with the updated builder
-/// - `Error(Nil)` if the IP address cannot be parsed
+/// Accepts IPv4 (e.g., "192.168.1.1") or IPv6 (e.g., "2001:db8::1") addresses.
 pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
   utils.parse_ip(ip)
   |> result.map(fn(parsed) {
@@ -404,28 +338,15 @@ pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
 /// Sets the serial number for the certificate.
 ///
 /// If not set, a random serial number will be generated during signing.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `serial`: The serial number as raw bytes
-///
-/// ## Returns
-/// The updated builder.
 pub fn with_serial_number(builder: Builder, serial: BitArray) -> Builder {
   Builder(..builder, serial_number: option.Some(serial))
 }
 
 /// Enables the Subject Key Identifier extension in the certificate.
 ///
-/// If not called, the SKI extension will not be included in the certificate.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `ski`: The SKI configuration - use `SkiAuto` to compute from the public key
-///   (SHA-1 hash per RFC 5280 method 1) or `SkiExplicit(bytes)` for a custom value
-///
-/// ## Returns
-/// The updated builder.
+/// If not called, the SKI extension will not be included. Use `SkiAuto` to
+/// compute from the public key (SHA-1 hash per RFC 5280 method 1) or
+/// `SkiExplicit(bytes)` for a custom value.
 pub fn with_subject_key_identifier(
   builder: Builder,
   ski: SubjectKeyIdentifierConfig,
@@ -436,17 +357,8 @@ pub fn with_subject_key_identifier(
 /// Configures the Authority Key Identifier extension for the certificate.
 ///
 /// By default, self-signed certificates include an AKI with keyIdentifier
-/// computed as the SHA-1 hash of the signing public key.
-///
-/// ## Parameters
-/// - `builder`: The certificate builder
-/// - `aki`: The AKI configuration:
-///   - `AkiAuto` - compute from the public key (default)
-///   - `AkiExplicit(bytes)` - use provided keyIdentifier bytes
-///   - `AkiExclude` - omit the AKI extension
-///
-/// ## Returns
-/// The updated builder.
+/// computed as the SHA-1 hash of the signing public key. Use `AkiExplicit`
+/// for a custom value or `AkiExclude` to omit the extension.
 pub fn with_authority_key_identifier(
   builder: Builder,
   aki: AuthorityKeyIdentifierConfig,
@@ -454,8 +366,7 @@ pub fn with_authority_key_identifier(
   Builder(..builder, authority_key_identifier: aki)
 }
 
-/// Generates a cryptographically random serial number that is RFC 5280 compliant.
-@internal
+/// Generates a random 20-byte serial number with the high bit cleared per RFC 5280.
 pub fn generate_serial_number() -> BitArray {
   let bytes = crypto.random_bytes(20)
   let assert <<first:8, rest:bits>> = bytes
@@ -466,16 +377,6 @@ pub fn generate_serial_number() -> BitArray {
 ///
 /// The public key is derived from the private key and used as both
 /// the issuer and subject public key.
-///
-/// ## Parameters
-/// - `builder`: The configured certificate builder
-/// - `key`: An EC private key from `ec.generate_key_pair`
-/// - `hash`: The hash algorithm for signing.
-///
-/// ## Returns
-/// - `Ok(Certificate(Built))` containing the signed certificate
-/// - `Error(Nil)` if the hash algorithm is not supported, validity is missing,
-///   or the public key cannot be encoded
 pub fn self_signed_with_ecdsa(
   builder: Builder,
   key: ec.PrivateKey,
@@ -508,16 +409,6 @@ pub fn self_signed_with_ecdsa(
 ///
 /// The public key is derived from the private key and used as both
 /// the issuer and subject public key.
-///
-/// ## Parameters
-/// - `builder`: The configured certificate builder
-/// - `key`: An RSA private key from `rsa.generate_key_pair`
-/// - `hash`: The hash algorithm for signing.
-///
-/// ## Returns
-/// - `Ok(Certificate(Built))` containing the signed certificate
-/// - `Error(Nil)` if the hash algorithm is not supported, validity is missing,
-///   or the public key cannot be encoded
 pub fn self_signed_with_rsa(
   builder: Builder,
   key: rsa.PrivateKey,
@@ -550,14 +441,6 @@ pub fn self_signed_with_rsa(
 /// The public key is derived from the private key and used as both
 /// the issuer and subject public key. EdDSA has built-in hashing, so no
 /// hash algorithm parameter is needed.
-///
-/// ## Parameters
-/// - `builder`: The configured certificate builder
-/// - `key`: An EdDSA private key from `eddsa.generate_key_pair`
-///
-/// ## Returns
-/// - `Ok(Certificate(Built))` containing the signed certificate
-/// - `Error(Nil)` if validity is missing or the public key cannot be encoded
 pub fn self_signed_with_eddsa(
   builder: Builder,
   key: eddsa.PrivateKey,
@@ -588,15 +471,6 @@ pub fn self_signed_with_eddsa(
 }
 
 /// Exports the certificate as DER-encoded bytes.
-///
-/// DER (Distinguished Encoding Rules) is a binary format commonly used
-/// for programmatic certificate handling.
-///
-/// ## Parameters
-/// - `cert`: The signed certificate
-///
-/// ## Returns
-/// The raw DER-encoded certificate bytes.
 pub fn to_der(cert: Certificate(a)) -> BitArray {
   case cert {
     BuiltCertificate(der) -> der
@@ -605,15 +479,6 @@ pub fn to_der(cert: Certificate(a)) -> BitArray {
 }
 
 /// Exports the certificate as a PEM-encoded string.
-///
-/// PEM (Privacy-Enhanced Mail) is a Base64-encoded format with header and
-/// footer lines.
-///
-/// ## Parameters
-/// - `cert`: The signed certificate
-///
-/// ## Returns
-/// A PEM-encoded string with `-----BEGIN CERTIFICATE-----` headers.
 pub fn to_pem(cert: Certificate(a)) -> String {
   x509_internal.encode_pem(to_der(cert), pem_begin, pem_end)
 }
@@ -626,15 +491,6 @@ pub fn to_pem(cert: Certificate(a)) -> String {
 /// **Note:** This function does NOT verify the certificates' cryptographic
 /// signatures. To verify a certificate was signed by an issuer, use `verify()`.
 /// For self-signed certificates, use `verify_self_signed()`.
-///
-/// ## Parameters
-/// - `pem`: A string containing one or more PEM-encoded certificates
-///
-/// ## Returns
-/// - `Ok(List(Certificate(Parsed)))` with parsed certificates (empty list if no certificates found)
-/// - `Error(ParseError)` if base64 decoding fails or certificate structure is invalid
-/// - `Error(UnsupportedAlgorithm(oid))` if any certificate uses an unsupported algorithm
-/// - `Error(UnrecognizedCriticalExtension(oid))` if any certificate has unknown critical extensions
 pub fn from_pem(
   pem: String,
 ) -> Result(List(Certificate(Parsed)), CertificateError) {
@@ -651,15 +507,6 @@ pub fn from_pem(
 /// **Note:** This function does NOT verify the certificate's cryptographic
 /// signature. To verify a certificate was signed by an issuer, use `verify()`.
 /// For self-signed certificates, use `verify_self_signed()`.
-///
-/// ## Parameters
-/// - `der`: Raw DER-encoded certificate bytes
-///
-/// ## Returns
-/// - `Ok(Certificate(Parsed))` if parsing succeeds
-/// - `Error(ParseError)` if the ASN.1 structure is malformed
-/// - `Error(UnsupportedAlgorithm(oid))` if the signature algorithm or key type is not supported
-/// - `Error(UnrecognizedCriticalExtension(oid))` if an unknown extension is marked critical (per RFC 5280)
 pub fn from_der(der: BitArray) -> Result(Certificate(Parsed), CertificateError) {
   use #(cert_content, remaining) <- result.try(
     der.parse_sequence(der) |> result.replace_error(ParseError),
@@ -788,44 +635,19 @@ pub fn from_der(der: BitArray) -> Result(Certificate(Parsed), CertificateError) 
   ))
 }
 
-/// Returns the version of a parsed certificate.
-///
-/// X.509 certificates use:
-/// - Version 1 = value 0
-/// - Version 2 = value 1
-/// - Version 3 = value 2 (most common, supports extensions)
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// The version number (0, 1, or 2).
+/// Returns the version of a parsed certificate (0 = v1, 1 = v2, 2 = v3).
 pub fn version(cert: Certificate(Parsed)) -> Int {
   let assert ParsedCertificate(version:, ..) = cert
   version
 }
 
 /// Returns the serial number of a parsed certificate.
-///
-/// Serial numbers are unique within a CA and encoded as unsigned integers.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// The serial number as raw bytes.
 pub fn serial_number(cert: Certificate(Parsed)) -> BitArray {
   let assert ParsedCertificate(serial_number:, ..) = cert
   serial_number
 }
 
 /// Returns the signature algorithm used to sign the certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// The signature algorithm identifier.
 pub fn signature_algorithm(cert: Certificate(Parsed)) -> x509.SignatureAlgorithm {
   let assert ParsedCertificate(signature_algorithm:, ..) = cert
   signature_algorithm
@@ -833,65 +655,31 @@ pub fn signature_algorithm(cert: Certificate(Parsed)) -> x509.SignatureAlgorithm
 
 /// Returns the issuer distinguished name.
 ///
-/// The issuer identifies the CA that signed this certificate.
 /// For self-signed certificates, issuer equals subject.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// The issuer as a distinguished name.
 pub fn issuer(cert: Certificate(Parsed)) -> x509.Name {
   let assert ParsedCertificate(issuer:, ..) = cert
   issuer
 }
 
 /// Returns the validity period of the certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// The validity period with `not_before` and `not_after` timestamps.
 pub fn validity(cert: Certificate(Parsed)) -> x509.Validity {
   let assert ParsedCertificate(validity:, ..) = cert
   validity
 }
 
 /// Returns the subject distinguished name.
-///
-/// The subject identifies the entity the certificate was issued to.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// The subject as a distinguished name.
 pub fn subject(cert: Certificate(Parsed)) -> x509.Name {
   let assert ParsedCertificate(subject:, ..) = cert
   subject
 }
 
 /// Returns the public key embedded in the certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// The subject's public key (RSA, EC, Ed, or XDH).
 pub fn public_key(cert: Certificate(Parsed)) -> x509.PublicKey {
   let assert ParsedCertificate(public_key:, ..) = cert
   public_key
 }
 
 /// Returns the Basic Constraints extension from a parsed certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// - `Ok(BasicConstraints)` if the extension is present
-/// - `Error(Nil)` if the extension is not present
 pub fn basic_constraints(
   cert: Certificate(Parsed),
 ) -> Result(x509.BasicConstraints, Nil) {
@@ -900,24 +688,12 @@ pub fn basic_constraints(
 }
 
 /// Returns the Key Usage flags from a parsed certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// List of key usage flags, or empty list if extension not present.
 pub fn key_usage(cert: Certificate(Parsed)) -> List(x509.KeyUsage) {
   let assert ParsedCertificate(key_usage:, ..) = cert
   key_usage
 }
 
 /// Returns the Extended Key Usage purposes from a parsed certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// List of extended key usage purposes, or empty list if extension not present.
 pub fn extended_key_usage(
   cert: Certificate(Parsed),
 ) -> List(x509.ExtendedKeyUsage) {
@@ -925,26 +701,13 @@ pub fn extended_key_usage(
   extended_key_usage
 }
 
-/// Returns the Subject Alternative Names (SA) from a parsed certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// List of SANs (DNS names, emails, IPs), or empty list if extension not present.
+/// Returns the Subject Alternative Names (SANs) from a parsed certificate.
 pub fn subject_alt_names(cert: Certificate(Parsed)) -> List(x509.SubjectAltName) {
   let assert ParsedCertificate(subject_alt_names:, ..) = cert
   subject_alt_names
 }
 
 /// Returns the Subject Key Identifier (SKI) from a parsed certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// - `Ok(BitArray)` with the SKI bytes if extension is present
-/// - `Error(Nil)` if extension is not present
 pub fn subject_key_identifier(
   cert: Certificate(Parsed),
 ) -> Result(BitArray, Nil) {
@@ -953,13 +716,6 @@ pub fn subject_key_identifier(
 }
 
 /// Returns the Authority Key Identifier (AKI) from a parsed certificate.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// - `Ok(AuthorityKeyIdentifier)` if extension is present
-/// - `Error(Nil)` if extension is not present
 pub fn authority_key_identifier(
   cert: Certificate(Parsed),
 ) -> Result(x509.AuthorityKeyIdentifier, Nil) {
@@ -969,20 +725,8 @@ pub fn authority_key_identifier(
 
 /// Returns all extensions as raw (OID, critical, value) tuples.
 ///
-/// This returns every extension present in the certificate, including those
-/// that kryptos also parses into typed representations (Basic Constraints,
-/// Key Usage, Extended Key Usage, Subject Alt Names, etc).
-///
-/// This is useful for inspecting extension criticality or accessing the raw
-/// DER-encoded value of any extension.
-///
+/// Includes all extensions, even those with typed representations.
 /// The Bool indicates whether the extension was marked as critical per RFC 5280.
-///
-/// ## Parameters
-/// - `cert`: A parsed certificate
-///
-/// ## Returns
-/// List of all extension tuples `#(Oid, Bool, BitArray)`.
 pub fn extensions(
   cert: Certificate(Parsed),
 ) -> List(#(x509.Oid, Bool, BitArray)) {
@@ -992,17 +736,7 @@ pub fn extensions(
 
 /// Verify a certificate's signature against an issuer's public key.
 ///
-/// This verifies that the certificate was signed by the private key
-/// corresponding to the provided public key.
-///
-/// ## Parameters
-/// - `cert`: The parsed certificate to verify
-/// - `issuer_public_key`: The public key to verify against (must be RSA, ECDSA, or EdDSA)
-///
-/// ## Returns
-/// - `Ok(Nil)` if the signature is valid
-/// - `Error(SignatureVerificationFailed)` if the signature is invalid
-/// - `Error(UnsupportedAlgorithm)` if the key cannot be used for verification
+/// The public key must be RSA, ECDSA, or EdDSA (XDH keys cannot sign).
 pub fn verify(
   cert: Certificate(Parsed),
   issuer_public_key: x509.PublicKey,
@@ -1032,17 +766,6 @@ pub fn verify(
 }
 
 /// Verify a self-signed certificate against its own public key.
-///
-/// This is a convenience function that extracts the public key from the
-/// certificate and verifies the signature against it.
-///
-/// ## Parameters
-/// - `cert`: The parsed self-signed certificate to verify
-///
-/// ## Returns
-/// - `Ok(Nil)` if the signature is valid
-/// - `Error(SignatureVerificationFailed)` if the signature is invalid
-/// - `Error(UnsupportedAlgorithm)` if the certificate contains a key that cannot sign (e.g., XDH)
 pub fn verify_self_signed(
   cert: Certificate(Parsed),
 ) -> Result(Nil, CertificateError) {

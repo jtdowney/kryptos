@@ -53,11 +53,7 @@ pub type HashAlgorithm {
 
 /// Creates a SHAKE128 hash algorithm with the given output length in bytes.
 ///
-/// ## Parameters
-/// - `output_length`: The desired digest length in bytes (must be > 0)
-///
-/// ## Returns
-/// `Ok(HashAlgorithm)` on success, `Error(Nil)` if the output length is invalid.
+/// The output length must be greater than zero.
 pub fn shake_128(output_length length: Int) -> Result(HashAlgorithm, Nil) {
   case length > 0 {
     True -> Ok(Shake128(length))
@@ -67,11 +63,7 @@ pub fn shake_128(output_length length: Int) -> Result(HashAlgorithm, Nil) {
 
 /// Creates a SHAKE256 hash algorithm with the given output length in bytes.
 ///
-/// ## Parameters
-/// - `output_length`: The desired digest length in bytes (must be > 0)
-///
-/// ## Returns
-/// `Ok(HashAlgorithm)` on success, `Error(Nil)` if the output length is invalid.
+/// The output length must be greater than zero.
 pub fn shake_256(output_length length: Int) -> Result(HashAlgorithm, Nil) {
   case length > 0 {
     True -> Ok(Shake256(length))
@@ -101,12 +93,6 @@ pub fn algorithm_name(algorithm: HashAlgorithm) -> String {
 }
 
 /// Returns the output size in bytes for a hash algorithm.
-///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to get the size for
-///
-/// ## Returns
-/// The digest size in bytes.
 pub fn byte_size(algorithm: HashAlgorithm) -> Int {
   case algorithm {
     Blake2b -> 64
@@ -136,13 +122,6 @@ pub type Hasher
 ///
 /// Use this when you need to hash data in chunks, such as when streaming
 /// or when the full input isn't available at once.
-///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to use
-///
-/// ## Returns
-/// `Ok(Hasher)` on success, `Error(Nil)` if the hash algorithm is not
-/// supported by the runtime.
 pub fn new(algorithm: HashAlgorithm) -> Result(Hasher, Nil) {
   case algorithm {
     Shake128(output_length) | Shake256(output_length) if output_length <= 0 ->
@@ -158,13 +137,6 @@ fn do_new(algorithm: HashAlgorithm) -> Result(Hasher, Nil)
 /// Adds data to an in-progress hash computation.
 ///
 /// Can be called multiple times to incrementally hash data.
-///
-/// ## Parameters
-/// - `hasher`: The hasher to update
-/// - `data`: The data to add to the hash
-///
-/// ## Returns
-/// The updated hasher.
 @external(erlang, "kryptos_ffi", "hash_update")
 @external(javascript, "../kryptos_ffi.mjs", "hashUpdate")
 pub fn update(hasher: Hasher, data: BitArray) -> Hasher
@@ -172,12 +144,6 @@ pub fn update(hasher: Hasher, data: BitArray) -> Hasher
 /// Finalizes the hash computation and returns the digest.
 ///
 /// After calling this function, the hasher should not be reused.
-///
-/// ## Parameters
-/// - `hasher`: The hasher to finalize
-///
-/// ## Returns
-/// A `BitArray` containing the computed hash digest.
 @external(erlang, "kryptos_ffi", "hash_final")
 @external(javascript, "../kryptos_ffi.mjs", "hashFinal")
 pub fn final(hasher: Hasher) -> BitArray
@@ -186,12 +152,6 @@ pub fn final(hasher: Hasher) -> BitArray
 ///
 /// Some algorithms may not be available depending on the platform or
 /// OpenSSL/crypto library version.
-///
-/// ## Parameters
-/// - `algorithm`: The hash algorithm to check
-///
-/// ## Returns
-/// `True` if the algorithm is supported, `False` otherwise.
 pub fn is_supported(algorithm: HashAlgorithm) -> Bool {
   case new(algorithm) {
     Ok(_) -> True

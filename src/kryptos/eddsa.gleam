@@ -34,12 +34,6 @@ pub type Curve {
 }
 
 /// Returns the key size in bytes for the given curve.
-///
-/// ## Parameters
-/// - `curve`: The EdDSA curve
-///
-/// ## Returns
-/// The key size in bytes (32 for Ed25519, 57 for Ed448).
 pub fn key_size(curve: Curve) -> Int {
   case curve {
     Ed25519 -> 32
@@ -48,12 +42,6 @@ pub fn key_size(curve: Curve) -> Int {
 }
 
 /// Generates a new EdDSA key pair.
-///
-/// ## Parameters
-/// - `curve`: The curve to use for key generation (Ed25519 or Ed448)
-///
-/// ## Returns
-/// A tuple of `#(private_key, public_key)`.
 @external(erlang, "kryptos_ffi", "eddsa_generate_key_pair")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaGenerateKeyPair")
 pub fn generate_key_pair(curve: Curve) -> #(PrivateKey, PublicKey)
@@ -63,26 +51,11 @@ pub fn generate_key_pair(curve: Curve) -> #(PrivateKey, PublicKey)
 /// The message is hashed internally using the curve's built-in hash function
 /// (SHA-512 for Ed25519, SHAKE256 for Ed448). Signatures are deterministic:
 /// signing the same message with the same key always produces the same signature.
-///
-/// ## Parameters
-/// - `private_key`: An EdDSA private key from `generate_key_pair`
-/// - `message`: The message to sign (any length)
-///
-/// ## Returns
-/// A signature (64 bytes for Ed25519, 114 bytes for Ed448).
 @external(erlang, "kryptos_ffi", "eddsa_sign")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaSign")
 pub fn sign(private_key: PrivateKey, message: BitArray) -> BitArray
 
 /// Verifies an EdDSA signature against a message.
-///
-/// ## Parameters
-/// - `public_key`: The EdDSA public key corresponding to the signing key
-/// - `message`: The original message that was signed
-/// - `signature`: The signature to verify
-///
-/// ## Returns
-/// `True` if the signature is valid, `False` otherwise.
 @external(erlang, "kryptos_ffi", "eddsa_verify")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaVerify")
 pub fn verify(
@@ -147,12 +120,6 @@ pub fn public_key_to_bytes(key: PublicKey) -> BitArray
 /// Imports an EdDSA private key from PEM-encoded data.
 ///
 /// The key must be in PKCS#8 format.
-///
-/// ## Parameters
-/// - `pem`: PEM-encoded key string
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "eddsa_import_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaImportPrivateKeyPem")
 pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), Nil)
@@ -160,12 +127,6 @@ pub fn from_pem(pem: String) -> Result(#(PrivateKey, PublicKey), Nil)
 /// Imports an EdDSA private key from DER-encoded data.
 ///
 /// The key must be in PKCS#8 format.
-///
-/// ## Parameters
-/// - `der`: DER-encoded key data
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "eddsa_import_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaImportPrivateKeyDer")
 pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), Nil)
@@ -173,12 +134,6 @@ pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), Nil)
 /// Exports an EdDSA private key to PEM format.
 ///
 /// The key is exported in PKCS#8 format.
-///
-/// ## Parameters
-/// - `key`: The private key to export
-///
-/// ## Returns
-/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
 pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
   do_to_pem(key) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
 }
@@ -190,12 +145,6 @@ fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 /// Exports an EdDSA private key to DER format.
 ///
 /// The key is exported in PKCS#8 format.
-///
-/// ## Parameters
-/// - `key`: The private key to export
-///
-/// ## Returns
-/// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "eddsa_export_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaExportPrivateKeyDer")
 pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
@@ -203,12 +152,6 @@ pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 /// Imports an EdDSA public key from PEM-encoded data.
 ///
 /// The key must be in SPKI format.
-///
-/// ## Parameters
-/// - `pem`: PEM-encoded key string
-///
-/// ## Returns
-/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "eddsa_import_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaImportPublicKeyPem")
 pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
@@ -216,12 +159,6 @@ pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
 /// Imports an EdDSA public key from DER-encoded data.
 ///
 /// The key must be in SPKI format.
-///
-/// ## Parameters
-/// - `der`: DER-encoded key data
-///
-/// ## Returns
-/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "eddsa_import_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaImportPublicKeyDer")
 pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
@@ -229,12 +166,6 @@ pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
 /// Exports an EdDSA public key to PEM format.
 ///
 /// The key is exported in SPKI format.
-///
-/// ## Parameters
-/// - `key`: The public key to export
-///
-/// ## Returns
-/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
 pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
   do_public_key_to_pem(key)
   |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
@@ -247,45 +178,21 @@ fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 /// Exports an EdDSA public key to DER format.
 ///
 /// The key is exported in SPKI format.
-///
-/// ## Parameters
-/// - `key`: The public key to export
-///
-/// ## Returns
-/// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "eddsa_export_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaExportPublicKeyDer")
 pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 
 /// Derives the public key from an EdDSA private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The corresponding public key.
 @external(erlang, "kryptos_ffi", "eddsa_public_key_from_private")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaPublicKeyFromPrivate")
 pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey
 
 /// Returns the curve for an EdDSA private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The curve used by this key.
 @external(erlang, "kryptos_ffi", "eddsa_private_key_curve")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaPrivateKeyCurve")
 pub fn curve(key: PrivateKey) -> Curve
 
 /// Returns the curve for an EdDSA public key.
-///
-/// ## Parameters
-/// - `key`: The public key
-///
-/// ## Returns
-/// The curve used by this key.
 @external(erlang, "kryptos_ffi", "eddsa_public_key_curve")
 @external(javascript, "../kryptos_ffi.mjs", "eddsaPublicKeyCurve")
 pub fn public_key_curve(key: PublicKey) -> Curve

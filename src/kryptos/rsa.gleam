@@ -1,6 +1,6 @@
 //// RSA (Rivest-Shamir-Adleman) cryptography.
 ////
-//// This module provides RSA key generation, signing, and encryption operations.
+//// RSA key generation, signing, and encryption.
 //// RSA keys can be used for both digital signatures and encryption.
 ////
 //// ## Key Generation
@@ -104,13 +104,7 @@ pub type EncryptPadding {
 
 /// Generates an RSA key pair with the specified key size.
 ///
-/// The key can be used for both signing and encryption operations.
-///
-/// ## Parameters
-/// - `bits`: The key size in bits (must be >= 1024)
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if bits < 1024.
+/// The key size must be >= 1024 bits.
 ///
 /// ## Example
 ///
@@ -131,15 +125,6 @@ fn do_generate_key_pair(bits: Int) -> #(PrivateKey, PublicKey)
 /// Signs a message using RSA with the specified hash algorithm and padding.
 ///
 /// The message is hashed internally using the provided algorithm before signing.
-///
-/// ## Parameters
-/// - `private_key`: An RSA private key
-/// - `message`: The message to sign (any length)
-/// - `hash`: The hash algorithm to use
-/// - `padding`: The signature padding scheme (Pkcs1v15 or Pss)
-///
-/// ## Returns
-/// The RSA signature.
 @external(erlang, "kryptos_ffi", "rsa_sign")
 @external(javascript, "../kryptos_ffi.mjs", "rsaSign")
 pub fn sign(
@@ -151,19 +136,8 @@ pub fn sign(
 
 /// Verifies an RSA signature against a message.
 ///
-/// The message is hashed internally using the provided algorithm before
-/// verification. The same hash algorithm and padding used during signing
-/// must be used for verification.
-///
-/// ## Parameters
-/// - `public_key`: The RSA public key corresponding to the signing key
-/// - `message`: The original message that was signed
-/// - `signature`: The signature to verify
-/// - `hash`: The hash algorithm used during signing
-/// - `padding`: The signature padding scheme used during signing
-///
-/// ## Returns
-/// `True` if the signature is valid, `False` otherwise.
+/// The same hash algorithm and padding used during signing must be used
+/// for verification.
 @external(erlang, "kryptos_ffi", "rsa_verify")
 @external(javascript, "../kryptos_ffi.mjs", "rsaVerify")
 pub fn verify(
@@ -179,14 +153,6 @@ pub fn verify(
 /// **Note**: RSA encryption should only be used for small amounts of data
 /// (typically symmetric keys). For bulk encryption, use a symmetric cipher
 /// with a randomly generated key, then encrypt that key with RSA.
-///
-/// ## Parameters
-/// - `public_key`: The RSA public key
-/// - `plaintext`: The data to encrypt
-/// - `padding`: The encryption padding scheme (EncryptPkcs1v15 or Oaep)
-///
-/// ## Returns
-/// `Ok(ciphertext)` on success, `Error(Nil)` if plaintext is too long.
 @external(erlang, "kryptos_ffi", "rsa_encrypt")
 @external(javascript, "../kryptos_ffi.mjs", "rsaEncrypt")
 pub fn encrypt(
@@ -196,14 +162,6 @@ pub fn encrypt(
 ) -> Result(BitArray, Nil)
 
 /// Decrypts data using RSA with the specified padding scheme.
-///
-/// ## Parameters
-/// - `private_key`: The RSA private key
-/// - `ciphertext`: The encrypted data
-/// - `padding`: The encryption padding scheme (must match encryption)
-///
-/// ## Returns
-/// `Ok(plaintext)` on success, `Error(Nil)` on decryption failure.
 @external(erlang, "kryptos_ffi", "rsa_decrypt")
 @external(javascript, "../kryptos_ffi.mjs", "rsaDecrypt")
 pub fn decrypt(
@@ -213,13 +171,6 @@ pub fn decrypt(
 ) -> Result(BitArray, Nil)
 
 /// Imports an RSA private key from PEM-encoded data.
-///
-/// ## Parameters
-/// - `pem`: PEM-encoded key string
-/// - `format`: The key format (Pkcs8 or Pkcs1)
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "rsa_import_private_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "rsaImportPrivateKeyPem")
 pub fn from_pem(
@@ -228,13 +179,6 @@ pub fn from_pem(
 ) -> Result(#(PrivateKey, PublicKey), Nil)
 
 /// Imports an RSA private key from DER-encoded data.
-///
-/// ## Parameters
-/// - `der`: DER-encoded key data
-/// - `format`: The key format (Pkcs8 or Pkcs1)
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "rsa_import_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "rsaImportPrivateKeyDer")
 pub fn from_der(
@@ -243,13 +187,6 @@ pub fn from_der(
 ) -> Result(#(PrivateKey, PublicKey), Nil)
 
 /// Exports an RSA private key to PEM format.
-///
-/// ## Parameters
-/// - `key`: The private key to export
-/// - `format`: The output format (Pkcs8 or Pkcs1)
-///
-/// ## Returns
-/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
 pub fn to_pem(key: PrivateKey, format: PrivateKeyFormat) -> Result(String, Nil) {
   do_to_pem(key, format) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
 }
@@ -259,13 +196,6 @@ pub fn to_pem(key: PrivateKey, format: PrivateKeyFormat) -> Result(String, Nil) 
 fn do_to_pem(key: PrivateKey, format: PrivateKeyFormat) -> Result(String, Nil)
 
 /// Exports an RSA private key to DER format.
-///
-/// ## Parameters
-/// - `key`: The private key to export
-/// - `format`: The output format (Pkcs8 or Pkcs1)
-///
-/// ## Returns
-/// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "rsa_export_private_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "rsaExportPrivateKeyDer")
 pub fn to_der(
@@ -274,13 +204,6 @@ pub fn to_der(
 ) -> Result(BitArray, Nil)
 
 /// Imports an RSA public key from PEM-encoded data.
-///
-/// ## Parameters
-/// - `pem`: PEM-encoded key string
-/// - `format`: The key format (Spki or RsaPublicKey)
-///
-/// ## Returns
-/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "rsa_import_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "rsaImportPublicKeyPem")
 pub fn public_key_from_pem(
@@ -289,13 +212,6 @@ pub fn public_key_from_pem(
 ) -> Result(PublicKey, Nil)
 
 /// Imports an RSA public key from DER-encoded data.
-///
-/// ## Parameters
-/// - `der`: DER-encoded key data
-/// - `format`: The key format (Spki or RsaPublicKey)
-///
-/// ## Returns
-/// `Ok(public_key)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "rsa_import_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "rsaImportPublicKeyDer")
 pub fn public_key_from_der(
@@ -304,13 +220,6 @@ pub fn public_key_from_der(
 ) -> Result(PublicKey, Nil)
 
 /// Exports an RSA public key to PEM format.
-///
-/// ## Parameters
-/// - `key`: The public key to export
-/// - `format`: The output format (Spki or RsaPublicKey)
-///
-/// ## Returns
-/// `Ok(pem_string)` on success, `Error(Nil)` on failure.
 pub fn public_key_to_pem(
   key: PublicKey,
   format: PublicKeyFormat,
@@ -327,13 +236,6 @@ fn do_public_key_to_pem(
 ) -> Result(String, Nil)
 
 /// Exports an RSA public key to DER format.
-///
-/// ## Parameters
-/// - `key`: The public key to export
-/// - `format`: The output format (Spki or RsaPublicKey)
-///
-/// ## Returns
-/// `Ok(der_data)` on success, `Error(Nil)` on failure.
 @external(erlang, "kryptos_ffi", "rsa_export_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "rsaExportPublicKeyDer")
 pub fn public_key_to_der(
@@ -342,111 +244,51 @@ pub fn public_key_to_der(
 ) -> Result(BitArray, Nil)
 
 /// Derives the public key from an RSA private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The corresponding public key.
 @external(erlang, "kryptos_ffi", "rsa_public_key_from_private")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyFromPrivate")
 pub fn public_key_from_private_key(key: PrivateKey) -> PublicKey
 
 /// Returns the modulus size in bits for an RSA private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The size of the modulus in bits (e.g., 2048, 4096).
 @external(erlang, "kryptos_ffi", "rsa_private_key_modulus_bits")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyModulusBits")
 pub fn modulus_bits(key: PrivateKey) -> Int
 
 /// Returns the modulus size in bits for an RSA public key.
-///
-/// ## Parameters
-/// - `key`: The public key
-///
-/// ## Returns
-/// The size of the modulus in bits (e.g., 2048, 4096).
 @external(erlang, "kryptos_ffi", "rsa_public_key_modulus_bits")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyModulusBits")
 pub fn public_key_modulus_bits(key: PublicKey) -> Int
 
 /// Returns the public exponent for an RSA private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The public exponent (commonly 65537).
 @external(erlang, "kryptos_ffi", "rsa_private_key_public_exponent")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPublicExponent")
 pub fn public_exponent(key: PrivateKey) -> Int
 
 /// Returns the public exponent for an RSA public key.
-///
-/// ## Parameters
-/// - `key`: The public key
-///
-/// ## Returns
-/// The public exponent (commonly 65537).
 @external(erlang, "kryptos_ffi", "rsa_public_key_public_exponent")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyPublicExponent")
 pub fn public_key_exponent(key: PublicKey) -> Int
 
 /// Returns the modulus (n) as big-endian bytes for an RSA private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The modulus as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_modulus")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyModulus")
 pub fn modulus(key: PrivateKey) -> BitArray
 
 /// Returns the modulus (n) as big-endian bytes for an RSA public key.
-///
-/// ## Parameters
-/// - `key`: The public key
-///
-/// ## Returns
-/// The modulus as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_public_key_modulus")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyModulus")
 pub fn public_key_modulus(key: PublicKey) -> BitArray
 
 /// Returns the public exponent (e) as big-endian bytes for an RSA private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The public exponent as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_public_exponent_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPublicExponentBytes")
 pub fn public_exponent_bytes(key: PrivateKey) -> BitArray
 
 /// Returns the public exponent (e) as big-endian bytes for an RSA public key.
-///
-/// ## Parameters
-/// - `key`: The public key
-///
-/// ## Returns
-/// The public exponent as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_public_key_exponent_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyExponentBytes")
 pub fn public_key_exponent_bytes(key: PublicKey) -> BitArray
 
 /// Returns the private exponent (d) as big-endian bytes for an RSA private key.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The private exponent as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_private_exponent_bytes")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrivateExponentBytes")
 pub fn private_exponent_bytes(key: PrivateKey) -> BitArray
@@ -455,12 +297,6 @@ pub fn private_exponent_bytes(key: PrivateKey) -> BitArray
 ///
 /// The RSA modulus n = p * q. This is part of the CRT (Chinese Remainder
 /// Theorem) parameters used for efficient RSA operations.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The first prime factor as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_prime1")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrime1")
 pub fn prime1(key: PrivateKey) -> BitArray
@@ -469,12 +305,6 @@ pub fn prime1(key: PrivateKey) -> BitArray
 ///
 /// The RSA modulus n = p * q. This is part of the CRT (Chinese Remainder
 /// Theorem) parameters used for efficient RSA operations.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The second prime factor as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_prime2")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrime2")
 pub fn prime2(key: PrivateKey) -> BitArray
@@ -483,12 +313,6 @@ pub fn prime2(key: PrivateKey) -> BitArray
 ///
 /// This is part of the CRT (Chinese Remainder Theorem) parameters used
 /// for efficient RSA operations.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The first CRT exponent as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_exponent1")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyExponent1")
 pub fn exponent1(key: PrivateKey) -> BitArray
@@ -497,12 +321,6 @@ pub fn exponent1(key: PrivateKey) -> BitArray
 ///
 /// This is part of the CRT (Chinese Remainder Theorem) parameters used
 /// for efficient RSA operations.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The second CRT exponent as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_exponent2")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyExponent2")
 pub fn exponent2(key: PrivateKey) -> BitArray
@@ -511,24 +329,11 @@ pub fn exponent2(key: PrivateKey) -> BitArray
 ///
 /// This is part of the CRT (Chinese Remainder Theorem) parameters used
 /// for efficient RSA operations.
-///
-/// ## Parameters
-/// - `key`: The private key
-///
-/// ## Returns
-/// The CRT coefficient as raw bytes.
 @external(erlang, "kryptos_ffi", "rsa_private_key_coefficient")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyCoefficient")
 pub fn coefficient(key: PrivateKey) -> BitArray
 
 /// Constructs an RSA public key from its components.
-///
-/// ## Parameters
-/// - `n`: The modulus as big-endian bytes
-/// - `e`: The public exponent as big-endian bytes
-///
-/// ## Returns
-/// `Ok(public_key)` on success, `Error(Nil)` if components are invalid.
 @external(erlang, "kryptos_ffi", "rsa_public_key_from_components")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPublicKeyFromComponents")
 pub fn public_key_from_components(
@@ -545,14 +350,6 @@ pub fn public_key_from_components(
 /// involves operations that may leak timing information. This is acceptable
 /// for key import since the caller already possesses the secret material,
 /// but avoid calling this in timing-sensitive contexts.
-///
-/// ## Parameters
-/// - `n`: The modulus as big-endian bytes
-/// - `e`: The public exponent as big-endian bytes
-/// - `d`: The private exponent as big-endian bytes
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if components are invalid.
 ///
 /// ## Example
 ///
@@ -575,21 +372,6 @@ pub fn from_components(
 }
 
 /// Constructs an RSA private key from all components including CRT parameters.
-///
-/// This function works on both Erlang and JavaScript targets.
-///
-/// ## Parameters
-/// - `n`: The modulus as big-endian bytes
-/// - `e`: The public exponent as big-endian bytes
-/// - `d`: The private exponent as big-endian bytes
-/// - `p`: The first prime factor as big-endian bytes
-/// - `q`: The second prime factor as big-endian bytes
-/// - `dp`: The first CRT exponent (d mod (p-1)) as big-endian bytes
-/// - `dq`: The second CRT exponent (d mod (q-1)) as big-endian bytes
-/// - `qi`: The CRT coefficient (q^-1 mod p) as big-endian bytes
-///
-/// ## Returns
-/// `Ok(#(private_key, public_key))` on success, `Error(Nil)` if components are invalid.
 @external(erlang, "kryptos_ffi", "rsa_private_key_from_full_components")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyFromFullComponents")
 pub fn from_full_components(

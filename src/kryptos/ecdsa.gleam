@@ -27,17 +27,10 @@ import kryptos/internal/utils
 
 /// Signs a message using ECDSA with the specified hash algorithm.
 ///
-/// The message is hashed internally using the provided algorithm before signing.
-/// Signatures may be non-deterministic depending on platform (Erlang uses random
-/// nonces, some platforms may use deterministic RFC 6979 nonces).
-///
-/// ## Parameters
-/// - `private_key`: An elliptic curve private key from `ec.generate_key_pair`
-/// - `message`: The message to sign (any length)
-/// - `hash`: The hash algorithm to use (e.g., `Sha256`, `Sha384`, `Sha512`)
-///
-/// ## Returns
-/// A DER-encoded ECDSA signature.
+/// The message is hashed internally before signing. Returns a DER-encoded
+/// signature. Signatures may be non-deterministic depending on platform
+/// (Erlang uses random nonces, some platforms may use deterministic
+/// RFC 6979 nonces).
 @external(erlang, "kryptos_ffi", "ecdsa_sign")
 @external(javascript, "../kryptos_ffi.mjs", "ecdsaSign")
 pub fn sign(
@@ -48,18 +41,8 @@ pub fn sign(
 
 /// Verifies an ECDSA signature against a message.
 ///
-/// The message is hashed internally using the provided algorithm before
-/// verification. The same hash algorithm used during signing must be used
-/// for verification.
-///
-/// ## Parameters
-/// - `public_key`: The elliptic curve public key corresponding to the signing key
-/// - `message`: The original message that was signed
-/// - `signature`: The DER-encoded signature to verify
-/// - `hash`: The hash algorithm used during signing
-///
-/// ## Returns
-/// `True` if the signature is valid, `False` otherwise.
+/// The message is hashed internally before verification. The same hash
+/// algorithm used during signing must be used for verification.
 @external(erlang, "kryptos_ffi", "ecdsa_verify")
 @external(javascript, "../kryptos_ffi.mjs", "ecdsaVerify")
 pub fn verify(
@@ -73,14 +56,6 @@ pub fn verify(
 ///
 /// In R||S format, the signature is the concatenation of r and s values,
 /// each padded to the curve's coordinate size.
-///
-/// ## Parameters
-/// - `private_key`: An elliptic curve private key
-/// - `message`: The message to sign
-/// - `hash`: The hash algorithm to use
-///
-/// ## Returns
-/// An R||S format signature (2 * coordinate_size bytes).
 ///
 /// ## Example
 ///
@@ -107,15 +82,6 @@ pub fn sign_rs(
 ///
 /// The R||S format is the concatenation of r and s values, each padded
 /// to the curve's coordinate size.
-///
-/// ## Parameters
-/// - `public_key`: The public key corresponding to the signing key
-/// - `message`: The original message that was signed
-/// - `signature`: The R||S format signature to verify
-/// - `hash`: The hash algorithm used during signing
-///
-/// ## Returns
-/// `True` if the signature is valid, `False` otherwise.
 ///
 /// ## Example
 ///
@@ -147,14 +113,6 @@ pub fn verify_rs(
 ///
 /// R||S format concatenates the r and s integer values, each padded
 /// to the curve's coordinate size with leading zeros.
-///
-/// ## Parameters
-/// - `der`: A DER-encoded ECDSA signature
-/// - `curve`: The elliptic curve used for the signature
-///
-/// ## Returns
-/// `Ok(rs_signature)` on success, `Error(Nil)` if the DER is malformed
-/// or contains trailing garbage.
 ///
 /// ## Example
 ///
@@ -199,12 +157,7 @@ pub fn der_to_rs(der_sig: BitArray, curve: ec.Curve) -> Result(BitArray, Nil) {
 
 /// Converts an R||S format signature to DER encoding.
 ///
-/// ## Parameters
-/// - `rs`: An R||S format signature (2 * coordinate_size bytes)
-/// - `curve`: The elliptic curve used for the signature
-///
-/// ## Returns
-/// `Ok(der_signature)` on success, `Error(Nil)` if input length is invalid.
+/// The R||S input must be exactly 2 * coordinate_size bytes.
 ///
 /// ## Example
 ///

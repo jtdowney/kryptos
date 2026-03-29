@@ -31,15 +31,7 @@ import kryptos/ec
 /// resulting elliptic curve point, returned as raw bytes.
 ///
 /// The raw shared secret should be passed through a KDF (like HKDF) before
-/// use as a symmetric key.
-///
-/// ## Parameters
-/// - `private_key`: Your EC private key
-/// - `peer_public_key`: The other party's public key
-///
-/// ## Returns
-/// `Ok(BitArray)` containing the shared secret on success, `Error(Nil)`
-/// if the keys use different curves or another error occurs.
+/// use as a symmetric key. Both keys must use the same curve.
 @external(erlang, "kryptos_ffi", "ecdh_compute_shared_secret")
 @external(javascript, "../kryptos_ffi.mjs", "ecdhComputeSharedSecret")
 pub fn compute_shared_secret(
