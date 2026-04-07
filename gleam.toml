@@ -21,3 +21,6 @@ unitest = ">= 1.0.0 and < 2.0.0"
 
 [javascript]
 runtime = "node"
+
+[erlang]
+extra_applications = ["crypto"]
