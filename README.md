@@ -82,6 +82,10 @@ pub fn main() {
 }
 ```
 
+> [!TIP]
+> If you're looking for a higher-level library for simple encryption, check out
+> [amaro](https://hexdocs.pm/amaro/).
+
 ## Security
 
 For guidance on choosing cryptographic primitives, see
