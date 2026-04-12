@@ -15,7 +15,7 @@ jobs:
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28"
-          gleam-version: "1.15.2"
+          gleam-version: "1.15.4"
           rebar3-version: "3"
       - run: gleam deps download
       - run: gleam format --check src test
@@ -26,7 +26,7 @@ jobs:
     strategy:
       matrix:
         otp-version: ["27", "28"]
-        gleam-version: ["1.14.0", "1.15.2"]
+        gleam-version: ["1.14.0", "1.15.4"]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,7 +47,7 @@ jobs:
     strategy:
       matrix:
         node-version: ["22", "24"]
-        gleam-version: ["1.14.0", "1.15.2"]
+        gleam-version: ["1.14.0", "1.15.4"]
     steps:
       - uses: actions/checkout@v5
         with:
