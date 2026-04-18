@@ -11,20 +11,13 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
         exclude: ^birdie_snapshots/.*\.accepted$
+  - repo: https://github.com/jtdowney/pre-commit-gleam
+    rev: v1.0.0
+    hooks:
+      - id: format
+      - id: check
   - repo: local
     hooks:
-      - id: gleam-check
-        name: gleam check
-        entry: gleam check
-        language: system
-        files: ^src/.*\.gleam$
-        pass_filenames: false
-      - id: gleam-format
-        name: gleam format --check
-        entry: gleam format --check src test
-        language: system
-        files: ^src/.*\.gleam$
-        pass_filenames: false
       - id: erlfmt
         name: erlfmt
         entry: rebar3 fmt -c
