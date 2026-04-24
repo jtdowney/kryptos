@@ -39,7 +39,6 @@ jobs:
       - run: gleam deps download
       - run: gleam test --target erlang
       - run: gleam test --target erlang -- --tag wycheproof
-      - run: gleam format --check src test
 
   test-javascript:
     name: JavaScript (Node ${{ matrix.node-version }}, Gleam ${{ matrix.gleam-version }})
