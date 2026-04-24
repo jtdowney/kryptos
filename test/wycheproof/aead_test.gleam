@@ -67,7 +67,10 @@ fn test_file_decoder() -> decode.Decoder(TestFile) {
   decode.success(TestFile(algorithm:, test_groups:))
 }
 
-fn create_cipher(key: BitArray, key_size: Int) -> Result(block.BlockCipher, Nil) {
+fn create_cipher(
+  key: BitArray,
+  key_size: Int,
+) -> Result(block.BlockCipher, Nil) {
   case key_size {
     128 -> block.aes_128(key)
     192 -> block.aes_192(key)

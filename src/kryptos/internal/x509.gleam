@@ -467,7 +467,9 @@ pub fn parse_san_extension(
 ///
 /// Produces a DER SEQUENCE with OID and optional NULL parameters (for RSA signatures).
 /// Returns Error(Nil) if OID encoding fails.
-pub fn encode_algorithm_identifier(sig_alg: SigAlgInfo) -> Result(BitArray, Nil) {
+pub fn encode_algorithm_identifier(
+  sig_alg: SigAlgInfo,
+) -> Result(BitArray, Nil) {
   let SigAlgInfo(oid, include_null_params) = sig_alg
   let x509.Oid(components) = oid
   use oid_encoded <- result.try(der.encode_oid(components))

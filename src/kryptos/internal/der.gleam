@@ -217,7 +217,9 @@ pub fn encode_octet_string(value: BitArray) -> Result(BitArray, Nil) {
 }
 
 /// Parse a DER OCTET STRING, returning (value bytes, remaining bytes).
-pub fn parse_octet_string(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
+pub fn parse_octet_string(
+  bytes: BitArray,
+) -> Result(#(BitArray, BitArray), Nil) {
   use rest <- require_tag(bytes, octet_string_tag)
   use #(len, content) <- result.try(parse_length(rest))
   parse_content(content, len)
@@ -331,7 +333,9 @@ pub fn parse_ia5_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
 ///
 /// TeletexString uses ISO 8859-1 (Latin-1) encoding, where each byte represents
 /// one character. This is a decode-only function for legacy certificate compatibility.
-pub fn parse_teletex_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
+pub fn parse_teletex_string(
+  bytes: BitArray,
+) -> Result(#(String, BitArray), Nil) {
   use rest <- require_tag(bytes, teletex_string_tag)
   use #(len, content) <- result.try(parse_length(rest))
   use #(value_bytes, remaining) <- result.try(parse_content(content, len))
@@ -534,7 +538,10 @@ pub fn parse_oid(bytes: BitArray) -> Result(#(List(Int), BitArray), Nil) {
 /// Encode a context-specific tag (e.g., [0], [1]).
 ///
 /// Uses constructed form (tag | 0xA0).
-pub fn encode_context_tag(tag: Int, content: BitArray) -> Result(BitArray, Nil) {
+pub fn encode_context_tag(
+  tag: Int,
+  content: BitArray,
+) -> Result(BitArray, Nil) {
   let tag_byte = int.bitwise_or(0xa0, tag)
   use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
   Ok(bit_array.concat([<<tag_byte:8>>, len_bytes, content]))

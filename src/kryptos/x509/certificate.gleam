@@ -507,7 +507,9 @@ pub fn from_pem(
 /// **Note:** This function does NOT verify the certificate's cryptographic
 /// signature. To verify a certificate was signed by an issuer, use `verify()`.
 /// For self-signed certificates, use `verify_self_signed()`.
-pub fn from_der(der: BitArray) -> Result(Certificate(Parsed), CertificateError) {
+pub fn from_der(
+  der: BitArray,
+) -> Result(Certificate(Parsed), CertificateError) {
   use #(cert_content, remaining) <- result.try(
     der.parse_sequence(der) |> result.replace_error(ParseError),
   )
@@ -648,7 +650,9 @@ pub fn serial_number(cert: Certificate(Parsed)) -> BitArray {
 }
 
 /// Returns the signature algorithm used to sign the certificate.
-pub fn signature_algorithm(cert: Certificate(Parsed)) -> x509.SignatureAlgorithm {
+pub fn signature_algorithm(
+  cert: Certificate(Parsed),
+) -> x509.SignatureAlgorithm {
   let assert ParsedCertificate(signature_algorithm:, ..) = cert
   signature_algorithm
 }
@@ -702,7 +706,9 @@ pub fn extended_key_usage(
 }
 
 /// Returns the Subject Alternative Names (SANs) from a parsed certificate.
-pub fn subject_alt_names(cert: Certificate(Parsed)) -> List(x509.SubjectAltName) {
+pub fn subject_alt_names(
+  cert: Certificate(Parsed),
+) -> List(x509.SubjectAltName) {
   let assert ParsedCertificate(subject_alt_names:, ..) = cert
   subject_alt_names
 }
@@ -1208,7 +1214,10 @@ fn encode_validity(validity: x509.Validity) -> Result(BitArray, Nil) {
   der.encode_sequence(bit_array.concat([not_before_der, not_after_der]))
 }
 
-fn encode_extensions(builder: Builder, spki: BitArray) -> Result(BitArray, Nil) {
+fn encode_extensions(
+  builder: Builder,
+  spki: BitArray,
+) -> Result(BitArray, Nil) {
   let x509.Name(rdns) = builder.subject
   let subject_is_empty = list.is_empty(rdns)
   let sans_is_empty = list.is_empty(builder.subject_alt_names)

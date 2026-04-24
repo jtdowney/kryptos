@@ -482,7 +482,9 @@ fn parse_attributes_content(
   }
 }
 
-fn parse_single_attribute(bytes: BitArray) -> Result(#(x509.Oid, BitArray), Nil) {
+fn parse_single_attribute(
+  bytes: BitArray,
+) -> Result(#(x509.Oid, BitArray), Nil) {
   use #(oid_components, after_oid) <- result.try(der.parse_oid(bytes))
   use #(value, remaining) <- result.try(der.parse_set(after_oid))
   use <- bool.guard(when: remaining != <<>>, return: Error(Nil))

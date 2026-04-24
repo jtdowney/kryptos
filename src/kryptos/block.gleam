@@ -167,7 +167,10 @@ pub fn ctr(
 /// - ECB: No IV required
 /// - CBC: Automatically applies PKCS7 padding; ciphertext may be larger than plaintext
 /// - CTR: No padding needed; ciphertext is same size as plaintext
-pub fn encrypt(ctx: CipherContext, plaintext: BitArray) -> Result(BitArray, Nil) {
+pub fn encrypt(
+  ctx: CipherContext,
+  plaintext: BitArray,
+) -> Result(BitArray, Nil) {
   case validate_iv(ctx) {
     True -> do_encrypt(ctx, plaintext)
     False -> Error(Nil)
@@ -344,7 +347,10 @@ pub fn unwrap(
 fn do_unwrap(cipher: BlockCipher, ciphertext: BitArray) -> Result(BitArray, Nil)
 
 @target(erlang)
-fn do_unwrap(cipher: BlockCipher, ciphertext: BitArray) -> Result(BitArray, Nil) {
+fn do_unwrap(
+  cipher: BlockCipher,
+  ciphertext: BitArray,
+) -> Result(BitArray, Nil) {
   let assert <<a:bytes-size(8), rest:bytes>> = ciphertext
   let n = bit_array.byte_size(rest) / 8
   let r = split_into_blocks(rest, [])

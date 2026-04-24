@@ -187,7 +187,10 @@ pub fn from_der(
 ) -> Result(#(PrivateKey, PublicKey), Nil)
 
 /// Exports an RSA private key to PEM format.
-pub fn to_pem(key: PrivateKey, format: PrivateKeyFormat) -> Result(String, Nil) {
+pub fn to_pem(
+  key: PrivateKey,
+  format: PrivateKeyFormat,
+) -> Result(String, Nil) {
   do_to_pem(key, format) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
 }
 

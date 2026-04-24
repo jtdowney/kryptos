@@ -8,7 +8,10 @@ pub fn has_oid(items: List(#(Oid, Bool, BitArray)), target: List(Int)) -> Bool {
   list.any(items, fn(item) { item.0 == x509.Oid(target) })
 }
 
-pub fn count_oid(items: List(#(Oid, Bool, BitArray)), target: List(Int)) -> Int {
+pub fn count_oid(
+  items: List(#(Oid, Bool, BitArray)),
+  target: List(Int),
+) -> Int {
   list.count(items, fn(item) { item.0 == x509.Oid(target) })
 }
 
