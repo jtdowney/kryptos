@@ -11,7 +11,7 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28"
@@ -28,7 +28,7 @@ jobs:
         otp-version: ["27", "28"]
         gleam-version: ["1.15", "1.16"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: "recursive"
       - uses: erlef/setup-beam@v1
@@ -49,7 +49,7 @@ jobs:
         node-version: ["22", "24"]
         gleam-version: ["1.15", "1.16"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: "recursive"
       - uses: actions/setup-node@v6
