@@ -173,7 +173,7 @@ fn concat_kdf_supported_hash(algorithm: HashAlgorithm) -> Bool {
 /// It is designed to be computationally expensive to resist brute-force attacks.
 ///
 /// **Note:** For password hashing in production applications, consider using
-/// [Argus](https://github.com/Pevensie/argus) which provides Argon2 an
+/// [Argus](https://github.com/Pevensie/argus) which provides Argon2, an
 /// algorithm specifically designed for password storage. PBKDF2 is primarily
 /// useful for interoperability with systems that require it.
 ///

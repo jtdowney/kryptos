@@ -15,31 +15,31 @@
 
 /// Supported cryptographic hash algorithms.
 pub type HashAlgorithm {
-  /// BLAKE2b (512-bit output)
+  /// BLAKE2b (512-bit output).
   Blake2b
-  /// BLAKE2s (256-bit output)
+  /// BLAKE2s (256-bit output).
   Blake2s
-  /// MD5 (128-bit output), cryptographically broken - use only for legacy compatibility.
+  /// MD5 (128-bit output). Cryptographically broken; use only for legacy compatibility.
   Md5
-  /// SHA-1 (160-bit output)
+  /// SHA-1 (160-bit output). Broken for collision resistance; use only for legacy compatibility.
   Sha1
-  /// SHA-256 (256-bit output)
+  /// SHA-256 (256-bit output).
   Sha256
-  /// SHA-384 (384-bit output)
+  /// SHA-384 (384-bit output).
   Sha384
-  /// SHA-512 (512-bit output)
+  /// SHA-512 (512-bit output).
   Sha512
   /// SHA-512/224 (224-bit output), truncated SHA-512.
   Sha512x224
   /// SHA-512/256 (256-bit output), truncated SHA-512.
   Sha512x256
-  /// SHA3-224 (224-bit output)
+  /// SHA3-224 (224-bit output).
   Sha3x224
-  /// SHA3-256 (256-bit output)
+  /// SHA3-256 (256-bit output).
   Sha3x256
-  /// SHA3-384 (384-bit output)
+  /// SHA3-384 (384-bit output).
   Sha3x384
-  /// SHA3-512 (512-bit output)
+  /// SHA3-512 (512-bit output).
   Sha3x512
   /// SHAKE128 extendable-output function (128-bit security).
   /// The output_length parameter specifies the desired digest length in bytes.

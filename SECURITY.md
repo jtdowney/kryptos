@@ -49,11 +49,11 @@ This library does not implement any cryptographic primitives itself. Security de
 
 The following are included for compatibility with existing systems but are not recommended for new applications:
 
-- **MD5, SHA-1**: Cryptographically broken for collision resistance
-- **AES-ECB**: Leaks patterns in plaintext
-- **AES-CBC, AES-CTR**: No authentication; use AEAD modes instead
-- **RSA PKCS#1 v1.5 encryption**: Vulnerable to padding oracle attacks
-- **RSA PKCS#1 v1.5 signing**: Less robust than PSS
+- MD5 and SHA-1 are broken for collision resistance.
+- AES-ECB leaks patterns in plaintext.
+- AES-CBC and AES-CTR have no authentication; prefer AEAD modes.
+- RSA PKCS#1 v1.5 encryption is vulnerable to padding oracle attacks.
+- RSA PKCS#1 v1.5 signing has no provable-security reduction; PSS is the modern choice.
 
 ## Runtime Requirements
 

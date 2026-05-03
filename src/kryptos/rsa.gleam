@@ -296,42 +296,27 @@ pub fn public_key_exponent_bytes(key: PublicKey) -> BitArray
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrivateExponentBytes")
 pub fn private_exponent_bytes(key: PrivateKey) -> BitArray
 
-/// Returns the first prime factor (p) as big-endian bytes.
-///
-/// The RSA modulus n = p * q. This is part of the CRT (Chinese Remainder
-/// Theorem) parameters used for efficient RSA operations.
+/// Returns the first prime factor (p) as big-endian bytes, where n = p * q.
 @external(erlang, "kryptos_ffi", "rsa_private_key_prime1")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrime1")
 pub fn prime1(key: PrivateKey) -> BitArray
 
-/// Returns the second prime factor (q) as big-endian bytes.
-///
-/// The RSA modulus n = p * q. This is part of the CRT (Chinese Remainder
-/// Theorem) parameters used for efficient RSA operations.
+/// Returns the second prime factor (q) as big-endian bytes, where n = p * q.
 @external(erlang, "kryptos_ffi", "rsa_private_key_prime2")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyPrime2")
 pub fn prime2(key: PrivateKey) -> BitArray
 
 /// Returns the first CRT exponent (dp = d mod (p-1)) as big-endian bytes.
-///
-/// This is part of the CRT (Chinese Remainder Theorem) parameters used
-/// for efficient RSA operations.
 @external(erlang, "kryptos_ffi", "rsa_private_key_exponent1")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyExponent1")
 pub fn exponent1(key: PrivateKey) -> BitArray
 
 /// Returns the second CRT exponent (dq = d mod (q-1)) as big-endian bytes.
-///
-/// This is part of the CRT (Chinese Remainder Theorem) parameters used
-/// for efficient RSA operations.
 @external(erlang, "kryptos_ffi", "rsa_private_key_exponent2")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyExponent2")
 pub fn exponent2(key: PrivateKey) -> BitArray
 
 /// Returns the CRT coefficient (qi = q^-1 mod p) as big-endian bytes.
-///
-/// This is part of the CRT (Chinese Remainder Theorem) parameters used
-/// for efficient RSA operations.
 @external(erlang, "kryptos_ffi", "rsa_private_key_coefficient")
 @external(javascript, "../kryptos_ffi.mjs", "rsaPrivateKeyCoefficient")
 pub fn coefficient(key: PrivateKey) -> BitArray

@@ -127,8 +127,8 @@ pub type CertificateError {
 
   /// The certificate contains an unrecognized extension marked as critical.
   ///
-  /// Per RFC 5280 §4.2, certificates with unknown critical extensions must
-  /// be rejected. Non-critical unknown extensions are allowed.
+  /// Per RFC 5280 Section 4.2, certificates with unknown critical extensions
+  /// must be rejected. Non-critical unknown extensions are allowed.
   UnrecognizedCriticalExtension(x509.Oid)
 }
 
@@ -596,7 +596,7 @@ pub fn from_der(
   // Parse extensions [3] (optional)
   use exts <- result.try(parse_certificate_extensions(after_spki, version))
 
-  // Parse outer signature algorithm (must match TBS per RFC 5280 §4.1.1.2)
+  // Parse outer signature algorithm (must match TBS per RFC 5280 Section 4.1.1.2)
   use #(outer_sig_alg_bytes, after_outer_sig_alg) <- result.try(
     der.parse_sequence(after_tbs)
     |> result.replace_error(ParseError),

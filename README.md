@@ -9,16 +9,10 @@ A cryptography library for Gleam targeting both Erlang and JavaScript runtimes.
 
 <img src="https://github.com/jtdowney/kryptos/blob/main/assets/kryptos.png?raw=true" alt="kryptos logo" width="200" align="right">
 
-- **Dual-runtime support** — Works on both Erlang and JavaScript (Node.js),
-  wrapping each platform's native crypto APIs for consistent behavior.
-- **No custom cryptography** — All cryptographic operations delegate to the
-  runtime's battle-tested implementations (Erlang's `crypto` module,
-  Node.js `crypto` module). This library is a wrapper, not a reimplementation.
-- **Misuse-resistant API** — Inspired by Go's crypto library, the API guides
-  you toward safe defaults and makes dangerous operations explicit.
-- **Tested against Wycheproof** — Validated against Google's
-  [Wycheproof](https://github.com/C2SP/wycheproof) test vectors to catch
-  edge-case vulnerabilities.
+- Runs on both Erlang and JavaScript (Node.js), wrapping each platform's native crypto APIs for consistent behavior.
+- All cryptographic operations delegate to the runtime's implementations (Erlang's `crypto` module, Node.js `crypto` module).
+- Inspired by Go's crypto library, the API guides you toward safe defaults and makes dangerous operations explicit.
+- Validated against Google's [Wycheproof](https://github.com/C2SP/wycheproof) test vectors to catch edge-case vulnerabilities.
 
 > [!NOTE]
 > **Browser JavaScript is not supported.** The WebCrypto API is promise-based,
@@ -34,8 +28,8 @@ gleam add kryptos
 
 ## Requirements
 
-- **Erlang/OTP 27+** — Required for the Erlang target
-- **Node.js 22+** — Required for the JavaScript target
+- Erlang/OTP 27 or later for the Erlang target
+- Node.js 22 or later for the JavaScript target
 
 ## Features
 
