@@ -58,11 +58,10 @@ pub fn csr_ecdsa_produces_valid_der_test() {
   let assert Ok(my_csr) = csr.sign_with_ecdsa(builder, private_key, hash.Sha256)
 
   let pem = csr.to_pem(my_csr)
-  assert string.starts_with(pem, "-----BEGIN CERTIFICATE REQUEST-----")
-  assert string.contains(pem, "-----END CERTIFICATE REQUEST-----")
+  let assert Ok(_) = csr.from_pem(pem)
 
   let der = csr.to_der(my_csr)
-  let assert <<0x30, _:bits>> = der
+  let assert Ok(_) = csr.from_der(der)
 }
 
 pub fn csr_rsa_produces_valid_der_test() {
@@ -77,11 +76,10 @@ pub fn csr_rsa_produces_valid_der_test() {
   let assert Ok(my_csr) = csr.sign_with_rsa(builder, private_key, hash.Sha256)
 
   let pem = csr.to_pem(my_csr)
-  assert string.starts_with(pem, "-----BEGIN CERTIFICATE REQUEST-----")
-  assert string.contains(pem, "-----END CERTIFICATE REQUEST-----")
+  let assert Ok(_) = csr.from_pem(pem)
 
   let der = csr.to_der(my_csr)
-  let assert <<0x30, _:bits>> = der
+  let assert Ok(_) = csr.from_der(der)
 }
 
 pub fn csr_eddsa_ed25519_produces_valid_der_test() {
@@ -96,11 +94,10 @@ pub fn csr_eddsa_ed25519_produces_valid_der_test() {
   let assert Ok(my_csr) = csr.sign_with_eddsa(builder, private_key)
 
   let pem = csr.to_pem(my_csr)
-  assert string.starts_with(pem, "-----BEGIN CERTIFICATE REQUEST-----")
-  assert string.contains(pem, "-----END CERTIFICATE REQUEST-----")
+  let assert Ok(_) = csr.from_pem(pem)
 
   let der = csr.to_der(my_csr)
-  let assert <<0x30, _:bits>> = der
+  let assert Ok(_) = csr.from_der(der)
 }
 
 pub fn csr_eddsa_ed448_produces_valid_der_test() {
@@ -115,11 +112,10 @@ pub fn csr_eddsa_ed448_produces_valid_der_test() {
   let assert Ok(my_csr) = csr.sign_with_eddsa(builder, private_key)
 
   let pem = csr.to_pem(my_csr)
-  assert string.starts_with(pem, "-----BEGIN CERTIFICATE REQUEST-----")
-  assert string.contains(pem, "-----END CERTIFICATE REQUEST-----")
+  let assert Ok(_) = csr.from_pem(pem)
 
   let der = csr.to_der(my_csr)
-  let assert <<0x30, _:bits>> = der
+  let assert Ok(_) = csr.from_der(der)
 }
 
 pub fn ipv4_parsing_property_test() {
