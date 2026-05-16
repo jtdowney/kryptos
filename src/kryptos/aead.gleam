@@ -187,20 +187,6 @@ fn do_seal(
 ) -> Result(#(BitArray, BitArray), Nil)
 
 /// Decrypts and verifies AEAD-encrypted data.
-///
-/// ## Example
-///
-/// ```gleam
-/// import kryptos/aead
-/// import kryptos/block
-/// import kryptos/crypto
-///
-/// let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-/// let ctx = aead.gcm(cipher)
-/// let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-/// let assert Ok(#(ciphertext, tag)) = aead.seal(ctx, nonce:, plaintext: <<"secret":utf8>>)
-/// let assert Ok(plaintext) = aead.open(ctx, nonce:, tag:, ciphertext:)
-/// ```
 pub fn open(
   ctx: AeadContext,
   nonce nonce: BitArray,
@@ -213,23 +199,6 @@ pub fn open(
 /// Decrypts and verifies AEAD-encrypted data with additional authenticated data.
 ///
 /// The AAD must match exactly what was provided during encryption.
-///
-/// ## Example
-///
-/// ```gleam
-/// import kryptos/aead
-/// import kryptos/block
-/// import kryptos/crypto
-///
-/// let assert Ok(cipher) = block.aes_256(crypto.random_bytes(32))
-/// let ctx = aead.gcm(cipher)
-/// let nonce = crypto.random_bytes(aead.nonce_size(ctx))
-/// let aad = <<"header":utf8>>
-/// let assert Ok(#(ciphertext, tag)) =
-///   aead.seal_with_aad(ctx, nonce:, plaintext: <<"secret":utf8>>, additional_data: aad)
-/// let assert Ok(plaintext) =
-///   aead.open_with_aad(ctx, nonce:, tag:, ciphertext:, additional_data: aad)
-/// ```
 pub fn open_with_aad(
   ctx: AeadContext,
   nonce nonce: BitArray,
@@ -274,7 +243,7 @@ fn xchacha20_derive(
   case nonce {
     <<hchacha_input:bytes-size(16), nonce_suffix:bytes-size(8)>> -> {
       // Derive 32-byte subkey using HChaCha20
-      let subkey = hchacha20.subkey(key, hchacha_input)
+      use subkey <- result.try(hchacha20.subkey(key, hchacha_input))
       // Construct 12-byte ChaCha20 nonce: 4 zero bytes + last 8 bytes of original nonce
       let chacha_nonce = <<0:32, nonce_suffix:bits>>
       Ok(#(subkey, chacha_nonce))
@@ -307,7 +276,7 @@ pub fn cipher_key(ctx: AeadContext) -> BitArray {
 pub fn is_ccm(ctx: AeadContext) -> Bool {
   case ctx {
     Ccm(..) -> True
-    _ -> False
+    Gcm(..) | ChaCha20Poly1305(..) | XChaCha20Poly1305(..) -> False
   }
 }
 
@@ -315,7 +284,7 @@ pub fn is_ccm(ctx: AeadContext) -> Bool {
 pub fn is_gcm(ctx: AeadContext) -> Bool {
   case ctx {
     Gcm(..) -> True
-    _ -> False
+    Ccm(..) | ChaCha20Poly1305(..) | XChaCha20Poly1305(..) -> False
   }
 }
 
@@ -323,6 +292,6 @@ pub fn is_gcm(ctx: AeadContext) -> Bool {
 pub fn is_chacha20_poly1305(ctx: AeadContext) -> Bool {
   case ctx {
     ChaCha20Poly1305(..) -> True
-    _ -> False
+    Gcm(..) | Ccm(..) | XChaCha20Poly1305(..) -> False
   }
 }

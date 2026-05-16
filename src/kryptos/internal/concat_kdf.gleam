@@ -33,12 +33,16 @@ pub fn derive_loop(
 
   let length = bit_array.byte_size(block)
   case remaining <= length {
-    True -> {
-      let assert Ok(final_block) = bit_array.slice(block, 0, remaining)
-      bytes_tree.append(acc, final_block)
-      |> bytes_tree.to_bit_array
-      |> Ok
-    }
+    True ->
+      case block {
+        <<final_block:bytes-size(remaining), _:bits>> -> {
+          let result =
+            bytes_tree.append(acc, final_block)
+            |> bytes_tree.to_bit_array
+          Ok(result)
+        }
+        _ -> Error(Nil)
+      }
     False -> {
       derive_loop(
         algorithm,

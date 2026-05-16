@@ -130,16 +130,13 @@ pub fn parse_integer(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
   use #(len, content) <- result.try(parse_length(rest))
   use <- bool.guard(when: len <= 0, return: Error(Nil))
 
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-
-  // Safety: Prior guard ensures content_size >= len, so slice succeeds
-  let assert Ok(value) = bit_array.slice(content, 0, len)
-  use <- reject_non_minimal_zeros(value)
-
-  // Safety: Prior guard ensures content_size >= len, so slice succeeds
-  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
-  Ok(#(value, remaining))
+  case content {
+    <<value:bytes-size(len), remaining:bits>> -> {
+      use <- reject_non_minimal_zeros(value)
+      Ok(#(value, remaining))
+    }
+    _ -> Error(Nil)
+  }
 }
 
 /// Wrap content in a DER SEQUENCE.
@@ -153,13 +150,10 @@ pub fn parse_sequence(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
   use rest <- require_tag(bytes, sequence_tag)
   use #(len, content) <- result.try(parse_length(rest))
 
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-
-  // Safety: Prior guard ensures content_size >= len, so slices succeed
-  let assert Ok(inner) = bit_array.slice(content, 0, len)
-  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
-  Ok(#(inner, remaining))
+  case content {
+    <<inner:bytes-size(len), remaining:bits>> -> Ok(#(inner, remaining))
+    _ -> Error(Nil)
+  }
 }
 
 /// Wrap content in a DER SET.
@@ -524,15 +518,13 @@ pub fn parse_oid(bytes: BitArray) -> Result(#(List(Int), BitArray), Nil) {
   use #(len, content) <- result.try(parse_length(rest))
   use <- bool.guard(when: len < 1, return: Error(Nil))
 
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-
-  // Safety: Prior guard ensures content_size >= len, so slices succeed
-  let assert Ok(oid_bytes) = bit_array.slice(content, 0, len)
-  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
-
-  use components <- result.try(decode_oid_components(oid_bytes))
-  Ok(#(components, remaining))
+  case content {
+    <<oid_bytes:bytes-size(len), remaining:bits>> -> {
+      use components <- result.try(decode_oid_components(oid_bytes))
+      Ok(#(components, remaining))
+    }
+    _ -> Error(Nil)
+  }
 }
 
 /// Encode a context-specific tag (e.g., [0], [1]).
@@ -577,12 +569,10 @@ pub fn parse_content(
   content: BitArray,
   len: Int,
 ) -> Result(#(BitArray, BitArray), Nil) {
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-  // Safety: Prior guard ensures content_size >= len, so slices succeed
-  let assert Ok(inner) = bit_array.slice(content, 0, len)
-  let assert Ok(remaining) = bit_array.slice(content, len, content_size - len)
-  Ok(#(inner, remaining))
+  case content {
+    <<inner:bytes-size(len), remaining:bits>> -> Ok(#(inner, remaining))
+    _ -> Error(Nil)
+  }
 }
 
 /// Parse a TLV element, returning (tag, value, remaining bytes).

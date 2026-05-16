@@ -1,10 +1,10 @@
 import gleam/bit_array
 import gleam/dynamic/decode
-import gleam/option.{None, Some}
+import gleam/option
 import kryptos/crypto
 import kryptos/hash
 import unitest
-import wycheproof/utils.{Acceptable, Invalid, Valid}
+import wycheproof/utils
 
 type TestCase {
   TestCase(
@@ -81,19 +81,19 @@ fn run_single_test(algorithm: hash.HashAlgorithm, tc: TestCase) -> Nil {
   let length = tc.size
 
   let salt = case salt_bytes {
-    <<>> -> None
-    _ -> Some(salt_bytes)
+    <<>> -> option.None
+    _ -> option.Some(salt_bytes)
   }
 
   let result = crypto.hkdf(algorithm, input:, salt:, info:, length:)
   let context = utils.test_context(tc.tc_id, tc.comment)
 
   case tc.result {
-    Valid | Acceptable -> {
+    utils.Valid | utils.Acceptable -> {
       let assert Ok(computed) = result as context
       assert computed == expected_okm as context
     }
-    Invalid -> {
+    utils.Invalid -> {
       case result {
         Error(Nil) -> Nil
         Ok(computed) -> {

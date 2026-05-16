@@ -14,12 +14,11 @@
 //// let mac = h |> hmac.update(<<"hello":utf8>>) |> hmac.final()
 //// ```
 
-import gleam/result
-import kryptos/hash.{type HashAlgorithm}
+import kryptos/hash
 import kryptos/internal/subtle
 
 /// Checks if a hash algorithm is supported for HMAC operations.
-pub fn supported_hash(algorithm: HashAlgorithm) -> Bool {
+pub fn supported_hash(algorithm: hash.HashAlgorithm) -> Bool {
   case algorithm {
     hash.Md5 -> True
     hash.Sha1 -> True
@@ -48,7 +47,7 @@ pub type Hmac
 ///
 /// Use this when you need to authenticate data in chunks, such as when streaming
 /// or when the full input isn't available at once.
-pub fn new(algorithm: HashAlgorithm, key: BitArray) -> Result(Hmac, Nil) {
+pub fn new(algorithm: hash.HashAlgorithm, key: BitArray) -> Result(Hmac, Nil) {
   case supported_hash(algorithm) {
     True -> do_new(algorithm, key)
     False -> Error(Nil)
@@ -57,7 +56,7 @@ pub fn new(algorithm: HashAlgorithm, key: BitArray) -> Result(Hmac, Nil) {
 
 @external(erlang, "kryptos_ffi", "hmac_new")
 @external(javascript, "../kryptos_ffi.mjs", "hmacNew")
-fn do_new(algorithm: HashAlgorithm, key: BitArray) -> Result(Hmac, Nil)
+fn do_new(algorithm: hash.HashAlgorithm, key: BitArray) -> Result(Hmac, Nil)
 
 /// Adds data to an in-progress HMAC computation.
 ///
@@ -78,17 +77,19 @@ pub fn final(hmac: Hmac) -> BitArray
 /// Computes the HMAC and compares it to the expected value in constant time
 /// to prevent timing attacks.
 pub fn verify(
-  algorithm: HashAlgorithm,
+  algorithm: hash.HashAlgorithm,
   key key: BitArray,
   data data: BitArray,
   expected expected: BitArray,
 ) -> Result(Bool, Nil) {
-  use hmac_state <- result.try(new(algorithm, key))
-
-  let actual =
-    hmac_state
-    |> update(data)
-    |> final()
-
-  Ok(subtle.constant_time_equal(actual, expected))
+  case new(algorithm, key) {
+    Ok(hmac_state) -> {
+      let actual =
+        hmac_state
+        |> update(data)
+        |> final()
+      Ok(subtle.constant_time_equal(actual, expected))
+    }
+    Error(e) -> Error(e)
+  }
 }

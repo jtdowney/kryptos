@@ -39,7 +39,7 @@
 
 import gleam/result
 import gleam/string
-import kryptos/hash.{type HashAlgorithm}
+import kryptos/hash
 import kryptos/internal/rsa_crt
 
 /// An RSA private key.
@@ -99,7 +99,7 @@ pub type EncryptPadding {
   ///
   /// The hash algorithm is used for both OAEP and MGF1.
   /// The label is optional associated data (usually empty).
-  Oaep(hash: HashAlgorithm, label: BitArray)
+  Oaep(hash: hash.HashAlgorithm, label: BitArray)
 }
 
 /// Generates an RSA key pair with the specified key size.
@@ -130,7 +130,7 @@ fn do_generate_key_pair(bits: Int) -> #(PrivateKey, PublicKey)
 pub fn sign(
   private_key: PrivateKey,
   message: BitArray,
-  hash: HashAlgorithm,
+  hash: hash.HashAlgorithm,
   padding: SignPadding,
 ) -> BitArray
 
@@ -144,7 +144,7 @@ pub fn verify(
   public_key: PublicKey,
   message message: BitArray,
   signature signature: BitArray,
-  hash hash: HashAlgorithm,
+  hash hash: hash.HashAlgorithm,
   padding padding: SignPadding,
 ) -> Bool
 
@@ -355,8 +355,10 @@ pub fn from_components(
   public_exponent e: BitArray,
   private_exponent d: BitArray,
 ) -> Result(#(PrivateKey, PublicKey), Nil) {
-  use #(p, q, dp, dq, qi) <- result.try(rsa_crt.compute_crt_params(n, e, d))
-  from_full_components(n, e, d, p, q, dp, dq, qi)
+  case rsa_crt.compute_crt_params(n, e, d) {
+    Ok(#(p, q, dp, dq, qi)) -> from_full_components(n, e, d, p, q, dp, dq, qi)
+    Error(error) -> Error(error)
+  }
 }
 
 /// Constructs an RSA private key from all components including CRT parameters.

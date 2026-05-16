@@ -171,18 +171,7 @@ pub fn encrypt(
   ctx: CipherContext,
   plaintext: BitArray,
 ) -> Result(BitArray, Nil) {
-  case validate_iv(ctx) {
-    True -> do_encrypt(ctx, plaintext)
-    False -> Error(Nil)
-  }
-}
-
-fn validate_iv(ctx: CipherContext) -> Bool {
-  case ctx {
-    Ecb(..) -> True
-    Cbc(iv:, ..) -> bit_array.byte_size(iv) == 16
-    Ctr(nonce:, ..) -> bit_array.byte_size(nonce) == 16
-  }
+  do_encrypt(ctx, plaintext)
 }
 
 @external(erlang, "kryptos_ffi", "block_cipher_encrypt")
@@ -190,19 +179,11 @@ fn validate_iv(ctx: CipherContext) -> Bool {
 fn do_encrypt(ctx: CipherContext, plaintext: BitArray) -> Result(BitArray, Nil)
 
 /// Decrypts ciphertext using the cipher mode.
-///
-/// ## Notes
-/// - ECB: No IV required
-/// - CBC: Automatically removes PKCS7 padding; returns error if padding is invalid
-/// - CTR: No padding; ciphertext size equals plaintext size
 pub fn decrypt(
   ctx: CipherContext,
   ciphertext: BitArray,
 ) -> Result(BitArray, Nil) {
-  case validate_iv(ctx) {
-    True -> do_decrypt(ctx, ciphertext)
-    False -> Error(Nil)
-  }
+  do_decrypt(ctx, ciphertext)
 }
 
 @external(erlang, "kryptos_ffi", "block_cipher_decrypt")
@@ -248,17 +229,6 @@ pub fn cipher_iv(ctx: CipherContext) -> BitArray {
 /// - Output is always 8 bytes larger than input
 ///
 /// The plaintext must be a multiple of 8 bytes, minimum 16 bytes.
-///
-/// ## Example
-///
-/// ```gleam
-/// import kryptos/block
-/// import kryptos/crypto
-///
-/// let assert Ok(kek) = block.aes_256(crypto.random_bytes(32))
-/// let key_to_wrap = crypto.random_bytes(32)
-/// let assert Ok(wrapped) = block.wrap(kek, key_to_wrap)
-/// ```
 pub fn wrap(cipher: BlockCipher, plaintext: BitArray) -> Result(BitArray, Nil) {
   let size = bit_array.byte_size(plaintext)
   case size >= 16 && size % 8 == 0 {
@@ -322,15 +292,6 @@ fn wrap_inner(
 /// Unwraps key material using AES Key Wrap (RFC 3394).
 ///
 /// The ciphertext must be a multiple of 8 bytes, minimum 24 bytes.
-///
-/// ## Example
-///
-/// ```gleam
-/// import kryptos/block
-///
-/// let assert Ok(kek) = block.aes_256(kek_bytes)
-/// let assert Ok(unwrapped) = block.unwrap(kek, wrapped_key)
-/// ```
 pub fn unwrap(
   cipher: BlockCipher,
   ciphertext: BitArray,
@@ -437,6 +398,6 @@ pub fn aes_key(cipher: BlockCipher) -> BitArray {
 pub fn is_ctr(ctx: CipherContext) -> Bool {
   case ctx {
     Ctr(..) -> True
-    _ -> False
+    Ecb(..) | Cbc(..) -> False
   }
 }

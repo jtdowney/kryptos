@@ -403,22 +403,14 @@ pub fn public_key_exponent_3_test() {
   assert rsa.public_key_exponent(public) == 3
 }
 
-pub fn modulus_bytes_consistency_property_test() {
-  use _ <- qcheck.run(
-    qcheck.default_config() |> qcheck.with_test_count(5),
-    qcheck.return(Nil),
-  )
+pub fn modulus_bytes_consistency_test() {
   let assert Ok(#(private, public)) = rsa.generate_key_pair(2048)
   let priv_modulus = rsa.modulus(private)
   let pub_modulus = rsa.public_key_modulus(public)
   assert priv_modulus == pub_modulus
 }
 
-pub fn exponent_bytes_consistency_property_test() {
-  use _ <- qcheck.run(
-    qcheck.default_config() |> qcheck.with_test_count(5),
-    qcheck.return(Nil),
-  )
+pub fn exponent_bytes_consistency_test() {
   let assert Ok(#(private, public)) = rsa.generate_key_pair(2048)
   let priv_exp = rsa.public_exponent_bytes(private)
   let pub_exp = rsa.public_key_exponent_bytes(public)

@@ -1,9 +1,7 @@
-//// Convenience wrappers for hashing, key derivation, random bytes, and constant-time comparison.
-////
-//// - One-shot hashing via `hash()` and HMAC via `hmac()`
-//// - Key derivation: HKDF (RFC 5869), PBKDF2 (RFC 8018), Concat KDF (NIST SP 800-56A)
-//// - Random bytes via `random_bytes()` and UUID v4 via `random_uuid()`
-//// - Constant-time comparison via `constant_time_equal()`
+//// Convenience wrappers for hashing, key derivation, random bytes, and
+//// constant-time comparison. Includes one-shot `hash` and `hmac`, key
+//// derivation functions (HKDF, PBKDF2, Concat KDF), random byte and UUID
+//// generation, and constant-time equality.
 ////
 //// ## Example
 ////
@@ -14,14 +12,11 @@
 //// let key = crypto.random_bytes(32)
 //// ```
 
-import gleam/bit_array
 import gleam/bytes_tree
 import gleam/int
-import gleam/list
 import gleam/option.{type Option}
-import gleam/result
 import gleam/string
-import kryptos/hash.{type HashAlgorithm}
+import kryptos/hash
 import kryptos/hmac
 import kryptos/internal/concat_kdf
 import kryptos/internal/hkdf
@@ -29,44 +24,36 @@ import kryptos/internal/pbkdf2
 import kryptos/internal/subtle
 
 /// Computes the hash digest of input data in one call.
-///
-/// ## Example
-///
-/// ```gleam
-/// import kryptos/crypto
-/// import kryptos/hash
-///
-/// let assert Ok(digest) = crypto.hash(hash.Sha256, <<"hello":utf8>>)
-/// ```
-pub fn hash(algorithm: HashAlgorithm, data: BitArray) -> Result(BitArray, Nil) {
-  use hasher <- result.try(hash.new(algorithm))
-  hasher
-  |> hash.update(data)
-  |> hash.final()
-  |> Ok
+pub fn hash(
+  algorithm: hash.HashAlgorithm,
+  data: BitArray,
+) -> Result(BitArray, Nil) {
+  case hash.new(algorithm) {
+    Ok(hasher) ->
+      Ok(
+        hasher
+        |> hash.update(data)
+        |> hash.final(),
+      )
+    Error(e) -> Error(e)
+  }
 }
 
 /// Computes the HMAC of input data in one call.
-///
-/// ## Example
-///
-/// ```gleam
-/// import kryptos/crypto
-/// import kryptos/hash
-///
-/// let assert Ok(mac) = crypto.hmac(hash.Sha256, key: <<"secret":utf8>>, data: <<"hello":utf8>>)
-/// ```
 pub fn hmac(
-  algorithm: HashAlgorithm,
+  algorithm: hash.HashAlgorithm,
   key key: BitArray,
   data data: BitArray,
 ) -> Result(BitArray, Nil) {
-  use hmac <- result.try(hmac.new(algorithm, key))
-
-  hmac
-  |> hmac.update(data)
-  |> hmac.final()
-  |> Ok
+  case hmac.new(algorithm, key) {
+    Ok(hmac) ->
+      Ok(
+        hmac
+        |> hmac.update(data)
+        |> hmac.final(),
+      )
+    Error(e) -> Error(e)
+  }
 }
 
 /// Derives key material using HKDF (RFC 5869).
@@ -89,7 +76,7 @@ pub fn hmac(
 ///   crypto.hkdf(hash.Sha256, input: ikm, salt:, info: <<"app":utf8>>, length: 32)
 /// ```
 pub fn hkdf(
-  algorithm: HashAlgorithm,
+  algorithm: hash.HashAlgorithm,
   input ikm: BitArray,
   salt salt: Option(BitArray),
   info info: BitArray,
@@ -98,9 +85,7 @@ pub fn hkdf(
   let hash_len = hash.byte_size(algorithm)
   let max_length = 255 * hash_len
   let salt_bytes =
-    option.lazy_unwrap(salt, fn() {
-      list.repeat(<<0>>, hash_len) |> bit_array.concat
-    })
+    option.lazy_unwrap(salt, fn() { <<0:size({ hash_len * 8 })>> })
 
   case hmac.supported_hash(algorithm), length > 0, length <= max_length {
     True, True, True -> hkdf.do_derive(algorithm, ikm, salt_bytes, info, length)
@@ -126,7 +111,7 @@ pub fn hkdf(
 ///   crypto.concat_kdf(hash.Sha256, secret:, info: <<"context":utf8>>, length: 32)
 /// ```
 pub fn concat_kdf(
-  algorithm: HashAlgorithm,
+  algorithm: hash.HashAlgorithm,
   secret secret: BitArray,
   info info: BitArray,
   length length: Int,
@@ -147,7 +132,7 @@ pub fn concat_kdf(
   }
 }
 
-fn concat_kdf_supported_hash(algorithm: HashAlgorithm) -> Bool {
+fn concat_kdf_supported_hash(algorithm: hash.HashAlgorithm) -> Bool {
   case algorithm {
     hash.Sha1 -> True
     hash.Sha256 -> True
@@ -197,7 +182,7 @@ fn concat_kdf_supported_hash(algorithm: HashAlgorithm) -> Bool {
 ///   )
 /// ```
 pub fn pbkdf2(
-  algorithm: HashAlgorithm,
+  algorithm: hash.HashAlgorithm,
   password password: BitArray,
   salt salt: BitArray,
   iterations iterations: Int,

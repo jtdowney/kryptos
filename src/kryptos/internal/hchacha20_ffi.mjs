@@ -1,6 +1,9 @@
-import { BitArray$BitArray } from "../../gleam.mjs";
+import { BitArray$BitArray, Result$Error, Result$Ok } from "../../gleam.mjs";
 
 export function subkey(key, input) {
+  if (key.rawBuffer.byteLength !== 32 || input.rawBuffer.byteLength !== 16) {
+    return Result$Error(undefined);
+  }
   const kv = new DataView(key.rawBuffer.buffer, key.rawBuffer.byteOffset, 32);
   const iv = new DataView(
     input.rawBuffer.buffer,
@@ -144,5 +147,5 @@ export function subkey(key, input) {
   out.setUint32(24, s14, true);
   out.setUint32(28, s15, true);
 
-  return BitArray$BitArray(new Uint8Array(out.buffer));
+  return Result$Ok(BitArray$BitArray(new Uint8Array(out.buffer)));
 }

@@ -4,7 +4,7 @@ import gleam/dynamic/decode
 import gleam/result
 import kryptos/xdh
 import unitest
-import wycheproof/utils.{type TestResult, Acceptable, Invalid, Valid}
+import wycheproof/utils.{type TestResult}
 
 type TestCase {
   TestCase(
@@ -75,7 +75,7 @@ fn run_test_for_curve(curve: xdh.Curve, tc: TestCase) -> Nil {
   let priv_key_result = xdh.from_bytes(curve, private_bytes)
 
   case tc.result, pub_key_result, priv_key_result {
-    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case xdh.compute_shared_secret(priv_key, peer_pub) {
         Error(Nil) -> Nil
         Ok(shared) -> {
@@ -83,9 +83,9 @@ fn run_test_for_curve(curve: xdh.Curve, tc: TestCase) -> Nil {
             as { "XDH succeeded for invalid test: " <> context }
         }
       }
-    Invalid, _, _ -> Nil
+    utils.Invalid, _, _ -> Nil
 
-    Valid, Ok(peer_pub), Ok(#(priv_key, my_pub)) -> {
+    utils.Valid, Ok(peer_pub), Ok(#(priv_key, my_pub)) -> {
       let assert Ok(shared) = xdh.compute_shared_secret(priv_key, peer_pub)
       assert shared == expected_shared as context
 
@@ -104,16 +104,17 @@ fn run_test_for_curve(curve: xdh.Curve, tc: TestCase) -> Nil {
       assert exported_my_pub == exported_again
         as { "Own public key roundtrip failed: " <> context }
     }
-    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+    utils.Valid, _, _ ->
+      panic as { "Key import failed for valid test: " <> context }
 
-    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case xdh.compute_shared_secret(priv_key, peer_pub) {
         Ok(shared) -> {
           assert shared == expected_shared as context
         }
         Error(Nil) -> Nil
       }
-    Acceptable, _, _ -> Nil
+    utils.Acceptable, _, _ -> Nil
   }
 }
 
@@ -144,7 +145,7 @@ fn run_asn_test(group: TestGroup, tc: TestCase) -> Nil {
   let priv_key_result = xdh.from_der(private_der)
 
   case tc.result, pub_key_result, priv_key_result {
-    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case xdh.compute_shared_secret(priv_key, peer_pub) {
         Error(Nil) -> Nil
         Ok(shared) -> {
@@ -152,22 +153,23 @@ fn run_asn_test(group: TestGroup, tc: TestCase) -> Nil {
             as { "XDH succeeded for invalid test: " <> context }
         }
       }
-    Invalid, _, _ -> Nil
+    utils.Invalid, _, _ -> Nil
 
-    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+    utils.Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
       let assert Ok(shared) = xdh.compute_shared_secret(priv_key, peer_pub)
       assert shared == expected_shared as context
     }
-    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+    utils.Valid, _, _ ->
+      panic as { "Key import failed for valid test: " <> context }
 
-    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case xdh.compute_shared_secret(priv_key, peer_pub) {
         Ok(shared) -> {
           assert shared == expected_shared as context
         }
         Error(Nil) -> Nil
       }
-    Acceptable, _, _ -> Nil
+    utils.Acceptable, _, _ -> Nil
   }
 }
 
@@ -196,7 +198,7 @@ fn run_pem_test(group: TestGroup, tc: TestCase) -> Nil {
   let priv_key_result = xdh.from_pem(tc.private)
 
   case tc.result, pub_key_result, priv_key_result {
-    Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case xdh.compute_shared_secret(priv_key, peer_pub) {
         Error(Nil) -> Nil
         Ok(shared) -> {
@@ -204,22 +206,23 @@ fn run_pem_test(group: TestGroup, tc: TestCase) -> Nil {
             as { "XDH succeeded for invalid test: " <> context }
         }
       }
-    Invalid, _, _ -> Nil
+    utils.Invalid, _, _ -> Nil
 
-    Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+    utils.Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
       let assert Ok(shared) = xdh.compute_shared_secret(priv_key, peer_pub)
       assert shared == expected_shared as context
     }
-    Valid, _, _ -> panic as { "Key import failed for valid test: " <> context }
+    utils.Valid, _, _ ->
+      panic as { "Key import failed for valid test: " <> context }
 
-    Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    utils.Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case xdh.compute_shared_secret(priv_key, peer_pub) {
         Ok(shared) -> {
           assert shared == expected_shared as context
         }
         Error(Nil) -> Nil
       }
-    Acceptable, _, _ -> Nil
+    utils.Acceptable, _, _ -> Nil
   }
 }
 

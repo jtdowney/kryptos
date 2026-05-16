@@ -3,9 +3,7 @@
 import filepath
 import gleam/bit_array
 import gleam/list
-import kryptos/x509.{
-  DnsName, EcPublicKey, EcdsaSha256, Oid, RsaPublicKey, RsaSha1, RsaSha256,
-}
+import kryptos/x509
 import kryptos/x509/csr
 import kryptos/x509/test_helpers.{count_oid, has_attr_oid, has_oid}
 import simplifile
@@ -21,8 +19,8 @@ pub fn parse_rsa_sha256_pem_test() {
   let assert Ok(parsed) = csr.from_pem(pem)
 
   assert csr.version(parsed) == 0
-  assert csr.signature_algorithm(parsed) == RsaSha256
-  let assert RsaPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.RsaSha256
+  let assert x509.RsaPublicKey(_) = csr.public_key(parsed)
 
   let subject_str = csr.subject(parsed) |> x509.name_to_string
   assert subject_str == "C=US, ST=Texas, L=Austin, O=PyCA, CN=cryptography.io"
@@ -33,8 +31,8 @@ pub fn parse_rsa_sha256_der_test() {
   let assert Ok(parsed) = csr.from_der(der)
 
   assert csr.version(parsed) == 0
-  assert csr.signature_algorithm(parsed) == RsaSha256
-  let assert RsaPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.RsaSha256
+  let assert x509.RsaPublicKey(_) = csr.public_key(parsed)
 }
 
 pub fn parse_rsa_sha1_pem_test() {
@@ -42,8 +40,8 @@ pub fn parse_rsa_sha1_pem_test() {
   let assert Ok(parsed) = csr.from_pem(pem)
 
   assert csr.version(parsed) == 0
-  assert csr.signature_algorithm(parsed) == RsaSha1
-  let assert RsaPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.RsaSha1
+  let assert x509.RsaPublicKey(_) = csr.public_key(parsed)
 
   let subject_str = csr.subject(parsed) |> x509.name_to_string
   assert subject_str == "C=US, ST=Texas, L=Austin, O=PyCA, CN=cryptography.io"
@@ -54,7 +52,7 @@ pub fn parse_rsa_sha1_der_test() {
   let assert Ok(parsed) = csr.from_der(der)
 
   assert csr.version(parsed) == 0
-  assert csr.signature_algorithm(parsed) == RsaSha1
+  assert csr.signature_algorithm(parsed) == x509.RsaSha1
 }
 
 pub fn parse_ec_sha256_pem_test() {
@@ -62,8 +60,8 @@ pub fn parse_ec_sha256_pem_test() {
   let assert Ok(parsed) = csr.from_pem(pem)
 
   assert csr.version(parsed) == 0
-  assert csr.signature_algorithm(parsed) == EcdsaSha256
-  let assert EcPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.EcdsaSha256
+  let assert x509.EcPublicKey(_) = csr.public_key(parsed)
 
   let subject_str = csr.subject(parsed) |> x509.name_to_string
   assert subject_str == "CN=cryptography.io, O=PyCA, C=US, ST=Texas, L=Austin"
@@ -74,8 +72,8 @@ pub fn parse_ec_sha256_der_test() {
   let assert Ok(parsed) = csr.from_der(der)
 
   assert csr.version(parsed) == 0
-  assert csr.signature_algorithm(parsed) == EcdsaSha256
-  let assert EcPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.EcdsaSha256
+  let assert x509.EcPublicKey(_) = csr.public_key(parsed)
 }
 
 /// Test PEM with "BEGIN NEW CERTIFICATE REQUEST" header (legacy format)
@@ -84,8 +82,8 @@ pub fn parse_ec_sha256_old_header_pem_test() {
   let assert Ok(parsed) = csr.from_pem(pem)
 
   assert csr.version(parsed) == 0
-  assert csr.signature_algorithm(parsed) == EcdsaSha256
-  let assert EcPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.EcdsaSha256
+  let assert x509.EcPublicKey(_) = csr.public_key(parsed)
 }
 
 pub fn parse_san_rsa_sha1_pem_test() {
@@ -93,13 +91,13 @@ pub fn parse_san_rsa_sha1_pem_test() {
   let assert Ok(parsed) = csr.from_pem(pem)
 
   assert csr.version(parsed) == 0
-  assert csr.signature_algorithm(parsed) == RsaSha1
-  let assert RsaPublicKey(_) = csr.public_key(parsed)
+  assert csr.signature_algorithm(parsed) == x509.RsaSha1
+  let assert x509.RsaPublicKey(_) = csr.public_key(parsed)
 
   let sans = csr.subject_alt_names(parsed)
   assert list.length(sans) == 2
-  assert list.contains(sans, DnsName("cryptography.io"))
-  assert list.contains(sans, DnsName("sub.cryptography.io"))
+  assert list.contains(sans, x509.DnsName("cryptography.io"))
+  assert list.contains(sans, x509.DnsName("sub.cryptography.io"))
 }
 
 pub fn parse_san_rsa_sha1_der_test() {
@@ -108,8 +106,8 @@ pub fn parse_san_rsa_sha1_der_test() {
 
   let sans = csr.subject_alt_names(parsed)
   assert list.length(sans) == 2
-  assert list.contains(sans, DnsName("cryptography.io"))
-  assert list.contains(sans, DnsName("sub.cryptography.io"))
+  assert list.contains(sans, x509.DnsName("cryptography.io"))
+  assert list.contains(sans, x509.DnsName("sub.cryptography.io"))
 }
 
 pub fn parse_challenge_pem_test() {
@@ -117,7 +115,7 @@ pub fn parse_challenge_pem_test() {
   let assert Ok(parsed) = csr.from_pem(pem)
 
   assert csr.version(parsed) == 0
-  let assert RsaPublicKey(_) = csr.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = csr.public_key(parsed)
   assert has_attr_oid(csr.attributes(parsed), [1, 2, 840, 113_549, 1, 9, 7])
 }
 
@@ -127,7 +125,7 @@ pub fn parse_challenge_unstructured_pem_test() {
   let assert Ok(parsed) = csr.from_pem(pem)
 
   assert csr.version(parsed) == 0
-  let assert RsaPublicKey(_) = csr.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = csr.public_key(parsed)
 
   let attrs = csr.attributes(parsed)
   assert has_attr_oid(attrs, [1, 2, 840, 113_549, 1, 9, 7])
@@ -181,14 +179,16 @@ pub fn parse_dsa_sha1_fails_with_unsupported_key_type_test() {
   let assert Ok(pem) = simplifile.read(vector_path("dsa_sha1.pem"))
   let result = csr.from_pem(pem)
 
-  assert result == Error(csr.UnsupportedKeyType(Oid([1, 2, 840, 10_040, 4, 1])))
+  assert result
+    == Error(csr.UnsupportedKeyType(x509.Oid([1, 2, 840, 10_040, 4, 1])))
 }
 
 pub fn parse_dsa_sha1_der_fails_with_unsupported_key_type_test() {
   let assert Ok(der) = simplifile.read_bits(vector_path("dsa_sha1.der"))
   let result = csr.from_der(der)
 
-  assert result == Error(csr.UnsupportedKeyType(Oid([1, 2, 840, 10_040, 4, 1])))
+  assert result
+    == Error(csr.UnsupportedKeyType(x509.Oid([1, 2, 840, 10_040, 4, 1])))
 }
 
 pub fn parse_rsa_md4_fails_with_unsupported_signature_algorithm_test() {
@@ -197,7 +197,7 @@ pub fn parse_rsa_md4_fails_with_unsupported_signature_algorithm_test() {
 
   assert result
     == Error(
-      csr.UnsupportedSignatureAlgorithm(Oid([1, 2, 840, 113_549, 1, 1, 3])),
+      csr.UnsupportedSignatureAlgorithm(x509.Oid([1, 2, 840, 113_549, 1, 1, 3])),
     )
 }
 
@@ -207,7 +207,7 @@ pub fn parse_rsa_md4_der_fails_with_unsupported_signature_algorithm_test() {
 
   assert result
     == Error(
-      csr.UnsupportedSignatureAlgorithm(Oid([1, 2, 840, 113_549, 1, 1, 3])),
+      csr.UnsupportedSignatureAlgorithm(x509.Oid([1, 2, 840, 113_549, 1, 1, 3])),
     )
 }
 
@@ -223,7 +223,7 @@ pub fn parse_invalid_signature_succeeds_unverified_test() {
   let assert Ok(parsed) = csr.from_pem_unverified(pem)
 
   assert csr.version(parsed) == 0
-  let assert RsaPublicKey(_) = csr.public_key(parsed)
+  let assert x509.RsaPublicKey(_) = csr.public_key(parsed)
 }
 
 pub fn parse_basic_constraints_fails_verification_test() {

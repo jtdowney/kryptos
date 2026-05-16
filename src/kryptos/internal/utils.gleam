@@ -14,13 +14,15 @@ pub fn count_trailing_zeros(bits: BitArray) -> Int {
 fn do_count_trailing_zeros(bits: BitArray, byte_pos: Int, count: Int) -> Int {
   case byte_pos < 0 {
     True -> count
-    False -> {
-      let assert Ok(<<byte>>) = bit_array.slice(bits, byte_pos, 1)
-      case byte {
-        0 -> do_count_trailing_zeros(bits, byte_pos - 1, count + 8)
-        _ -> count + trailing_zeros_in_byte(byte, 0)
+    False ->
+      case bit_array.slice(bits, byte_pos, 1) {
+        Ok(<<byte>>) ->
+          case byte {
+            0 -> do_count_trailing_zeros(bits, byte_pos - 1, count + 8)
+            _ -> count + trailing_zeros_in_byte(byte, 0)
+          }
+        _ -> count
       }
-    }
   }
 }
 
@@ -60,13 +62,14 @@ fn strip_trailing_zeros_loop(data: BitArray, len: Int) -> BitArray {
   case len {
     0 -> <<>>
     _ -> {
-      let assert Ok(<<last_byte>>) = bit_array.slice(data, len - 1, 1)
-      case last_byte {
-        0 -> strip_trailing_zeros_loop(data, len - 1)
-        _ -> {
-          let assert Ok(result) = bit_array.slice(data, 0, len)
-          result
-        }
+      let prev = len - 1
+      case data {
+        <<head:bytes-size(prev), last_byte:8, _:bits>> ->
+          case last_byte {
+            0 -> strip_trailing_zeros_loop(data, prev)
+            _ -> <<head:bits, last_byte:8>>
+          }
+        _ -> <<>>
       }
     }
   }
@@ -81,8 +84,7 @@ pub fn pad_left(value: BitArray, size: Int) -> BitArray {
     True -> value
     False -> {
       let padding_size = size - current_size
-      let padding = list.repeat(<<0>>, padding_size) |> bit_array.concat
-      bit_array.concat([padding, value])
+      <<0:size({ padding_size * 8 }), value:bits>>
     }
   }
 }
@@ -165,10 +167,7 @@ fn parse_ipv6_full(ip: String) -> Result(BitArray, Nil) {
 }
 
 fn parse_ipv6_compressed(ip: String) -> Result(BitArray, Nil) {
-  use #(left, right) <- result.try(case string.split(ip, "::") {
-    [l, r] -> Ok(#(l, r))
-    _ -> Error(Nil)
-  })
+  use #(left, right) <- result.try(split_compressed_ipv6(ip))
 
   let left_parts = case left {
     "" -> []
@@ -187,6 +186,13 @@ fn parse_ipv6_compressed(ip: String) -> Result(BitArray, Nil) {
   use right_words <- result.try(list.try_map(right_parts, parse_ipv6_word))
   let all_words = list.flatten([left_words, zeros, right_words])
   Ok(bit_array.concat(list.map(all_words, fn(w) { <<w:16>> })))
+}
+
+fn split_compressed_ipv6(ip: String) -> Result(#(String, String), Nil) {
+  case string.split(ip, "::") {
+    [left, right] -> Ok(#(left, right))
+    _ -> Error(Nil)
+  }
 }
 
 fn parse_ipv6_word(s: String) -> Result(Int, Nil) {

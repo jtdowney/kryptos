@@ -6,7 +6,7 @@ import kryptos/ec
 import kryptos/ecdsa
 import kryptos/hash
 import unitest
-import wycheproof/utils.{type TestResult, Acceptable, Invalid, Valid}
+import wycheproof/utils.{type TestResult}
 
 type PublicKeyInfo {
   PublicKeyInfo(curve: String, uncompressed: String)
@@ -115,7 +115,7 @@ fn run_single_test(
   let pub_key_result = ec.public_key_from_raw_point(curve, pk_bytes)
 
   case tc.result {
-    Invalid -> {
+    utils.Invalid -> {
       use <- bool.guard(when: result.is_error(pub_key_result), return: Nil)
       let assert Ok(pub_key) = pub_key_result
       assert !verify_signature(format, pub_key, msg_bytes, sig_bytes, hash_alg)
@@ -126,7 +126,7 @@ fn run_single_test(
           <> context
         }
     }
-    Valid -> {
+    utils.Valid -> {
       let assert Ok(pub_key) = pub_key_result
         as { "Public key import failed: " <> context }
       assert verify_signature(format, pub_key, msg_bytes, sig_bytes, hash_alg)
@@ -134,7 +134,7 @@ fn run_single_test(
           "ECDSA " <> fmt <> " verification failed for valid test: " <> context
         }
     }
-    Acceptable -> {
+    utils.Acceptable -> {
       use <- bool.guard(when: result.is_error(pub_key_result), return: Nil)
       let assert Ok(pub_key) = pub_key_result
       let _ = verify_signature(format, pub_key, msg_bytes, sig_bytes, hash_alg)

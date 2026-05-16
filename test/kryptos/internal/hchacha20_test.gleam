@@ -19,7 +19,7 @@ pub fn hchacha20_test_vector_test() {
     0xC4, 0x13, 0x26, 0xD3, 0xEC, 0xDC,
   >>
 
-  let result = hchacha20.subkey(key, input)
+  let assert Ok(result) = hchacha20.subkey(key, input)
 
   assert result == expected
 }

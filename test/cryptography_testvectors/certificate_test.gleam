@@ -3,7 +3,6 @@
 import filepath
 import gleam/list
 import gleam/option
-import gleam/string
 import kryptos/x509
 import kryptos/x509/certificate
 import kryptos/x509/test_helpers
@@ -36,8 +35,8 @@ pub fn parse_cryptography_io_pem_test() {
   let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
-  assert string.contains(subject_str, "CN=www.cryptography.io")
-  assert string.contains(subject_str, "OU=GT48742965")
+  assert subject_str
+    == "OU=GT48742965, OU=See www.rapidssl.com/resources/cps (c)14, OU=Domain Control Validated - RapidSSL(R), CN=www.cryptography.io"
 }
 
 pub fn parse_ecdsa_root_pem_test() {
@@ -49,9 +48,8 @@ pub fn parse_ecdsa_root_pem_test() {
   let assert x509.EcPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
-  assert string.contains(subject_str, "CN=DigiCert Global Root G3")
-  assert string.contains(subject_str, "O=DigiCert Inc")
-  assert string.contains(subject_str, "C=US")
+  assert subject_str
+    == "C=US, O=DigiCert Inc, OU=www.digicert.com, CN=DigiCert Global Root G3"
 
   let assert Ok(bc) = certificate.basic_constraints(parsed)
   assert bc.ca
@@ -137,7 +135,7 @@ pub fn parse_ed25519_rfc8410_pem_test() {
   let assert x509.XdhPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
-  assert string.contains(subject_str, "CN=IETF Test Demo")
+  assert subject_str == "CN=IETF Test Demo"
 }
 
 pub fn parse_ed25519_root_pem_test() {
@@ -283,7 +281,7 @@ pub fn parse_utf8_common_name_pem_test() {
   assert certificate.version(parsed) == 0
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
-  assert string.contains(subject_str, "UTF8")
+  assert subject_str == "CN=We heart UTF8!™"
 }
 
 pub fn parse_authority_key_identifier_pem_test() {
@@ -373,8 +371,7 @@ pub fn parse_accvraiz1_root_pem_test() {
   let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
-  assert string.contains(subject_str, "CN=ACCVRAIZ1")
-  assert string.contains(subject_str, "C=ES")
+  assert subject_str == "CN=ACCVRAIZ1, OU=PKIACCV, O=ACCV, C=ES"
 }
 
 /// Contains critical Name Constraints (2.5.29.30) - rejected per RFC 5280
@@ -397,7 +394,7 @@ pub fn parse_rapidssl_sha256_ca_g3_pem_test() {
   let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
-  assert string.contains(subject_str, "RapidSSL")
+  assert subject_str == "C=US, O=GeoTrust Inc., CN=RapidSSL SHA256 CA - G3"
 }
 
 /// verisign_md2_root.pem uses MD2 which is not supported
@@ -446,7 +443,7 @@ pub fn parse_badssl_sct_pem_test() {
   let assert x509.RsaPublicKey(_) = certificate.public_key(parsed)
 
   let subject_str = certificate.subject(parsed) |> x509.name_to_string
-  assert string.contains(subject_str, "badssl.com")
+  assert subject_str == "CN=invalid-expected-sct.badssl.com"
 }
 
 pub fn parse_cryptography_scts_pem_test() {

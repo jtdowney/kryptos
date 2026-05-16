@@ -3,7 +3,7 @@ import gleam/dynamic/decode
 import kryptos/crypto
 import kryptos/hash
 import unitest
-import wycheproof/utils.{Acceptable, Invalid, Valid}
+import wycheproof/utils
 
 type TestCase {
   TestCase(
@@ -76,8 +76,8 @@ fn run_single_test(
   let valid = crypto.constant_time_equal(truncated, expected_tag)
 
   let expected = case tc.result {
-    Valid | Acceptable -> True
-    Invalid -> False
+    utils.Valid | utils.Acceptable -> True
+    utils.Invalid -> False
   }
   assert valid == expected as utils.test_context(tc.tc_id, tc.comment)
 }

@@ -3,7 +3,7 @@ import gleam/dynamic/decode
 import kryptos/aead
 import kryptos/block
 import unitest
-import wycheproof/utils.{Acceptable, Invalid, Valid}
+import wycheproof/utils
 
 type TestCase {
   TestCase(
@@ -97,7 +97,7 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
         Error(Nil) -> Nil
         Ok(ctx) ->
           case tc.result {
-            Valid | Acceptable -> {
+            utils.Valid | utils.Acceptable -> {
               // Test encryption
               let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
                 as context
@@ -110,7 +110,7 @@ fn run_single_test(group: TestGroup, tc: TestCase) -> Nil {
                 as context
               assert plaintext == msg as context
             }
-            Invalid -> {
+            utils.Invalid -> {
               // Invalid test cases should fail decryption
               let result =
                 aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
@@ -141,7 +141,7 @@ fn run_chacha20_poly1305_test(_group: TestGroup, tc: TestCase) -> Nil {
   let assert Ok(ctx) = aead.chacha20_poly1305(key) as context
 
   case tc.result {
-    Valid | Acceptable -> {
+    utils.Valid | utils.Acceptable -> {
       // Test encryption
       let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
         as context
@@ -154,7 +154,7 @@ fn run_chacha20_poly1305_test(_group: TestGroup, tc: TestCase) -> Nil {
         as context
       assert plaintext == msg as context
     }
-    Invalid -> {
+    utils.Invalid -> {
       // Invalid test cases should fail decryption
       let result = aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
       assert result == Error(Nil) as context
@@ -185,7 +185,7 @@ fn run_xchacha20_poly1305_test(_group: TestGroup, tc: TestCase) -> Nil {
   let assert Ok(ctx) = aead.xchacha20_poly1305(key) as context
 
   case tc.result {
-    Valid | Acceptable -> {
+    utils.Valid | utils.Acceptable -> {
       // Test encryption
       let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
         as context
@@ -198,7 +198,7 @@ fn run_xchacha20_poly1305_test(_group: TestGroup, tc: TestCase) -> Nil {
         as context
       assert plaintext == msg as context
     }
-    Invalid -> {
+    utils.Invalid -> {
       // Invalid test cases should fail decryption
       let result = aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)
       assert result == Error(Nil) as context
@@ -236,11 +236,11 @@ fn run_ccm_test(group: TestGroup, tc: TestCase) -> Nil {
       case aead.ccm_with_sizes(cipher, nonce_size:, tag_size:) {
         Error(Nil) -> {
           // Invalid configuration - should only happen for Invalid test cases
-          assert tc.result == Invalid as context
+          assert tc.result == utils.Invalid as context
         }
         Ok(ctx) -> {
           case tc.result {
-            Valid | Acceptable -> {
+            utils.Valid | utils.Acceptable -> {
               // Test encryption
               let assert Ok(#(ct, tag)) = aead.seal_with_aad(ctx, iv, msg, aad)
                 as context
@@ -253,7 +253,7 @@ fn run_ccm_test(group: TestGroup, tc: TestCase) -> Nil {
                 as context
               assert plaintext == msg as context
             }
-            Invalid -> {
+            utils.Invalid -> {
               // Invalid test cases should fail decryption
               let result =
                 aead.open_with_aad(ctx, iv, expected_tag, expected_ct, aad)

@@ -52,7 +52,17 @@ pub fn ecdsa_sig_alg_info(hash: hash.HashAlgorithm) -> Result(SigAlgInfo, Nil) {
     hash.Sha256 -> Ok(SigAlgInfo(oid_ecdsa_with_sha256, False))
     hash.Sha384 -> Ok(SigAlgInfo(oid_ecdsa_with_sha384, False))
     hash.Sha512 -> Ok(SigAlgInfo(oid_ecdsa_with_sha512, False))
-    _ -> Error(Nil)
+    hash.Blake2b -> Error(Nil)
+    hash.Blake2s -> Error(Nil)
+    hash.Md5 -> Error(Nil)
+    hash.Sha512x224 -> Error(Nil)
+    hash.Sha512x256 -> Error(Nil)
+    hash.Sha3x224 -> Error(Nil)
+    hash.Sha3x256 -> Error(Nil)
+    hash.Sha3x384 -> Error(Nil)
+    hash.Sha3x512 -> Error(Nil)
+    hash.Shake128(_) -> Error(Nil)
+    hash.Shake256(_) -> Error(Nil)
   }
 }
 
@@ -63,7 +73,17 @@ pub fn rsa_sig_alg_info(hash: hash.HashAlgorithm) -> Result(SigAlgInfo, Nil) {
     hash.Sha256 -> Ok(SigAlgInfo(oid_rsa_with_sha256, True))
     hash.Sha384 -> Ok(SigAlgInfo(oid_rsa_with_sha384, True))
     hash.Sha512 -> Ok(SigAlgInfo(oid_rsa_with_sha512, True))
-    _ -> Error(Nil)
+    hash.Blake2b -> Error(Nil)
+    hash.Blake2s -> Error(Nil)
+    hash.Md5 -> Error(Nil)
+    hash.Sha512x224 -> Error(Nil)
+    hash.Sha512x256 -> Error(Nil)
+    hash.Sha3x224 -> Error(Nil)
+    hash.Sha3x256 -> Error(Nil)
+    hash.Sha3x384 -> Error(Nil)
+    hash.Sha3x512 -> Error(Nil)
+    hash.Shake128(_) -> Error(Nil)
+    hash.Shake256(_) -> Error(Nil)
   }
 }
 
@@ -127,8 +147,10 @@ pub fn parse_sequence_with_header(
       let header_len =
         bit_array.byte_size(bytes) - bit_array.byte_size(remaining) - inner_len
       let total_len = header_len + inner_len
-      let assert Ok(full_seq) = bit_array.slice(bytes, 0, total_len)
-      Ok(#(full_seq, remaining))
+      case bytes {
+        <<full_seq:bytes-size(total_len), _:bits>> -> Ok(#(full_seq, remaining))
+        _ -> Error(Nil)
+      }
     }
     _ -> Error(Nil)
   }

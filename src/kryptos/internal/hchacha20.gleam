@@ -8,63 +8,64 @@ import gleam/int
 /// HChaCha20 key derivation function.
 /// Takes a 32-byte key and 16-byte input, returns 32-byte subkey.
 @external(javascript, "./hchacha20_ffi.mjs", "subkey")
-pub fn subkey(key: BitArray, input: BitArray) -> BitArray {
-  // Parse key as 8 little-endian 32-bit words
-  let assert <<
-    k0:32-little-unsigned,
-    k1:32-little-unsigned,
-    k2:32-little-unsigned,
-    k3:32-little-unsigned,
-    k4:32-little-unsigned,
-    k5:32-little-unsigned,
-    k6:32-little-unsigned,
-    k7:32-little-unsigned,
-  >> = key
+pub fn subkey(key: BitArray, input: BitArray) -> Result(BitArray, Nil) {
+  case key, input {
+    <<
+      k0:32-little-unsigned,
+      k1:32-little-unsigned,
+      k2:32-little-unsigned,
+      k3:32-little-unsigned,
+      k4:32-little-unsigned,
+      k5:32-little-unsigned,
+      k6:32-little-unsigned,
+      k7:32-little-unsigned,
+    >>,
+      <<
+        n0:32-little-unsigned,
+        n1:32-little-unsigned,
+        n2:32-little-unsigned,
+        n3:32-little-unsigned,
+      >>
+    -> {
+      // Initialize state with ChaCha20 constants, key, and input
+      // Constants: "expand 32-byte k" in little-endian
+      let state =
+        State(
+          s0: 0x61707865,
+          s1: 0x3320646E,
+          s2: 0x79622D32,
+          s3: 0x6B206574,
+          s4: k0,
+          s5: k1,
+          s6: k2,
+          s7: k3,
+          s8: k4,
+          s9: k5,
+          s10: k6,
+          s11: k7,
+          s12: n0,
+          s13: n1,
+          s14: n2,
+          s15: n3,
+        )
 
-  // Parse input as 4 little-endian 32-bit words
-  let assert <<
-    n0:32-little-unsigned,
-    n1:32-little-unsigned,
-    n2:32-little-unsigned,
-    n3:32-little-unsigned,
-  >> = input
+      // Perform 20 rounds (10 double-rounds)
+      let state = perform_rounds(state, 10)
 
-  // Initialize state with ChaCha20 constants, key, and input
-  // Constants: "expand 32-byte k" in little-endian
-  let state =
-    State(
-      s0: 0x61707865,
-      s1: 0x3320646E,
-      s2: 0x79622D32,
-      s3: 0x6B206574,
-      s4: k0,
-      s5: k1,
-      s6: k2,
-      s7: k3,
-      s8: k4,
-      s9: k5,
-      s10: k6,
-      s11: k7,
-      s12: n0,
-      s13: n1,
-      s14: n2,
-      s15: n3,
-    )
-
-  // Perform 20 rounds (10 double-rounds)
-  let state = perform_rounds(state, 10)
-
-  // Return words 0-3 and 12-15 as the 32-byte subkey
-  <<
-    state.s0:32-little,
-    state.s1:32-little,
-    state.s2:32-little,
-    state.s3:32-little,
-    state.s12:32-little,
-    state.s13:32-little,
-    state.s14:32-little,
-    state.s15:32-little,
-  >>
+      // Return words 0-3 and 12-15 as the 32-byte subkey
+      Ok(<<
+        state.s0:32-little,
+        state.s1:32-little,
+        state.s2:32-little,
+        state.s3:32-little,
+        state.s12:32-little,
+        state.s13:32-little,
+        state.s14:32-little,
+        state.s15:32-little,
+      >>)
+    }
+    _, _ -> Error(Nil)
+  }
 }
 
 type State {

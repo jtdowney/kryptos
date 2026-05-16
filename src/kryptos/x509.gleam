@@ -1,12 +1,8 @@
 //// X.509 certificate and CSR types and utilities.
 ////
-//// Types and helpers for X.509 public key infrastructure:
-////
-//// - Distinguished Names: Type-safe construction of subject/issuer names
-//// - Extensions: Subject Alternative Names, Basic Constraints, Key Usage, etc.
-//// - Public Keys: Unified representation for RSA, ECDSA, EdDSA, and XDH keys
-//// - Signature Algorithms: Common signing algorithms for certificates and CSRs
-//// - Certificate Fields: Validity periods, authority key identifiers
+//// Types and helpers for X.509 public key infrastructure, covering
+//// distinguished names, extensions, public keys, signature algorithms, and
+//// certificate fields such as validity periods and authority key identifiers.
 ////
 //// See also:
 //// - `x509/csr` for creating and parsing Certificate Signing Requests
@@ -88,10 +84,6 @@ pub type Rdn {
 }
 
 /// An attribute value in a distinguished name.
-///
-/// This type is opaque to ensure values are properly validated for their
-/// encoding requirements (e.g., PrintableString for country codes,
-/// IA5String for email addresses).
 pub opaque type AttributeValue {
   Utf8String(String)
   PrintableString(String)
@@ -302,9 +294,6 @@ pub fn ia5_string(value: String) -> AttributeValue {
 }
 
 /// Extracts the string value from an AttributeValue.
-///
-/// Returns the underlying string regardless of encoding type
-/// (UTF8String, PrintableString, or IA5String).
 pub fn attribute_value_to_string(value: AttributeValue) -> String {
   case value {
     Utf8String(s) -> s

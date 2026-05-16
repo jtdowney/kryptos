@@ -44,8 +44,6 @@ pub type Curve {
 }
 
 /// Returns the coordinate size in bytes for the given curve.
-///
-/// This is the size of each coordinate (x or y) in an EC point.
 pub fn coordinate_size(curve: Curve) -> Int {
   case curve {
     P256 | Secp256k1 -> 32

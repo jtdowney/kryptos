@@ -6,7 +6,7 @@ import gleam/result
 import kryptos/hash
 import kryptos/rsa
 import unitest
-import wycheproof/utils.{type TestResult, Acceptable, Invalid, Valid}
+import wycheproof/utils.{type TestResult}
 
 type SignatureTestCase {
   SignatureTestCase(
@@ -306,20 +306,20 @@ fn run_signature_test(group: SignatureTestGroup, tc: SignatureTestCase) -> Nil {
   case rsa.public_key_from_der(pub_der, rsa.Spki) {
     Error(Nil) -> {
       case tc.result {
-        Invalid | Acceptable -> Nil
-        Valid -> panic as { "Key import failed for valid: " <> context }
+        utils.Invalid | utils.Acceptable -> Nil
+        utils.Valid -> panic as { "Key import failed for valid: " <> context }
       }
     }
     Ok(public_key) -> {
       let valid = rsa.verify(public_key, msg, sig, hash_alg, rsa.Pkcs1v15)
       case tc.result {
-        Valid -> {
+        utils.Valid -> {
           assert valid as { "Expected valid: " <> context }
         }
-        Invalid -> {
+        utils.Invalid -> {
           assert !valid as { "Expected invalid: " <> context }
         }
-        Acceptable -> Nil
+        utils.Acceptable -> Nil
       }
     }
   }
@@ -350,21 +350,21 @@ fn run_pss_test(group: PssTestGroup, tc: PssTestCase) -> Nil {
   case rsa.public_key_from_der(pub_der, rsa.Spki) {
     Error(Nil) -> {
       case tc.result {
-        Invalid | Acceptable -> Nil
-        Valid -> panic as { "Key import failed for valid: " <> context }
+        utils.Invalid | utils.Acceptable -> Nil
+        utils.Valid -> panic as { "Key import failed for valid: " <> context }
       }
     }
     Ok(public_key) -> {
       let padding = rsa.Pss(rsa.SaltLengthExplicit(group.s_len))
       let valid = rsa.verify(public_key, msg, sig, hash_alg, padding)
       case tc.result {
-        Valid -> {
+        utils.Valid -> {
           assert valid as { "Expected valid: " <> context }
         }
-        Invalid -> {
+        utils.Invalid -> {
           assert !valid as { "Expected invalid: " <> context }
         }
-        Acceptable -> Nil
+        utils.Acceptable -> Nil
       }
     }
   }
@@ -394,20 +394,20 @@ fn run_oaep_test(group: OaepTestGroup, tc: OaepTestCase) -> Nil {
   case rsa.from_der(priv_der, rsa.Pkcs8) {
     Error(Nil) -> {
       case tc.result {
-        Invalid | Acceptable -> Nil
-        Valid -> panic as { "Key import failed for valid: " <> context }
+        utils.Invalid | utils.Acceptable -> Nil
+        utils.Valid -> panic as { "Key import failed for valid: " <> context }
       }
     }
     Ok(#(private_key, _public_key)) -> {
       let padding = rsa.Oaep(hash: hash_alg, label: label)
       let decrypt_result = rsa.decrypt(private_key, ct, padding)
       case tc.result {
-        Valid -> {
+        utils.Valid -> {
           let assert Ok(decrypted) = decrypt_result
           assert decrypted == expected_msg
             as { "Decryption mismatch: " <> context }
         }
-        Invalid ->
+        utils.Invalid ->
           case decrypt_result {
             Error(Nil) -> Nil
             Ok(decrypted) -> {
@@ -415,7 +415,7 @@ fn run_oaep_test(group: OaepTestGroup, tc: OaepTestCase) -> Nil {
                 as { "Expected invalid: " <> context }
             }
           }
-        Acceptable -> Nil
+        utils.Acceptable -> Nil
       }
     }
   }
@@ -434,19 +434,19 @@ fn run_pkcs1_decrypt_test(
   case rsa.from_der(priv_der, rsa.Pkcs8) {
     Error(Nil) -> {
       case tc.result {
-        Invalid | Acceptable -> Nil
-        Valid -> panic as { "Key import failed for valid: " <> context }
+        utils.Invalid | utils.Acceptable -> Nil
+        utils.Valid -> panic as { "Key import failed for valid: " <> context }
       }
     }
     Ok(#(private_key, _public_key)) -> {
       let decrypt_result = rsa.decrypt(private_key, ct, rsa.EncryptPkcs1v15)
       case tc.result {
-        Valid -> {
+        utils.Valid -> {
           let assert Ok(decrypted) = decrypt_result
           assert decrypted == expected_msg
             as { "Decryption mismatch: " <> context }
         }
-        Invalid ->
+        utils.Invalid ->
           case decrypt_result {
             Error(Nil) -> Nil
             Ok(decrypted) -> {
@@ -454,7 +454,7 @@ fn run_pkcs1_decrypt_test(
                 as { "Expected invalid: " <> context }
             }
           }
-        Acceptable -> Nil
+        utils.Acceptable -> Nil
       }
     }
   }
@@ -481,20 +481,20 @@ fn run_sig_gen_test(group: SigGenTestGroup, tc: SigGenTestCase) -> Nil {
   case rsa.from_der(priv_der, rsa.Pkcs8) {
     Error(Nil) -> {
       case tc.result {
-        Invalid | Acceptable -> Nil
-        Valid -> panic as { "Key import failed for valid: " <> context }
+        utils.Invalid | utils.Acceptable -> Nil
+        utils.Valid -> panic as { "Key import failed for valid: " <> context }
       }
     }
     Ok(#(private_key, public_key)) -> {
       case tc.result {
-        Valid | Acceptable -> {
+        utils.Valid | utils.Acceptable -> {
           let sig = rsa.sign(private_key, msg, hash_alg, rsa.Pkcs1v15)
           assert sig == expected_sig as { "Signature mismatch: " <> context }
           let valid =
             rsa.verify(public_key, msg, expected_sig, hash_alg, rsa.Pkcs1v15)
           assert valid as { "Verification failed: " <> context }
         }
-        Invalid -> Nil
+        utils.Invalid -> Nil
       }
     }
   }

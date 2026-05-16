@@ -21,7 +21,7 @@ import gleam/bit_array
 import gleam/bool
 import gleam/result
 import kryptos/ec
-import kryptos/hash.{type HashAlgorithm}
+import kryptos/hash
 import kryptos/internal/der
 import kryptos/internal/utils
 
@@ -36,7 +36,7 @@ import kryptos/internal/utils
 pub fn sign(
   private_key: ec.PrivateKey,
   message: BitArray,
-  hash: HashAlgorithm,
+  hash: hash.HashAlgorithm,
 ) -> BitArray
 
 /// Verifies an ECDSA signature against a message.
@@ -49,7 +49,7 @@ pub fn verify(
   public_key: ec.PublicKey,
   message: BitArray,
   signature signature: BitArray,
-  hash hash: HashAlgorithm,
+  hash hash: hash.HashAlgorithm,
 ) -> Bool
 
 /// Signs a message and returns the signature in R||S format (IEEE P1363).
@@ -70,7 +70,7 @@ pub fn verify(
 pub fn sign_rs(
   private_key: ec.PrivateKey,
   message: BitArray,
-  hash: HashAlgorithm,
+  hash: hash.HashAlgorithm,
 ) -> BitArray {
   let der_sig = sign(private_key, message, hash)
   let curve = ec.curve(private_key)
@@ -100,7 +100,7 @@ pub fn verify_rs(
   public_key: ec.PublicKey,
   message: BitArray,
   signature: BitArray,
-  hash: HashAlgorithm,
+  hash: hash.HashAlgorithm,
 ) -> Bool {
   let curve = ec.public_key_curve(public_key)
   case rs_to_der(signature, curve) {

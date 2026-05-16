@@ -2,7 +2,7 @@ import gleam/bit_array
 import gleam/dynamic/decode
 import kryptos/block
 import unitest
-import wycheproof/utils.{Acceptable, Invalid, Valid}
+import wycheproof/utils
 
 type CbcTestCase {
   CbcTestCase(
@@ -119,11 +119,11 @@ fn run_cbc_test(group: CbcTestGroup, tc: CbcTestCase) -> Nil {
     Ok(cipher) -> {
       case block.cbc(cipher, iv:) {
         Error(Nil) -> {
-          assert tc.result == Invalid as context
+          assert tc.result == utils.Invalid as context
         }
         Ok(ctx) ->
           case tc.result {
-            Valid | Acceptable -> {
+            utils.Valid | utils.Acceptable -> {
               let assert Ok(ct) = block.encrypt(ctx, msg) as context
               assert ct == expected_ct as context
 
@@ -131,7 +131,7 @@ fn run_cbc_test(group: CbcTestGroup, tc: CbcTestCase) -> Nil {
                 as context
               assert plaintext == msg as context
             }
-            Invalid -> {
+            utils.Invalid -> {
               let result = block.decrypt(ctx, expected_ct)
               assert result == Error(Nil) as context
             }
@@ -157,7 +157,7 @@ fn run_keywrap_test(group: KeywrapTestGroup, tc: KeywrapTestCase) -> Nil {
   case create_cipher(key, group.key_size), msg_result, ct_result {
     Ok(cipher), Ok(msg), Ok(expected_ct) ->
       case tc.result {
-        Valid -> {
+        utils.Valid -> {
           let assert Ok(ct) = block.wrap(cipher, msg) as context
           assert ct == expected_ct as context
 
@@ -165,7 +165,7 @@ fn run_keywrap_test(group: KeywrapTestGroup, tc: KeywrapTestCase) -> Nil {
             as context
           assert plaintext == msg as context
         }
-        Invalid -> {
+        utils.Invalid -> {
           case block.wrap(cipher, msg) {
             Error(Nil) -> Nil
             Ok(_) -> {
@@ -174,7 +174,7 @@ fn run_keywrap_test(group: KeywrapTestGroup, tc: KeywrapTestCase) -> Nil {
             }
           }
         }
-        Acceptable -> {
+        utils.Acceptable -> {
           case block.wrap(cipher, msg) {
             Ok(ct) -> {
               assert ct == expected_ct as context

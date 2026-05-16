@@ -44,8 +44,7 @@ pub fn builder_with_dns_name_rejects_non_ascii_test() {
     == Error(Nil)
 }
 
-pub fn generated_serial_is_positive_property_test() {
-  use _ <- qcheck.given(qcheck.return(Nil))
+pub fn generated_serial_is_positive_test() {
   let serial = certificate.generate_serial_number()
 
   let assert <<first_byte:8, _:bits>> = serial
@@ -289,15 +288,11 @@ pub fn xdh_x25519_certificate_roundtrip_test() {
   assert shared1 == shared2
 }
 
-pub fn xdh_x25519_key_agreement_property_test() {
+pub fn xdh_x25519_key_agreement_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/x509/rfc8410-x25519.pem")
   let assert Ok([parsed]) = certificate.from_pem(pem)
   let assert x509.XdhPublicKey(cert_pub) = certificate.public_key(parsed)
 
-  use _ <- qcheck.run(
-    qcheck.default_config() |> qcheck.with_test_count(10),
-    qcheck.return(Nil),
-  )
   let #(alice_private, _alice_public) = xdh.generate_key_pair(xdh.X25519)
   let assert Ok(shared_with_cert) =
     xdh.compute_shared_secret(alice_private, cert_pub)
@@ -313,8 +308,6 @@ pub fn xdh_x25519_key_agreement_property_test() {
   let assert Ok(shared_reimported) =
     xdh.compute_shared_secret(alice_private, reimported_pub)
   assert shared_with_cert == shared_reimported
-
-  Nil
 }
 
 pub fn xdh_x25519_spki_fixture_roundtrip_test() {
@@ -510,8 +503,6 @@ pub fn ecdsa_certificate_roundtrip_property_test() {
   let pem = certificate.to_pem(cert)
   let assert Ok([parsed_pem]) = certificate.from_pem(pem)
   assert certificate.version(parsed_pem) == 2
-
-  Nil
 }
 
 pub fn parse_subject_key_identifier_test() {

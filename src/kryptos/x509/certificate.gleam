@@ -793,7 +793,6 @@ fn parse_certificate_version(
         <<0>> -> Ok(#(0, rest))
         <<1>> -> Ok(#(1, rest))
         <<2>> -> Ok(#(2, rest))
-        <<_:8>> -> Error(ParseError)
         _ -> Error(ParseError)
       }
     }
@@ -1183,9 +1182,10 @@ fn encode_tbs_certificate(
   use sig_alg_der <- result.try(x509_internal.encode_algorithm_identifier(
     sig_alg,
   ))
-  use issuer <- result.try(x509_internal.encode_name(builder.subject))
+  use issuer_and_subject <- result.try(x509_internal.encode_name(
+    builder.subject,
+  ))
   use validity_der <- result.try(encode_validity(validity))
-  use subject <- result.try(x509_internal.encode_name(builder.subject))
   use extensions <- result.try(encode_extensions(builder, spki))
 
   der.encode_sequence(
@@ -1193,9 +1193,9 @@ fn encode_tbs_certificate(
       version,
       serial_int,
       sig_alg_der,
-      issuer,
+      issuer_and_subject,
       validity_der,
-      subject,
+      issuer_and_subject,
       spki,
       extensions,
     ]),

@@ -102,18 +102,13 @@ fn to_bytes_minimal(value: BigInt) -> Result(BitArray, Nil) {
     True -> Ok(<<0>>)
     False -> {
       let byte_len = compute_byte_length(value, 1)
-      use bytes <- result.try(bigi.to_bytes(
-        value,
-        bigi.BigEndian,
-        bigi.Unsigned,
-        byte_len,
-      ))
-      Ok(utils.strip_leading_zeros(bytes))
+      bigi.to_bytes(value, bigi.BigEndian, bigi.Unsigned, byte_len)
     }
   }
 }
 
 fn compute_byte_length(value: BigInt, len: Int) -> Int {
+  // safe: exponent `len` starts at 1 and grows, never negative
   let assert Ok(bound) = bigi.power(bigi.from_int(256), bigi.from_int(len))
   case bigi.compare(value, bound) == order.Lt {
     True -> len
@@ -139,6 +134,7 @@ fn factor_rsa_modulus(
       let #(t, r) = factor_out_twos(k, two, 0)
 
       let g_bytes = crypto.random_bytes(byte_len)
+      // safe: `byte_len > 0` for any RSA modulus, so `g_bytes` is valid unsigned bytes
       let assert Ok(g_raw) =
         bigi.from_bytes(g_bytes, bigi.BigEndian, bigi.Unsigned)
 
@@ -158,6 +154,7 @@ fn factor_rsa_modulus(
 fn factor_out_twos(k: BigInt, two: BigInt, count: Int) -> #(Int, BigInt) {
   case bigi.modulo(k, two) == bigi.from_int(0) {
     True -> {
+      // safe: divisor is constant 2, never zero
       let assert Ok(next) = bigi.floor_divide(dividend: k, divisor: two)
       factor_out_twos(next, two, count + 1)
     }
@@ -203,6 +200,7 @@ fn try_factor_loop(
             bigi.compare(p, one) == order.Gt && bigi.compare(p, n) == order.Lt
           {
             True -> {
+              // safe: `p` is a non-trivial factor of `n` (1 < p < n)
               let assert Ok(q) = bigi.floor_divide(dividend: n, divisor: p)
               case bigi.compare(p, q) == order.Lt {
                 True -> Ok(#(p, q))
@@ -260,6 +258,7 @@ fn extended_gcd_loop(
   case r == zero {
     True -> #(old_r, old_s, old_t)
     False -> {
+      // safe: loop branch ensures `r != 0`
       let assert Ok(q) = bigi.floor_divide(dividend: old_r, divisor: r)
       let new_r = bigi.subtract(old_r, bigi.multiply(q, r))
       let new_s = bigi.subtract(old_s, bigi.multiply(q, s))

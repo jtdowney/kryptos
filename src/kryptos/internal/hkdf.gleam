@@ -64,13 +64,16 @@ fn expand_loop(
 
       let t_len = bit_array.byte_size(t)
       case remaining <= t_len {
-        True -> {
-          // Final block - take what we need
-          let assert Ok(final_block) = bit_array.slice(t, 0, remaining)
-          bytes_tree.append(acc, final_block)
-          |> bytes_tree.to_bit_array
-          |> Ok
-        }
+        True ->
+          case t {
+            <<final_block:bytes-size(remaining), _:bits>> -> {
+              let result =
+                bytes_tree.append(acc, final_block)
+                |> bytes_tree.to_bit_array
+              Ok(result)
+            }
+            _ -> Error(Nil)
+          }
         False -> {
           // Accumulate and continue
           expand_loop(

@@ -1,8 +1,8 @@
-import unitest.{Options}
+import unitest
 
 pub fn main() -> Nil {
   unitest.run(
-    Options(
+    unitest.Options(
       ..unitest.default_options(),
       ignored_tags: ["wycheproof"],
       execution_mode: unitest.RunParallelAuto,
