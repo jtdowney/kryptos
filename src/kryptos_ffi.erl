@@ -108,7 +108,24 @@
     xdh_public_key_from_private/1,
     xdh_public_key_to_bytes/1,
     xdh_private_key_curve/1,
-    xdh_public_key_curve/1
+    xdh_public_key_curve/1,
+    mldsa_supported/0,
+    mldsa_generate_key_pair/1,
+    mldsa_sign/2,
+    mldsa_verify/3,
+    mldsa_public_key_from_bytes/2,
+    mldsa_public_key_to_bytes/1,
+    mldsa_public_key_from_private/1,
+    mldsa_private_key_parameter_set/1,
+    mldsa_public_key_parameter_set/1,
+    mldsa_import_private_key_pem/1,
+    mldsa_import_private_key_der/1,
+    mldsa_export_private_key_pem/1,
+    mldsa_export_private_key_der/1,
+    mldsa_import_public_key_pem/1,
+    mldsa_import_public_key_der/1,
+    mldsa_from_seed/2,
+    mldsa_private_key_to_seed/1
 ]).
 
 %%------------------------------------------------------------------------------
@@ -951,12 +968,12 @@ xdh_private_key_to_der(KeyBytes, Curve) ->
         end,
     public_key:der_encode('PrivateKeyInfo', PrivKeyInfo).
 
-export_public_key_pem({PubBytes, Curve}) ->
+export_public_key_pem({PubBytes, Alg}) ->
     try
         Spki =
             #'SubjectPublicKeyInfo'{
                 algorithm =
-                    #'AlgorithmIdentifier'{algorithm = curve_to_oid(Curve)},
+                    #'AlgorithmIdentifier'{algorithm = public_key_alg_oid(Alg)},
                 subjectPublicKey = PubBytes
             },
         Der = public_key:der_encode('SubjectPublicKeyInfo', Spki),
@@ -966,12 +983,12 @@ export_public_key_pem({PubBytes, Curve}) ->
             {error, nil}
     end.
 
-export_public_key_der({PubBytes, Curve}) ->
+export_public_key_der({PubBytes, Alg}) ->
     try
         Spki =
             #'SubjectPublicKeyInfo'{
                 algorithm =
-                    #'AlgorithmIdentifier'{algorithm = curve_to_oid(Curve)},
+                    #'AlgorithmIdentifier'{algorithm = public_key_alg_oid(Alg)},
                 subjectPublicKey = PubBytes
             },
         {ok, public_key:der_encode('SubjectPublicKeyInfo', Spki)}
@@ -979,6 +996,11 @@ export_public_key_der({PubBytes, Curve}) ->
         _:_ ->
             {error, nil}
     end.
+
+public_key_alg_oid(Alg) when Alg =:= mldsa44; Alg =:= mldsa65; Alg =:= mldsa87 ->
+    mldsa_param_to_oid(Alg);
+public_key_alg_oid(Curve) ->
+    curve_to_oid(Curve).
 
 %%------------------------------------------------------------------------------
 %% RSA
@@ -1507,3 +1529,206 @@ eddsa_private_key_to_der(KeyBytes, Curve) ->
                 {'PrivateKeyInfo', v1, AlgId, WrappedKey, asn1_NOVALUE}
         end,
     public_key:der_encode('PrivateKeyInfo', PrivKeyInfo).
+
+%%------------------------------------------------------------------------------
+%% ML-DSA (FIPS 204)
+%%------------------------------------------------------------------------------
+
+mldsa_param_to_oid(mldsa44) -> {2, 16, 840, 1, 101, 3, 4, 3, 17};
+mldsa_param_to_oid(mldsa65) -> {2, 16, 840, 1, 101, 3, 4, 3, 18};
+mldsa_param_to_oid(mldsa87) -> {2, 16, 840, 1, 101, 3, 4, 3, 19}.
+
+mldsa_oid_to_param({2, 16, 840, 1, 101, 3, 4, 3, 17}) -> mldsa44;
+mldsa_oid_to_param({2, 16, 840, 1, 101, 3, 4, 3, 18}) -> mldsa65;
+mldsa_oid_to_param({2, 16, 840, 1, 101, 3, 4, 3, 19}) -> mldsa87.
+
+mldsa_asn1_type(mldsa44) -> 'ML-DSA-44-PrivateKey';
+mldsa_asn1_type(mldsa65) -> 'ML-DSA-65-PrivateKey';
+mldsa_asn1_type(mldsa87) -> 'ML-DSA-87-PrivateKey'.
+
+mldsa_supported() ->
+    lists:member(mldsa44, crypto:supports(public_keys)).
+
+-if(?OTP_RELEASE >= 28).
+mldsa_generate_key_pair(Param) ->
+    %% Seed-only: generate a random seed and derive, so every key is
+    %% seed-backed. See the CFRG security considerations:
+    %% https://datatracker.ietf.org/doc/draft-connolly-cfrg-ml-dsa-security-considerations/
+    Seed = crypto:strong_rand_bytes(32),
+    {ok, KeyPair} = mldsa_seed_key_pair(Param, Seed),
+    KeyPair.
+-else.
+mldsa_generate_key_pair(_Param) ->
+    erlang:error(mldsa_not_supported).
+-endif.
+
+mldsa_sign({seed, Seed, _PubKey, Param}, Message) ->
+    crypto:sign(Param, none, Message, {seed, Seed}).
+
+mldsa_verify({PubKey, Param}, Message, Signature) ->
+    try
+        crypto:verify(Param, none, Message, Signature, PubKey)
+    catch
+        _:_ ->
+            false
+    end.
+
+mldsa_public_key_from_bytes(Param, PublicBytes) ->
+    ExpectedSize = kryptos@mldsa:key_size(Param),
+    case byte_size(PublicBytes) of
+        ExpectedSize ->
+            {ok, {PublicBytes, Param}};
+        _ ->
+            {error, nil}
+    end.
+
+mldsa_public_key_to_bytes({PubBytes, _Param}) ->
+    PubBytes.
+
+mldsa_public_key_from_private({_, _, PubKeyBytes, Param}) ->
+    {PubKeyBytes, Param}.
+
+mldsa_private_key_parameter_set({_, _, _, Param}) ->
+    Param.
+
+mldsa_public_key_parameter_set({_PubBytes, Param}) ->
+    Param.
+
+%% PEM/DER Import
+
+mldsa_import_private_key_pem(PemData) ->
+    try
+        case public_key:pem_decode(PemData) of
+            [{'PrivateKeyInfo', DerBytes, not_encrypted}] ->
+                mldsa_import_private_key_from_der(DerBytes);
+            _ ->
+                {error, nil}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+mldsa_import_private_key_der(DerBytes) ->
+    try
+        mldsa_import_private_key_from_der(DerBytes)
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+mldsa_import_private_key_from_der(DerBytes) ->
+    {ok, Dec} = 'PKCS-FRAME':decode('OneAsymmetricKey', DerBytes),
+    OID = element(2, element(3, Dec)),
+    Param = mldsa_oid_to_param(OID),
+    InnerDer = element(4, Dec),
+    Type = mldsa_asn1_type(Param),
+    %% Seed-only: reject expandedKey-only keys; derive from the seed carried
+    %% by the seed and both forms.
+    case public_key:der_decode(Type, InnerDer) of
+        {seed, Seed} ->
+            mldsa_seed_key_pair(Param, Seed);
+        {both, BothRec} ->
+            mldsa_seed_key_pair(Param, element(2, BothRec));
+        _ ->
+            {error, nil}
+    end.
+
+mldsa_seed_key_pair(Param, Seed) ->
+    case kryptos@internal@mldsa:public_key_from_seed(Param, Seed) of
+        {ok, PubKeyBytes} ->
+            {ok, {{seed, Seed, PubKeyBytes, Param}, {PubKeyBytes, Param}}};
+        {error, nil} ->
+            {error, nil}
+    end.
+
+%% PEM/DER Export
+
+mldsa_export_private_key_pem(PrivKey) ->
+    case mldsa_export_private_key_der(PrivKey) of
+        {ok, Der} ->
+            {ok, public_key:pem_encode([{'PrivateKeyInfo', Der, not_encrypted}])};
+        Error ->
+            Error
+    end.
+
+mldsa_export_private_key_der({seed, Seed, _PubKey, Param}) ->
+    try
+        {ok, mldsa_priv_key_to_der({seed, Seed}, asn1_NOVALUE, Param)}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+mldsa_priv_key_to_der(Choice, PubKeySlot, Param) ->
+    OID = mldsa_param_to_oid(Param),
+    AlgId = {'AlgorithmIdentifier', OID, asn1_NOVALUE},
+    InnerDer = mldsa_inner_choice_der(Choice, Param),
+    PrivKeyInfo =
+        case is_otp_28_or_later() of
+            true ->
+                %% OneAsymmetricKey version is v2 (1) when the public key is
+                %% present, v1 (0) otherwise (RFC 5958).
+                Version =
+                    case PubKeySlot =/= asn1_NOVALUE of
+                        true -> 1;
+                        false -> 0
+                    end,
+                {'OneAsymmetricKey', Version, AlgId, InnerDer, asn1_NOVALUE, PubKeySlot};
+            false ->
+                %% OTP 27: 5-tuple PrivateKeyInfo has no slot for the public key.
+                {'PrivateKeyInfo', v1, AlgId, InnerDer, asn1_NOVALUE}
+        end,
+    public_key:der_encode('PrivateKeyInfo', PrivKeyInfo).
+
+mldsa_inner_choice_der(Choice, Param) ->
+    case is_otp_28_or_later() of
+        true ->
+            public_key:der_encode(mldsa_asn1_type(Param), Choice);
+        false ->
+            %% OTP 27 lacks the 'ML-DSA-*-PrivateKey' ASN.1 types; hand-encode
+            %% the CHOICE.
+            mldsa_inner_choice_der_manual(Choice)
+    end.
+
+mldsa_inner_choice_der_manual({seed, Seed}) when byte_size(Seed) =:= 32 ->
+    %% seed [0] IMPLICIT OCTET STRING (SIZE (32))
+    <<16#80, 32, Seed/binary>>.
+
+mldsa_from_seed(Param, Seed) when byte_size(Seed) =:= 32 ->
+    mldsa_seed_key_pair(Param, Seed);
+mldsa_from_seed(_, _) ->
+    {error, nil}.
+
+mldsa_private_key_to_seed({seed, Seed, _PubKey, _Param}) ->
+    {ok, Seed}.
+
+mldsa_import_public_key_pem(PemData) ->
+    try
+        case public_key:pem_decode(PemData) of
+            [{'SubjectPublicKeyInfo', DerBytes, not_encrypted}] ->
+                mldsa_import_public_key_der(DerBytes);
+            _ ->
+                {error, nil}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+mldsa_import_public_key_der(DerBytes) ->
+    try
+        case public_key:der_decode('SubjectPublicKeyInfo', DerBytes) of
+            #'SubjectPublicKeyInfo'{
+                algorithm = #'AlgorithmIdentifier'{algorithm = OID},
+                subjectPublicKey = PublicKeyBits
+            } ->
+                Param = mldsa_oid_to_param(OID),
+                mldsa_public_key_from_bytes(Param, PublicKeyBits);
+            _ ->
+                {error, nil}
+        end
+    catch
+        _:_ ->
+            {error, nil}
+    end.

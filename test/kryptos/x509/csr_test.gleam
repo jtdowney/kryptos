@@ -7,6 +7,7 @@ import gleam/string
 import kryptos/ec
 import kryptos/eddsa
 import kryptos/hash
+import kryptos/mldsa
 import kryptos/rsa
 import kryptos/x509
 import kryptos/x509/csr
@@ -14,6 +15,7 @@ import kryptos/x509/test_helpers
 import qcheck
 import shellout
 import simplifile
+import unitest
 
 fn contains_subsequence(haystack: BitArray, needle: BitArray) -> Bool {
   let needle_size = bit_array.byte_size(needle)
@@ -419,6 +421,46 @@ pub fn csr_eddsa_ed448_dns_san_verified_by_openssl_test() {
   |> birdie.snap(title: "csr eddsa ed448 dns san text")
 }
 
+pub fn csr_mldsa_dns_san_verified_by_openssl_test() {
+  use <- unitest.guard(mldsa.supported())
+
+  let assert Ok(pem) = simplifile.read("test/fixtures/mldsa44_seed_pkcs8.pem")
+  let assert Ok(#(private_key, _)) = mldsa.from_pem(pem)
+
+  let subject =
+    x509.name([
+      x509.cn("mldsa.example.com"),
+      x509.organization("MLDSA Corp"),
+      x509.country("US"),
+    ])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("mldsa.example.com")
+
+  let assert Ok(my_csr) = csr.sign_with_mldsa(builder, private_key)
+  let csr_pem = csr.to_pem(my_csr)
+
+  let cmd = "echo '" <> csr_pem <> "' | openssl asn1parse -i"
+  let assert Ok(output) =
+    shellout.command(run: "sh", with: ["-c", cmd], in: ".", opt: [])
+
+  birdie.snap(
+    test_helpers.mask_dynamic_values(output),
+    title: "csr mldsa dns san openssl output",
+  )
+
+  let text_cmd = "echo '" <> csr_pem <> "' | openssl req -text -noout"
+  let assert Ok(text_output) =
+    shellout.command(run: "sh", with: ["-c", text_cmd], in: ".", opt: [])
+
+  text_output
+  |> test_helpers.mask_signature
+  |> test_helpers.normalize_subject
+  |> birdie.snap(title: "csr mldsa dns san text")
+}
+
 pub fn csr_ecdsa_email_san_verified_by_openssl_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p256_pkcs8.pem")
   let assert Ok(#(private_key, _)) = ec.from_pem(pem)
@@ -783,4 +825,102 @@ pub fn parse_openssl_generated_csr_test() {
     sans,
     x509.IpAddress(<<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1>>),
   )
+}
+
+pub fn csr_mldsa_produces_valid_der_test() {
+  use <- unitest.guard(mldsa.supported())
+
+  list.each([mldsa.Mldsa44, mldsa.Mldsa65, mldsa.Mldsa87], fn(param) {
+    let #(private_key, _) = mldsa.generate_key_pair(param)
+    let subject = x509.name([x509.cn("test.example.com")])
+
+    let assert Ok(builder) =
+      csr.new()
+      |> csr.with_subject(subject)
+      |> csr.with_dns_name("test.example.com")
+
+    let assert Ok(my_csr) = csr.sign_with_mldsa(builder, private_key)
+
+    let pem = csr.to_pem(my_csr)
+    let assert Ok(_) = csr.from_pem(pem)
+
+    let der = csr.to_der(my_csr)
+    let assert Ok(_) = csr.from_der(der)
+  })
+}
+
+pub fn mldsa_csr_roundtrip_test() {
+  use <- unitest.guard(mldsa.supported())
+
+  let cases = [
+    #(mldsa.Mldsa44, x509.Mldsa44, "mldsa44.example.com"),
+    #(mldsa.Mldsa65, x509.Mldsa65, "mldsa65.example.com"),
+    #(mldsa.Mldsa87, x509.Mldsa87, "mldsa87.example.com"),
+  ]
+
+  list.each(cases, fn(tc) {
+    let #(param, expected_alg, domain) = tc
+    let #(private_key, _) = mldsa.generate_key_pair(param)
+    let subject = x509.name([x509.cn(domain)])
+
+    let assert Ok(builder) =
+      csr.new()
+      |> csr.with_subject(subject)
+      |> csr.with_dns_name(domain)
+
+    let assert Ok(built_csr) = csr.sign_with_mldsa(builder, private_key)
+
+    let der = csr.to_der(built_csr)
+    let assert Ok(parsed) = csr.from_der(der)
+
+    assert csr.version(parsed) == 0
+    let assert x509.MldsaPublicKey(_) = csr.public_key(parsed)
+    assert csr.signature_algorithm(parsed) == expected_alg
+    assert csr.subject_alt_names(parsed) == [x509.DnsName(domain)]
+  })
+}
+
+pub fn mldsa_csr_bad_signature_test() {
+  use <- unitest.guard(mldsa.supported())
+
+  let #(private_key, _) = mldsa.generate_key_pair(mldsa.Mldsa44)
+  let subject = x509.name([x509.cn("test.example.com")])
+
+  let assert Ok(built_csr) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.sign_with_mldsa(private_key)
+
+  let der = csr.to_der(built_csr)
+  let size = bit_array.byte_size(der)
+
+  let assert Ok(prefix) = bit_array.slice(der, 0, size - 4)
+  let corrupted = bit_array.concat([prefix, <<0xFF, 0xFF, 0xFF, 0xFF>>])
+
+  assert csr.from_der(corrupted) == Error(csr.SignatureVerificationFailed)
+}
+
+pub fn mldsa_csr_omits_null_params_test() {
+  use <- unitest.guard(mldsa.supported())
+
+  let #(private_key, _) = mldsa.generate_key_pair(mldsa.Mldsa44)
+  let subject = x509.name([x509.cn("test.example.com")])
+
+  let assert Ok(builder) =
+    csr.new()
+    |> csr.with_subject(subject)
+    |> csr.with_dns_name("test.example.com")
+
+  let assert Ok(my_csr) = csr.sign_with_mldsa(builder, private_key)
+  let der = csr.to_der(my_csr)
+
+  let mldsa44_oid_with_null = <<
+    0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11, 0x05, 0x00,
+  >>
+  assert !contains_subsequence(der, mldsa44_oid_with_null)
+
+  let mldsa44_oid_correct = <<
+    0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11,
+  >>
+  assert contains_subsequence(der, mldsa44_oid_correct)
 }
