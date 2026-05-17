@@ -24,6 +24,7 @@ jobs:
     name: Erlang (OTP ${{ matrix.otp-version }}, Gleam ${{ matrix.gleam-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         otp-version: ["27", "28", "29"]
         gleam-version: ["1.15", "1.16"]
@@ -44,6 +45,7 @@ jobs:
     name: JavaScript (Node ${{ matrix.node-version }}, Gleam ${{ matrix.gleam-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         node-version: ["22", "24", "26"]
         gleam-version: ["1.15", "1.16"]
