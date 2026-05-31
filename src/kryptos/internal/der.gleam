@@ -152,11 +152,7 @@ pub fn encode_sequence(content: BitArray) -> Result(BitArray, Nil) {
 pub fn parse_sequence(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
   use rest <- require_tag(bytes, sequence_tag)
   use #(len, content) <- result.try(parse_length(rest))
-
-  case content {
-    <<inner:bytes-size(len), remaining:bits>> -> Ok(#(inner, remaining))
-    _ -> Error(Nil)
-  }
+  parse_content(content, len)
 }
 
 /// Wrap content in a DER SET.
