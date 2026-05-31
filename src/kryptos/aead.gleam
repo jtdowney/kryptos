@@ -279,19 +279,3 @@ pub fn is_ccm(ctx: AeadContext) -> Bool {
     Gcm(..) | ChaCha20Poly1305(..) | XChaCha20Poly1305(..) -> False
   }
 }
-
-@internal
-pub fn is_gcm(ctx: AeadContext) -> Bool {
-  case ctx {
-    Gcm(..) -> True
-    Ccm(..) | ChaCha20Poly1305(..) | XChaCha20Poly1305(..) -> False
-  }
-}
-
-@internal
-pub fn is_chacha20_poly1305(ctx: AeadContext) -> Bool {
-  case ctx {
-    ChaCha20Poly1305(..) -> True
-    Gcm(..) | Ccm(..) | XChaCha20Poly1305(..) -> False
-  }
-}
