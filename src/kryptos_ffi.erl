@@ -32,7 +32,6 @@
     ec_public_key_from_private/1,
     ec_public_key_from_raw_point/2,
     ec_public_key_to_raw_point/1,
-    ec_public_key_from_x509/1,
     ec_private_key_curve/1,
     ec_public_key_curve/1,
     ecdh_compute_shared_secret/2,
@@ -74,9 +73,7 @@
     rsa_import_private_key_pem/2,
     rsa_import_public_key_der/2,
     rsa_import_public_key_pem/2,
-    rsa_private_key_from_pkcs8/1,
     rsa_public_key_from_private/1,
-    rsa_public_key_from_x509/1,
     rsa_private_key_modulus_bits/1,
     rsa_public_key_modulus_bits/1,
     rsa_private_key_modulus/1,
@@ -530,23 +527,6 @@ normalize_ec_scalar(Scalar, ExpectedSize) ->
 
 ec_private_key_to_bytes(#'ECPrivateKey'{privateKey = PrivateScalar}) ->
     PrivateScalar.
-
-ec_public_key_from_x509(DerBytes) ->
-    try
-        #'SubjectPublicKeyInfo'{algorithm = AlgId, subjectPublicKey = PublicKeyBits} =
-            public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-        #'AlgorithmIdentifier'{parameters = {namedCurve, OID}} = AlgId,
-        CurveName = oid_to_curve(OID),
-        case PublicKeyBits of
-            <<Prefix, _/binary>> when Prefix == 4; Prefix == 2; Prefix == 3 ->
-                {ok, {{'ECPoint', PublicKeyBits}, {namedCurve, CurveName}}};
-            _ ->
-                {error, nil}
-        end
-    catch
-        _:_ ->
-            {error, nil}
-    end.
 
 ec_public_key_from_raw_point(Curve, Point) ->
     try
@@ -1257,34 +1237,6 @@ rsa_public_format_types(spki) ->
     {'SubjectPublicKeyInfo', spki};
 rsa_public_format_types(rsa_public_key) ->
     {'RSAPublicKey', rsa_public_key}.
-
-rsa_private_key_from_pkcs8(DerBytes) ->
-    try
-        RSAPrivKey = public_key:der_decode('PrivateKeyInfo', DerBytes),
-        PubKey =
-            #'RSAPublicKey'{
-                modulus = RSAPrivKey#'RSAPrivateKey'.modulus,
-                publicExponent = RSAPrivKey#'RSAPrivateKey'.publicExponent
-            },
-        {ok, {RSAPrivKey, PubKey}}
-    catch
-        _:_ ->
-            {error, nil}
-    end.
-
-rsa_public_key_from_x509(DerBytes) ->
-    try
-        #'SubjectPublicKeyInfo'{
-            algorithm = #'AlgorithmIdentifier'{algorithm = ?rsaEncryption},
-            subjectPublicKey = PublicKeyDer
-        } =
-            public_key:der_decode('SubjectPublicKeyInfo', DerBytes),
-        RSAPubKey = public_key:der_decode('RSAPublicKey', PublicKeyDer),
-        {ok, RSAPubKey}
-    catch
-        _:_ ->
-            {error, nil}
-    end.
 
 rsa_import_private_key_pem(PemData, Format) ->
     try

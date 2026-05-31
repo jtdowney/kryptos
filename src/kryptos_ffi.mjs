@@ -703,28 +703,6 @@ export function ecPrivateKeyToBytes(privateKey) {
   return BitArray$BitArray(Buffer.from(jwk.d, "base64url"));
 }
 
-export function ecPublicKeyFromDer(derBytes) {
-  try {
-    if (!validateSpkiUsesNamedCurve(derBytes.rawBuffer)) {
-      return Result$Error(undefined);
-    }
-
-    const publicKey = crypto.createPublicKey({
-      key: derBytes.rawBuffer,
-      format: "der",
-      type: "spki",
-    });
-
-    if (publicKey.asymmetricKeyType !== "ec") {
-      return Result$Error(undefined);
-    }
-
-    return Result$Ok(publicKey);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
 export function ecPublicKeyFromRawPoint(curve, point) {
   try {
     const coordSize = ecCoordinateSize(curve);
@@ -1278,39 +1256,6 @@ function rsaFormatToType(format, isPrivate) {
     if (PublicKeyFormat$isRsaPublicKey(format)) return "pkcs1";
     if (PublicKeyFormat$isSpki(format)) return "spki";
     throw new Error(`Unknown public key format: ${format.constructor.name}`);
-  }
-}
-
-export function rsaPrivateKeyFromPkcs8(derBytes) {
-  try {
-    const privateKey = crypto.createPrivateKey({
-      key: derBytes.rawBuffer,
-      format: "der",
-      type: "pkcs8",
-    });
-    if (privateKey.asymmetricKeyType !== "rsa") {
-      return Result$Error(undefined);
-    }
-    const publicKey = crypto.createPublicKey(privateKey);
-    return Result$Ok([privateKey, publicKey]);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function rsaPublicKeyFromX509(derBytes) {
-  try {
-    const publicKey = crypto.createPublicKey({
-      key: derBytes.rawBuffer,
-      format: "der",
-      type: "spki",
-    });
-    if (publicKey.asymmetricKeyType !== "rsa") {
-      return Result$Error(undefined);
-    }
-    return Result$Ok(publicKey);
-  } catch {
-    return Result$Error(undefined);
   }
 }
 
