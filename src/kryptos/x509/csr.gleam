@@ -41,7 +41,7 @@ import kryptos/eddsa
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/der
 import kryptos/internal/utils
-import kryptos/internal/x509.{type SigAlgInfo} as x509_internal
+import kryptos/internal/x509 as x509_internal
 import kryptos/rsa
 import kryptos/x509
 
@@ -183,7 +183,11 @@ pub fn sign_with_ecdsa(
     spki,
   ))
   let signature = ecdsa.sign(key, cert_request_info, hash)
-  use csr_der <- result.try(encode_csr(cert_request_info, sig_alg, signature))
+  use csr_der <- result.try(x509_internal.encode_signed(
+    cert_request_info,
+    sig_alg,
+    signature,
+  ))
   Ok(BuiltCsr(csr_der))
 }
 
@@ -206,7 +210,11 @@ pub fn sign_with_rsa(
     spki,
   ))
   let signature = rsa.sign(key, cert_request_info, hash, rsa.Pkcs1v15)
-  use csr_der <- result.try(encode_csr(cert_request_info, sig_alg, signature))
+  use csr_der <- result.try(x509_internal.encode_signed(
+    cert_request_info,
+    sig_alg,
+    signature,
+  ))
   Ok(BuiltCsr(csr_der))
 }
 
@@ -226,7 +234,11 @@ pub fn sign_with_eddsa(
     spki,
   ))
   let signature = eddsa.sign(key, cert_request_info)
-  use csr_der <- result.try(encode_csr(cert_request_info, sig_alg, signature))
+  use csr_der <- result.try(x509_internal.encode_signed(
+    cert_request_info,
+    sig_alg,
+    signature,
+  ))
   Ok(BuiltCsr(csr_der))
 }
 
@@ -571,20 +583,6 @@ fn verify_signature(csr: Csr(Parsed)) -> Result(Nil, CsrError) {
     True -> Ok(Nil)
     False -> Error(SignatureVerificationFailed)
   }
-}
-
-fn encode_csr(
-  cert_request_info: BitArray,
-  sig_alg: SigAlgInfo,
-  signature: BitArray,
-) -> Result(BitArray, Nil) {
-  use sig_alg_der <- result.try(x509_internal.encode_algorithm_identifier(
-    sig_alg,
-  ))
-  use sig_bits <- result.try(der.encode_bit_string(signature))
-  der.encode_sequence(
-    bit_array.concat([cert_request_info, sig_alg_der, sig_bits]),
-  )
 }
 
 fn encode_certification_request_info(

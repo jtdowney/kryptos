@@ -501,6 +501,18 @@ pub fn encode_algorithm_identifier(
   }
 }
 
+/// Encode a signed ASN.1 structure: SEQUENCE { body, AlgorithmIdentifier,
+/// BIT STRING signature }. Shared by X.509 certificates and CSRs.
+pub fn encode_signed(
+  body: BitArray,
+  sig_alg: SigAlgInfo,
+  signature: BitArray,
+) -> Result(BitArray, Nil) {
+  use sig_alg_der <- result.try(encode_algorithm_identifier(sig_alg))
+  use sig_bits <- result.try(der.encode_bit_string(signature))
+  der.encode_sequence(bit_array.concat([body, sig_alg_der, sig_bits]))
+}
+
 /// Extract raw public key bytes from a SubjectPublicKeyInfo structure.
 ///
 /// Skips the algorithm identifier and returns only the BIT STRING key data.

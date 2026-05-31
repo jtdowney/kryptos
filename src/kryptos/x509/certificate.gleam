@@ -401,7 +401,11 @@ pub fn self_signed_with_ecdsa(
   ))
   let signature = ecdsa.sign(key, tbs, hash)
 
-  use cert_der <- result.try(encode_certificate(tbs, sig_alg, signature))
+  use cert_der <- result.try(x509_internal.encode_signed(
+    tbs,
+    sig_alg,
+    signature,
+  ))
   Ok(BuiltCertificate(cert_der))
 }
 
@@ -432,7 +436,11 @@ pub fn self_signed_with_rsa(
     validity,
   ))
   let signature = rsa.sign(key, tbs, hash, rsa.Pkcs1v15)
-  use cert_der <- result.try(encode_certificate(tbs, sig_alg, signature))
+  use cert_der <- result.try(x509_internal.encode_signed(
+    tbs,
+    sig_alg,
+    signature,
+  ))
   Ok(BuiltCertificate(cert_der))
 }
 
@@ -466,7 +474,11 @@ pub fn self_signed_with_eddsa(
     validity,
   ))
   let signature = eddsa.sign(key, tbs)
-  use cert_der <- result.try(encode_certificate(tbs, sig_alg, signature))
+  use cert_der <- result.try(x509_internal.encode_signed(
+    tbs,
+    sig_alg,
+    signature,
+  ))
   Ok(BuiltCertificate(cert_der))
 }
 
@@ -1436,18 +1448,6 @@ fn encode_authority_key_identifier_extension(
   |> result.try(der.encode_octet_string)
   |> result.map(fn(value_octet) { bit_array.concat([oid_encoded, value_octet]) })
   |> result.try(der.encode_sequence)
-}
-
-fn encode_certificate(
-  tbs: BitArray,
-  sig_alg: SigAlgInfo,
-  signature: BitArray,
-) -> Result(BitArray, Nil) {
-  use sig_alg_der <- result.try(x509_internal.encode_algorithm_identifier(
-    sig_alg,
-  ))
-  use sig_bits <- result.try(der.encode_bit_string(signature))
-  der.encode_sequence(bit_array.concat([tbs, sig_alg_der, sig_bits]))
 }
 
 fn is_xdh_key(key: x509.PublicKey) -> Bool {
