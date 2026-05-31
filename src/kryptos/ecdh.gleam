@@ -33,7 +33,7 @@ import kryptos/ec
 /// The raw shared secret should be passed through a KDF (like HKDF) before
 /// use as a symmetric key. Both keys must use the same curve.
 @external(erlang, "kryptos_ffi", "ecdh_compute_shared_secret")
-@external(javascript, "../kryptos_ffi.mjs", "ecdhComputeSharedSecret")
+@external(javascript, "../kryptos_ffi.mjs", "computeSharedSecret")
 pub fn compute_shared_secret(
   private_key: ec.PrivateKey,
   peer_public_key: ec.PublicKey,

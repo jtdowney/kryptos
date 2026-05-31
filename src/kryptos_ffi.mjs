@@ -783,7 +783,7 @@ export function ecdsaVerify(publicKey, message, signature, hashAlgorithm) {
   }
 }
 
-export function ecdhComputeSharedSecret(privateKey, peerPublicKey) {
+export function computeSharedSecret(privateKey, peerPublicKey) {
   try {
     const sharedSecret = crypto.diffieHellman({
       privateKey,
@@ -1057,18 +1057,6 @@ export function xdhPublicKeyToBytes(publicKey) {
   const curveName = publicKey.asymmetricKeyType;
   const prefixLen = XDH_PUBLIC_DER_PREFIX[curveName].length;
   return BitArray$BitArray(der.subarray(prefixLen));
-}
-
-export function xdhComputeSharedSecret(privateKey, peerPublicKey) {
-  try {
-    const sharedSecret = crypto.diffieHellman({
-      privateKey,
-      publicKey: peerPublicKey,
-    });
-    return Result$Ok(BitArray$BitArray(sharedSecret));
-  } catch {
-    return Result$Error(undefined);
-  }
 }
 
 // XDH Import Functions

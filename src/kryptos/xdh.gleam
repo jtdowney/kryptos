@@ -84,7 +84,7 @@ fn is_all_zeros(bytes: BitArray) -> Bool {
 }
 
 @external(erlang, "kryptos_ffi", "xdh_compute_shared_secret")
-@external(javascript, "../kryptos_ffi.mjs", "xdhComputeSharedSecret")
+@external(javascript, "../kryptos_ffi.mjs", "computeSharedSecret")
 fn do_compute_shared_secret(
   private_key: PrivateKey,
   peer_public_key: PublicKey,
