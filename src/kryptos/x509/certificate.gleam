@@ -88,10 +88,6 @@ const oid_client_auth = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 2])
 
 const oid_code_signing = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 3])
 
-const oid_ed25519 = x509.Oid([1, 3, 101, 112])
-
-const oid_ed448 = x509.Oid([1, 3, 101, 113])
-
 const oid_email_protection = x509.Oid([1, 3, 6, 1, 5, 5, 7, 3, 4])
 
 const oid_extended_key_usage = x509.Oid([2, 5, 29, 37])
@@ -382,31 +378,12 @@ pub fn self_signed_with_ecdsa(
   key: ec.PrivateKey,
   hash: HashAlgorithm,
 ) -> Result(Certificate(Built), Nil) {
-  use validity <- result.try(option.to_result(builder.validity, Nil))
   use sig_alg <- result.try(x509_internal.ecdsa_sig_alg_info(hash))
   let public_key = ec.public_key_from_private_key(key)
   use spki <- result.try(ec.public_key_to_der(public_key))
-
-  let serial = case builder.serial_number {
-    option.Some(s) -> s
-    option.None -> generate_serial_number()
-  }
-
-  use tbs <- result.try(encode_tbs_certificate(
-    builder,
-    serial,
-    sig_alg,
-    spki,
-    validity,
-  ))
-  let signature = ecdsa.sign(key, tbs, hash)
-
-  use cert_der <- result.try(x509_internal.encode_signed(
-    tbs,
-    sig_alg,
-    signature,
-  ))
-  Ok(BuiltCertificate(cert_der))
+  finish_self_signed(builder, sig_alg, spki, fn(tbs) {
+    ecdsa.sign(key, tbs, hash)
+  })
 }
 
 /// Signs a self-signed certificate with an RSA private key using PKCS#1 v1.5 padding.
@@ -418,30 +395,12 @@ pub fn self_signed_with_rsa(
   key: rsa.PrivateKey,
   hash: HashAlgorithm,
 ) -> Result(Certificate(Built), Nil) {
-  use validity <- result.try(option.to_result(builder.validity, Nil))
   use sig_alg <- result.try(x509_internal.rsa_sig_alg_info(hash))
   let public_key = rsa.public_key_from_private_key(key)
   use spki <- result.try(rsa.public_key_to_der(public_key, rsa.Spki))
-
-  let serial = case builder.serial_number {
-    option.Some(s) -> s
-    option.None -> generate_serial_number()
-  }
-
-  use tbs <- result.try(encode_tbs_certificate(
-    builder,
-    serial,
-    sig_alg,
-    spki,
-    validity,
-  ))
-  let signature = rsa.sign(key, tbs, hash, rsa.Pkcs1v15)
-  use cert_der <- result.try(x509_internal.encode_signed(
-    tbs,
-    sig_alg,
-    signature,
-  ))
-  Ok(BuiltCertificate(cert_der))
+  finish_self_signed(builder, sig_alg, spki, fn(tbs) {
+    rsa.sign(key, tbs, hash, rsa.Pkcs1v15)
+  })
 }
 
 /// Signs a self-signed certificate with an EdDSA private key.
@@ -453,19 +412,20 @@ pub fn self_signed_with_eddsa(
   builder: Builder,
   key: eddsa.PrivateKey,
 ) -> Result(Certificate(Built), Nil) {
-  use validity <- result.try(option.to_result(builder.validity, Nil))
-  let sig_alg = case eddsa.curve(key) {
-    eddsa.Ed25519 -> x509_internal.SigAlgInfo(oid_ed25519, False)
-    eddsa.Ed448 -> x509_internal.SigAlgInfo(oid_ed448, False)
-  }
+  let sig_alg = x509_internal.eddsa_sig_alg_info(eddsa.curve(key))
   let public_key = eddsa.public_key_from_private_key(key)
   use spki <- result.try(eddsa.public_key_to_der(public_key))
+  finish_self_signed(builder, sig_alg, spki, fn(tbs) { eddsa.sign(key, tbs) })
+}
 
-  let serial = case builder.serial_number {
-    option.Some(s) -> s
-    option.None -> generate_serial_number()
-  }
-
+fn finish_self_signed(
+  builder: Builder,
+  sig_alg: SigAlgInfo,
+  spki: BitArray,
+  sign: fn(BitArray) -> BitArray,
+) -> Result(Certificate(Built), Nil) {
+  use validity <- result.try(option.to_result(builder.validity, Nil))
+  let serial = option.lazy_unwrap(builder.serial_number, generate_serial_number)
   use tbs <- result.try(encode_tbs_certificate(
     builder,
     serial,
@@ -473,7 +433,7 @@ pub fn self_signed_with_eddsa(
     spki,
     validity,
   ))
-  let signature = eddsa.sign(key, tbs)
+  let signature = sign(tbs)
   use cert_der <- result.try(x509_internal.encode_signed(
     tbs,
     sig_alg,
