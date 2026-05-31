@@ -684,76 +684,44 @@ fn decode_oid_rest(
 /// Each byte in Latin-1 represents a single Unicode codepoint (0x00-0xFF),
 /// which maps directly to Unicode.
 fn latin1_to_utf8(bytes: BitArray) -> Result(String, Nil) {
-  latin1_to_utf8_loop(bytes, [])
-  |> result.map(fn(codepoints) {
-    codepoints |> list.reverse |> string.from_utf_codepoints
-  })
-}
-
-fn latin1_to_utf8_loop(
-  bytes: BitArray,
-  acc: List(UtfCodepoint),
-) -> Result(List(UtfCodepoint), Nil) {
-  case bytes {
-    <<>> -> Ok(acc)
-    <<byte:8, rest:bits>> -> {
-      case string.utf_codepoint(byte) {
-        Ok(cp) -> latin1_to_utf8_loop(rest, [cp, ..acc])
-        Error(_) -> Error(Nil)
-      }
-    }
-    _ -> Error(Nil)
-  }
+  bytes_to_utf8(bytes, 8)
 }
 
 /// Convert UCS-2 big-endian bytes to a UTF-8 string.
 ///
 /// Each 2-byte unit represents a Unicode codepoint in the Basic Multilingual Plane.
 fn ucs2_to_utf8(bytes: BitArray) -> Result(String, Nil) {
-  ucs2_to_utf8_loop(bytes, [])
-  |> result.map(fn(codepoints) {
-    codepoints |> list.reverse |> string.from_utf_codepoints
-  })
-}
-
-fn ucs2_to_utf8_loop(
-  bytes: BitArray,
-  acc: List(UtfCodepoint),
-) -> Result(List(UtfCodepoint), Nil) {
-  case bytes {
-    <<>> -> Ok(acc)
-    <<codepoint:16-big, rest:bits>> -> {
-      case string.utf_codepoint(codepoint) {
-        Ok(cp) -> ucs2_to_utf8_loop(rest, [cp, ..acc])
-        Error(_) -> Error(Nil)
-      }
-    }
-    _ -> Error(Nil)
-  }
+  bytes_to_utf8(bytes, 16)
 }
 
 /// Convert UCS-4 big-endian bytes to a UTF-8 string.
 ///
 /// Each 4-byte unit represents a Unicode codepoint.
 fn ucs4_to_utf8(bytes: BitArray) -> Result(String, Nil) {
-  ucs4_to_utf8_loop(bytes, [])
+  bytes_to_utf8(bytes, 32)
+}
+
+/// Decode big-endian fixed-width units (8, 16, or 32 bits each) into a UTF-8
+/// string, where each unit is one Unicode codepoint.
+fn bytes_to_utf8(bytes: BitArray, unit_bits: Int) -> Result(String, Nil) {
+  bytes_to_utf8_loop(bytes, unit_bits, [])
   |> result.map(fn(codepoints) {
     codepoints |> list.reverse |> string.from_utf_codepoints
   })
 }
 
-fn ucs4_to_utf8_loop(
+fn bytes_to_utf8_loop(
   bytes: BitArray,
+  unit_bits: Int,
   acc: List(UtfCodepoint),
 ) -> Result(List(UtfCodepoint), Nil) {
   case bytes {
     <<>> -> Ok(acc)
-    <<codepoint:32-big, rest:bits>> -> {
+    <<codepoint:size(unit_bits)-big, rest:bits>> ->
       case string.utf_codepoint(codepoint) {
-        Ok(cp) -> ucs4_to_utf8_loop(rest, [cp, ..acc])
+        Ok(cp) -> bytes_to_utf8_loop(rest, unit_bits, [cp, ..acc])
         Error(_) -> Error(Nil)
       }
-    }
     _ -> Error(Nil)
   }
 }
