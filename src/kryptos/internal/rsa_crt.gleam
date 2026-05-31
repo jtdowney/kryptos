@@ -152,13 +152,13 @@ fn factor_rsa_modulus(
 }
 
 fn factor_out_twos(k: BigInt, two: BigInt, count: Int) -> #(Int, BigInt) {
-  case bigi.modulo(k, two) == bigi.from_int(0) {
-    True -> {
+  case bigi.is_odd(k) {
+    True -> #(count, k)
+    False -> {
       // safe: divisor is constant 2, never zero
       let assert Ok(next) = bigi.floor_divide(dividend: k, divisor: two)
       factor_out_twos(next, two, count + 1)
     }
-    False -> #(count, k)
   }
 }
 
