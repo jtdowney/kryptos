@@ -385,15 +385,9 @@ fn parse_general_name(
       Ok(#(x509.OtherName(x509.Oid(oid_components), other_value), rest))
     }
     // [1] rfc822Name (email)
-    0x81 -> {
-      bit_array.to_string(value)
-      |> result.map(fn(s) { #(x509.Email(s), rest) })
-    }
+    0x81 -> string_san(value, rest, x509.Email)
     // [2] dNSName
-    0x82 -> {
-      bit_array.to_string(value)
-      |> result.map(fn(s) { #(x509.DnsName(s), rest) })
-    }
+    0x82 -> string_san(value, rest, x509.DnsName)
     // [4] directoryName - explicit Name (SEQUENCE of RDNs)
     0xa4 -> {
       use #(name_content, remaining) <- result.try(der.parse_sequence(value))
@@ -402,10 +396,7 @@ fn parse_general_name(
       Ok(#(x509.DirectoryName(name), rest))
     }
     // [6] uniformResourceIdentifier (URI)
-    0x86 -> {
-      bit_array.to_string(value)
-      |> result.map(fn(s) { #(x509.Uri(s), rest) })
-    }
+    0x86 -> string_san(value, rest, x509.Uri)
     // [7] iPAddress
     0x87 -> Ok(#(x509.IpAddress(value), rest))
     // [8] registeredID - implicit OID
@@ -420,6 +411,15 @@ fn parse_general_name(
         False -> Ok(#(x509.Unknown(tag, value), rest))
       }
   }
+}
+
+fn string_san(
+  value: BitArray,
+  rest: BitArray,
+  wrap: fn(String) -> x509.SubjectAltName,
+) -> Result(#(x509.SubjectAltName, BitArray), Nil) {
+  bit_array.to_string(value)
+  |> result.map(fn(s) { #(wrap(s), rest) })
 }
 
 /// Encode a single Subject Alternative Name entry to DER format.
