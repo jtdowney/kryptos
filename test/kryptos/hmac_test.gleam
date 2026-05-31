@@ -3,7 +3,6 @@ import gleam/list
 import kryptos/crypto
 import kryptos/hash
 import kryptos/hmac
-import kryptos/internal/utils
 import qcheck
 
 // RFC 4231 Test Vectors
@@ -189,7 +188,7 @@ pub fn hmac_wrong_key_fails_property_test() {
   // HMAC pads keys shorter than the block size with zeros, so keys that
   // differ only by trailing zeros are HMAC-equivalent. We compare the
   // canonical form (trailing zeros stripped) to detect this.
-  case utils.strip_trailing_zeros(key1) == utils.strip_trailing_zeros(key2) {
+  case strip_trailing_zeros(key1) == strip_trailing_zeros(key2) {
     True -> Nil
     False -> {
       let assert Ok(mac) = crypto.hmac(hash.Sha256, key1, data)
@@ -258,4 +257,28 @@ pub fn keys_differing_by_nonzero_bytes_produce_different_macs_test() {
   let assert Ok(mac2) = crypto.hmac(hash.Sha256, key2, data)
 
   assert mac1 != mac2
+}
+
+/// Strip trailing zero bytes so keys that are HMAC-equivalent under the
+/// block-size zero padding compare equal.
+fn strip_trailing_zeros(data: BitArray) -> BitArray {
+  let len = bit_array.byte_size(data)
+  strip_trailing_zeros_loop(data, len)
+}
+
+fn strip_trailing_zeros_loop(data: BitArray, len: Int) -> BitArray {
+  case len {
+    0 -> <<>>
+    _ -> {
+      let prev = len - 1
+      case data {
+        <<head:bytes-size(prev), last_byte:8, _:bits>> ->
+          case last_byte {
+            0 -> strip_trailing_zeros_loop(data, prev)
+            _ -> <<head:bits, last_byte:8>>
+          }
+        _ -> <<>>
+      }
+    }
+  }
 }

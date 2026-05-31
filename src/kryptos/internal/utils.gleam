@@ -5,34 +5,6 @@ import gleam/list
 import gleam/result
 import gleam/string
 
-/// Count the number of trailing zero bits in a byte-aligned BitArray.
-pub fn count_trailing_zeros(bits: BitArray) -> Int {
-  let size = bit_array.byte_size(bits)
-  do_count_trailing_zeros(bits, size - 1, 0)
-}
-
-fn do_count_trailing_zeros(bits: BitArray, byte_pos: Int, count: Int) -> Int {
-  case byte_pos < 0 {
-    True -> count
-    False ->
-      case bit_array.slice(bits, byte_pos, 1) {
-        Ok(<<byte>>) ->
-          case byte {
-            0 -> do_count_trailing_zeros(bits, byte_pos - 1, count + 8)
-            _ -> count + trailing_zeros_in_byte(byte, 0)
-          }
-        _ -> count
-      }
-  }
-}
-
-fn trailing_zeros_in_byte(byte: Int, count: Int) -> Int {
-  case int.bitwise_and(byte, 1) {
-    0 -> trailing_zeros_in_byte(int.bitwise_shift_right(byte, 1), count + 1)
-    _ -> count
-  }
-}
-
 /// Strip leading zero bytes from a BitArray, preserving at least one byte.
 ///
 /// For example: `<<0, 0, 1, 2>>` becomes `<<1, 2>>`
@@ -46,32 +18,6 @@ pub fn strip_leading_zeros(bytes: BitArray) -> BitArray {
       }
     }
     _ -> bytes
-  }
-}
-
-/// Strip trailing zero bytes from a BitArray.
-///
-/// For example: `<<1, 2, 0, 0>>` becomes `<<1, 2>>`
-/// An all-zeros input returns `<<>>`.
-pub fn strip_trailing_zeros(data: BitArray) -> BitArray {
-  let len = bit_array.byte_size(data)
-  strip_trailing_zeros_loop(data, len)
-}
-
-fn strip_trailing_zeros_loop(data: BitArray, len: Int) -> BitArray {
-  case len {
-    0 -> <<>>
-    _ -> {
-      let prev = len - 1
-      case data {
-        <<head:bytes-size(prev), last_byte:8, _:bits>> ->
-          case last_byte {
-            0 -> strip_trailing_zeros_loop(data, prev)
-            _ -> <<head:bits, last_byte:8>>
-          }
-        _ -> <<>>
-      }
-    }
   }
 }
 

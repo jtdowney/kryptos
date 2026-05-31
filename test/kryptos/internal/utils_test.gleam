@@ -3,20 +3,6 @@ import gleam/string
 import kryptos/internal/utils
 import qcheck
 
-pub fn count_trailing_zeros_byte_test() {
-  assert utils.count_trailing_zeros(<<0b00110100:8>>) == 2
-  assert utils.count_trailing_zeros(<<0b00110000:8>>) == 4
-  assert utils.count_trailing_zeros(<<0b00000001:8>>) == 0
-  assert utils.count_trailing_zeros(<<0:8>>) == 8
-}
-
-pub fn count_trailing_zeros_multi_byte_test() {
-  assert utils.count_trailing_zeros(<<0b00000001, 0b00000000:8>>) == 8
-  assert utils.count_trailing_zeros(<<0b00000001, 0b10000000:8>>) == 7
-  assert utils.count_trailing_zeros(<<0b11111111, 0b11110000:8>>) == 4
-  assert utils.count_trailing_zeros(<<0b00000000, 0b00000001:8>>) == 0
-}
-
 pub fn int_to_padded_string_basic_test() {
   assert utils.int_to_padded_string(1, 2) == "01"
   assert utils.int_to_padded_string(42, 4) == "0042"
