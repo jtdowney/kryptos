@@ -299,21 +299,17 @@ fn encode_attribute_type_and_value(
 pub fn parse_public_key(
   spki_bytes: BitArray,
 ) -> Result(x509.PublicKey, x509.Oid) {
-  let result =
-    {
-      use #(spki_content, _) <- result.try(der.parse_sequence(spki_bytes))
-      use #(alg_id_bytes, after_alg) <- result.try(der.parse_sequence(
-        spki_content,
-      ))
-      use #(alg_oid, _alg_params) <- result.try(der.parse_oid(alg_id_bytes))
-      use _ <- result.try(der.parse_bit_string(after_alg))
-
-      Ok(alg_oid)
-    }
-    |> result.replace_error(x509.Oid([]))
-
-  result
+  parse_spki_alg_oid(spki_bytes)
+  |> result.replace_error(x509.Oid([]))
   |> result.try(dispatch_public_key_parse(_, spki_bytes))
+}
+
+fn parse_spki_alg_oid(spki_bytes: BitArray) -> Result(List(Int), Nil) {
+  use #(spki_content, _) <- result.try(der.parse_sequence(spki_bytes))
+  use #(alg_id_bytes, after_alg) <- result.try(der.parse_sequence(spki_content))
+  use #(alg_oid, _alg_params) <- result.try(der.parse_oid(alg_id_bytes))
+  use _ <- result.try(der.parse_bit_string(after_alg))
+  Ok(alg_oid)
 }
 
 fn dispatch_public_key_parse(
@@ -323,26 +319,32 @@ fn dispatch_public_key_parse(
   case alg_oid {
     // id-ecPublicKey
     [1, 2, 840, 10_045, 2, 1] ->
-      ec.public_key_from_der(spki_bytes)
-      |> result.map(x509.EcPublicKey)
-      |> result.replace_error(x509.Oid(alg_oid))
+      wrap_key(ec.public_key_from_der(spki_bytes), x509.EcPublicKey, alg_oid)
     // rsaEncryption
     [1, 2, 840, 113_549, 1, 1, 1] ->
-      rsa.public_key_from_der(spki_bytes, rsa.Spki)
-      |> result.map(x509.RsaPublicKey)
-      |> result.replace_error(x509.Oid(alg_oid))
+      wrap_key(
+        rsa.public_key_from_der(spki_bytes, rsa.Spki),
+        x509.RsaPublicKey,
+        alg_oid,
+      )
     // id-X25519 / id-X448 (RFC 8410)
     [1, 3, 101, 110] | [1, 3, 101, 111] ->
-      xdh.public_key_from_der(spki_bytes)
-      |> result.map(x509.XdhPublicKey)
-      |> result.replace_error(x509.Oid(alg_oid))
+      wrap_key(xdh.public_key_from_der(spki_bytes), x509.XdhPublicKey, alg_oid)
     // id-Ed25519 / id-Ed448 (RFC 8410)
     [1, 3, 101, 112] | [1, 3, 101, 113] ->
-      eddsa.public_key_from_der(spki_bytes)
-      |> result.map(x509.EdPublicKey)
-      |> result.replace_error(x509.Oid(alg_oid))
+      wrap_key(eddsa.public_key_from_der(spki_bytes), x509.EdPublicKey, alg_oid)
     _ -> Error(x509.Oid(alg_oid))
   }
+}
+
+fn wrap_key(
+  parsed: Result(a, Nil),
+  wrap: fn(a) -> x509.PublicKey,
+  alg_oid: List(Int),
+) -> Result(x509.PublicKey, x509.Oid) {
+  parsed
+  |> result.map(wrap)
+  |> result.replace_error(x509.Oid(alg_oid))
 }
 
 /// Recursively parse a sequence of Subject Alternative Name entries.
