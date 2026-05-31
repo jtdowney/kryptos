@@ -73,6 +73,8 @@ pub opaque type Csr(status) {
   BuiltCsr(der: BitArray)
   ParsedCsr(
     der: BitArray,
+    cert_request_info: BitArray,
+    signature: BitArray,
     version: Int,
     subject: x509.Name,
     public_key: x509.PublicKey,
@@ -330,14 +332,16 @@ pub fn from_der_unverified(der: BitArray) -> Result(Csr(Parsed), CsrError) {
     |> result.map_error(UnsupportedSignatureAlgorithm),
   )
 
-  // Parse signature (BIT STRING) - store for verification
-  use #(_signature, _) <- result.try(
+  // Parse signature (BIT STRING) - stored for verification
+  use #(signature, _) <- result.try(
     der.parse_bit_string(after_sig_alg)
     |> result.replace_error(InvalidStructure),
   )
 
   Ok(ParsedCsr(
     der:,
+    cert_request_info: cert_req_info_bytes,
+    signature:,
     version:,
     subject:,
     public_key:,
@@ -523,34 +527,18 @@ fn parse_extensions(
 }
 
 fn verify_signature(csr: Csr(Parsed)) -> Result(Nil, CsrError) {
-  let assert ParsedCsr(der:, public_key:, signature_algorithm:, ..) = csr
+  let assert ParsedCsr(
+    cert_request_info:,
+    signature:,
+    public_key:,
+    signature_algorithm:,
+    ..,
+  ) = csr
 
-  // Extract the CertificationRequestInfo and signature from the DER
-  use #(csr_content, _) <- result.try(
-    der.parse_sequence(der) |> result.replace_error(InvalidStructure),
-  )
-
-  use #(cert_req_info_bytes, after_info) <- result.try(
-    x509_internal.parse_sequence_with_header(csr_content)
-    |> result.replace_error(InvalidStructure),
-  )
-
-  // Skip signature algorithm
-  use #(_, after_sig_alg) <- result.try(
-    der.parse_sequence(after_info) |> result.replace_error(InvalidStructure),
-  )
-
-  // Get signature
-  use #(signature, _) <- result.try(
-    der.parse_bit_string(after_sig_alg)
-    |> result.replace_error(InvalidStructure),
-  )
-
-  // Verify based on algorithm and key type
   let verified =
     x509_internal.verify_signature(
       public_key,
-      cert_req_info_bytes,
+      cert_request_info,
       signature,
       signature_algorithm,
     )
