@@ -3,28 +3,6 @@ import gleam/string
 import kryptos/internal/utils
 import qcheck
 
-pub fn int_to_padded_string_basic_test() {
-  assert utils.int_to_padded_string(1, 2) == "01"
-  assert utils.int_to_padded_string(42, 4) == "0042"
-  assert utils.int_to_padded_string(123, 5) == "00123"
-}
-
-pub fn int_to_padded_string_no_padding_needed_test() {
-  assert utils.int_to_padded_string(10, 2) == "10"
-  assert utils.int_to_padded_string(100, 3) == "100"
-  assert utils.int_to_padded_string(1234, 4) == "1234"
-}
-
-pub fn int_to_padded_string_already_wider_test() {
-  assert utils.int_to_padded_string(12_345, 3) == "12345"
-  assert utils.int_to_padded_string(100, 2) == "100"
-}
-
-pub fn int_to_padded_string_zero_test() {
-  assert utils.int_to_padded_string(0, 3) == "000"
-  assert utils.int_to_padded_string(0, 1) == "0"
-}
-
 pub fn is_ascii_accepts_empty_string_test() {
   assert utils.is_ascii("")
 }

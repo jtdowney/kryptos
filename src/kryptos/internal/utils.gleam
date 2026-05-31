@@ -40,15 +40,6 @@ pub fn pad_left(value: BitArray, size: Int) -> BitArray {
   }
 }
 
-/// Convert an integer to a zero-padded string of the specified width.
-///
-/// For example: `int_to_padded_string(42, 4)` returns `"0042"`
-pub fn int_to_padded_string(n: Int, width: Int) -> String {
-  let s = int.to_string(n)
-  let padding = string.repeat("0", int.max(0, width - string.length(s)))
-  padding <> s
-}
-
 /// Check if a string contains only ASCII characters (codepoints 0-127).
 pub fn is_ascii(s: String) -> Bool {
   s

@@ -378,7 +378,7 @@ pub fn encode_timestamp(timestamp: Timestamp) -> Result(BitArray, Nil) {
 fn encode_utc_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
   let #(date, time) = timestamp.to_calendar(timestamp, calendar.utc_offset)
   let yy = date.year % 100
-  let pad2 = utils.int_to_padded_string(_, 2)
+  let pad2 = fn(n) { string.pad_start(int.to_string(n), 2, "0") }
   let content =
     pad2(yy)
     <> pad2(calendar.month_to_int(date.month))
@@ -433,8 +433,8 @@ pub fn parse_utc_time(bytes: BitArray) -> Result(#(Timestamp, BitArray), Nil) {
 /// Format: YYYYMMDDHHMMSSZ
 pub fn encode_generalized_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
   let #(date, time) = timestamp.to_calendar(timestamp, calendar.utc_offset)
-  let pad2 = utils.int_to_padded_string(_, 2)
-  let pad4 = utils.int_to_padded_string(_, 4)
+  let pad2 = fn(n) { string.pad_start(int.to_string(n), 2, "0") }
+  let pad4 = fn(n) { string.pad_start(int.to_string(n), 4, "0") }
   let content =
     pad4(date.year)
     <> pad2(calendar.month_to_int(date.month))
