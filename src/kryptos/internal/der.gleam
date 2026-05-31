@@ -1,6 +1,5 @@
 import gleam/bit_array
 import gleam/bool
-import gleam/bytes_tree
 import gleam/int
 import gleam/list
 import gleam/result
@@ -501,10 +500,9 @@ pub fn encode_oid(components: List(Int)) -> Result(BitArray, Nil) {
       let first_bytes = encode_oid_component(first_value)
       let rest_bytes = list.flat_map(rest, encode_oid_component)
       let content =
-        bit_array.concat([
-          bytes_from_list(first_bytes),
-          bytes_from_list(rest_bytes),
-        ])
+        list.append(first_bytes, rest_bytes)
+        |> list.map(fn(byte) { <<byte:8>> })
+        |> bit_array.concat
       use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
       Ok(bit_array.concat([<<oid_tag>>, len_bytes, content]))
     }
@@ -606,14 +604,6 @@ fn reject_non_minimal_zeros(
     <<0x00, second:8, _:bits>> if second < 128 -> Error(Nil)
     _ -> next()
   }
-}
-
-fn bytes_from_list(bytes: List(Int)) -> BitArray {
-  bytes
-  |> list.fold(bytes_tree.new(), fn(tree, byte) {
-    bytes_tree.append(tree, <<byte:8>>)
-  })
-  |> bytes_tree.to_bit_array
 }
 
 fn encode_oid_component(value: Int) -> List(Int) {
