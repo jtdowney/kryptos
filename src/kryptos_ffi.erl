@@ -39,8 +39,6 @@
     ecdsa_verify/4,
     eddsa_export_private_key_der/1,
     eddsa_export_private_key_pem/1,
-    eddsa_export_public_key_der/1,
-    eddsa_export_public_key_pem/1,
     eddsa_generate_key_pair/1,
     eddsa_import_private_key_der/1,
     eddsa_import_private_key_pem/1,
@@ -95,8 +93,8 @@
     xdh_compute_shared_secret/2,
     xdh_export_private_key_der/1,
     xdh_export_private_key_pem/1,
-    xdh_export_public_key_der/1,
-    xdh_export_public_key_pem/1,
+    export_public_key_der/1,
+    export_public_key_pem/1,
     xdh_generate_key_pair/1,
     xdh_import_private_key_der/1,
     xdh_import_private_key_pem/1,
@@ -977,7 +975,7 @@ xdh_private_key_to_der(KeyBytes, Curve) ->
         end,
     public_key:der_encode('PrivateKeyInfo', PrivKeyInfo).
 
-xdh_export_public_key_pem({PubBytes, Curve}) ->
+export_public_key_pem({PubBytes, Curve}) ->
     try
         Spki =
             #'SubjectPublicKeyInfo'{
@@ -992,7 +990,7 @@ xdh_export_public_key_pem({PubBytes, Curve}) ->
             {error, nil}
     end.
 
-xdh_export_public_key_der({PubBytes, Curve}) ->
+export_public_key_der({PubBytes, Curve}) ->
     try
         Spki =
             #'SubjectPublicKeyInfo'{
@@ -1540,32 +1538,3 @@ eddsa_private_key_to_der(KeyBytes, Curve) ->
                 {'PrivateKeyInfo', v1, AlgId, WrappedKey, asn1_NOVALUE}
         end,
     public_key:der_encode('PrivateKeyInfo', PrivKeyInfo).
-
-eddsa_export_public_key_pem({PubBytes, Curve}) ->
-    try
-        Spki =
-            #'SubjectPublicKeyInfo'{
-                algorithm =
-                    #'AlgorithmIdentifier'{algorithm = curve_to_oid(Curve)},
-                subjectPublicKey = PubBytes
-            },
-        Der = public_key:der_encode('SubjectPublicKeyInfo', Spki),
-        {ok, public_key:pem_encode([{'SubjectPublicKeyInfo', Der, not_encrypted}])}
-    catch
-        _:_ ->
-            {error, nil}
-    end.
-
-eddsa_export_public_key_der({PubBytes, Curve}) ->
-    try
-        Spki =
-            #'SubjectPublicKeyInfo'{
-                algorithm =
-                    #'AlgorithmIdentifier'{algorithm = curve_to_oid(Curve)},
-                subjectPublicKey = PubBytes
-            },
-        {ok, public_key:der_encode('SubjectPublicKeyInfo', Spki)}
-    catch
-        _:_ ->
-            {error, nil}
-    end.

@@ -190,14 +190,14 @@ pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
   do_public_key_to_pem(key) |> utils.normalize_pem
 }
 
-@external(erlang, "kryptos_ffi", "xdh_export_public_key_pem")
+@external(erlang, "kryptos_ffi", "export_public_key_pem")
 @external(javascript, "../kryptos_ffi.mjs", "exportPublicKeyPem")
 fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 
 /// Exports an XDH public key to DER format.
 ///
 /// The key is exported in SPKI format.
-@external(erlang, "kryptos_ffi", "xdh_export_public_key_der")
+@external(erlang, "kryptos_ffi", "export_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "exportPublicKeyDer")
 pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 
