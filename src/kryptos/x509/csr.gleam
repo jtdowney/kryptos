@@ -121,16 +121,7 @@ pub fn with_subject(builder: Builder, subject: x509.Name) -> Builder {
 /// the Common Name. The name must contain only ASCII characters.
 pub fn with_dns_name(builder: Builder, name: String) -> Result(Builder, Nil) {
   use <- bool.guard(when: !utils.is_ascii(name), return: Error(Nil))
-  let x509.Extensions(sans) = builder.extensions
-  Ok(
-    Builder(
-      ..builder,
-      extensions: x509.Extensions(subject_alt_names: [
-        x509.DnsName(name),
-        ..sans
-      ]),
-    ),
-  )
+  Ok(add_san(builder, x509.DnsName(name)))
 }
 
 /// Adds an email address to the Subject Alternative Names extension.
@@ -138,13 +129,7 @@ pub fn with_dns_name(builder: Builder, name: String) -> Result(Builder, Nil) {
 /// Used for S/MIME certificates. The email must contain only ASCII characters.
 pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
   use <- bool.guard(when: !utils.is_ascii(email), return: Error(Nil))
-  let x509.Extensions(sans) = builder.extensions
-  Ok(
-    Builder(
-      ..builder,
-      extensions: x509.Extensions(subject_alt_names: [x509.Email(email), ..sans]),
-    ),
-  )
+  Ok(add_san(builder, x509.Email(email)))
 }
 
 /// Adds an IP address to the Subject Alternative Names extension.
@@ -152,15 +137,14 @@ pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
 /// Accepts IPv4 (e.g., "192.168.1.1") or IPv6 (e.g., "2001:db8::1") addresses.
 pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
   use parsed <- result.try(utils.parse_ip(ip))
+  Ok(add_san(builder, x509.IpAddress(parsed)))
+}
+
+fn add_san(builder: Builder, san: x509.SubjectAltName) -> Builder {
   let x509.Extensions(sans) = builder.extensions
-  Ok(
-    Builder(
-      ..builder,
-      extensions: x509.Extensions(subject_alt_names: [
-        x509.IpAddress(parsed),
-        ..sans
-      ]),
-    ),
+  Builder(
+    ..builder,
+    extensions: x509.Extensions(subject_alt_names: [san, ..sans]),
   )
 }
 

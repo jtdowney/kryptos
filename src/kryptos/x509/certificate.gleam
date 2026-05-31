@@ -292,43 +292,28 @@ pub fn with_extended_key_usage(
 ///
 /// The name must contain only ASCII characters.
 pub fn with_dns_name(builder: Builder, name: String) -> Result(Builder, Nil) {
-  case utils.is_ascii(name) {
-    True ->
-      Builder(..builder, subject_alt_names: [
-        x509.DnsName(name),
-        ..builder.subject_alt_names
-      ])
-      |> Ok
-    False -> Error(Nil)
-  }
+  use <- bool.guard(when: !utils.is_ascii(name), return: Error(Nil))
+  Ok(add_san(builder, x509.DnsName(name)))
 }
 
 /// Adds an email address to the Subject Alternative Names extension.
 ///
 /// The email must contain only ASCII characters.
 pub fn with_email(builder: Builder, email: String) -> Result(Builder, Nil) {
-  case utils.is_ascii(email) {
-    True ->
-      Builder(..builder, subject_alt_names: [
-        x509.Email(email),
-        ..builder.subject_alt_names
-      ])
-      |> Ok
-    False -> Error(Nil)
-  }
+  use <- bool.guard(when: !utils.is_ascii(email), return: Error(Nil))
+  Ok(add_san(builder, x509.Email(email)))
 }
 
 /// Adds an IP address to the Subject Alternative Names extension.
 ///
 /// Accepts IPv4 (e.g., "192.168.1.1") or IPv6 (e.g., "2001:db8::1") addresses.
 pub fn with_ip(builder: Builder, ip: String) -> Result(Builder, Nil) {
-  utils.parse_ip(ip)
-  |> result.map(fn(parsed) {
-    Builder(..builder, subject_alt_names: [
-      x509.IpAddress(parsed),
-      ..builder.subject_alt_names
-    ])
-  })
+  use parsed <- result.try(utils.parse_ip(ip))
+  Ok(add_san(builder, x509.IpAddress(parsed)))
+}
+
+fn add_san(builder: Builder, san: x509.SubjectAltName) -> Builder {
+  Builder(..builder, subject_alt_names: [san, ..builder.subject_alt_names])
 }
 
 /// Sets the serial number for the certificate.
