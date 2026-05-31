@@ -225,13 +225,22 @@ pub fn encode_utf8_string(value: String) -> Result(BitArray, Nil) {
   encode_tlv(utf8_string_tag, content)
 }
 
-/// Parse a DER UTF8String, returning (string value, remaining bytes).
-pub fn parse_utf8_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, utf8_string_tag)
+/// Parse a DER string with the given tag whose content is a byte string
+/// decoded as UTF-8 (UTF8String, PrintableString, IA5String).
+fn parse_tagged_utf8(
+  bytes: BitArray,
+  tag: Int,
+) -> Result(#(String, BitArray), Nil) {
+  use rest <- require_tag(bytes, tag)
   use #(len, content) <- result.try(parse_length(rest))
   use #(value_bytes, remaining) <- result.try(parse_content(content, len))
   use value <- result.try(bit_array.to_string(value_bytes))
   Ok(#(value, remaining))
+}
+
+/// Parse a DER UTF8String, returning (string value, remaining bytes).
+pub fn parse_utf8_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
+  parse_tagged_utf8(bytes, utf8_string_tag)
 }
 
 /// Check if a codepoint is valid for PrintableString per RFC 5280.
@@ -296,11 +305,7 @@ pub fn encode_printable_string(value: String) -> Result(BitArray, Nil) {
 pub fn parse_printable_string(
   bytes: BitArray,
 ) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, printable_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
-  use value <- result.try(bit_array.to_string(value_bytes))
-  Ok(#(value, remaining))
+  parse_tagged_utf8(bytes, printable_string_tag)
 }
 
 /// Encode an IA5String (ASCII).
@@ -313,11 +318,7 @@ pub fn encode_ia5_string(value: String) -> Result(BitArray, Nil) {
 /// Note: does not enforce the IA5 (ASCII-only) constraint to remain
 /// liberal in what we accept per Postel's law.
 pub fn parse_ia5_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
-  use rest <- require_tag(bytes, ia5_string_tag)
-  use #(len, content) <- result.try(parse_length(rest))
-  use #(value_bytes, remaining) <- result.try(parse_content(content, len))
-  use value <- result.try(bit_array.to_string(value_bytes))
-  Ok(#(value, remaining))
+  parse_tagged_utf8(bytes, ia5_string_tag)
 }
 
 /// Parse a DER TeletexString (T61String), returning (string value, remaining bytes).
