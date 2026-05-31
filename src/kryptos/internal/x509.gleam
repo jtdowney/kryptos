@@ -103,20 +103,28 @@ pub fn verify_signature(
   signature_algorithm: x509.SignatureAlgorithm,
 ) -> Bool {
   case public_key, signature_algorithm {
-    x509.EcPublicKey(key), sig_alg ->
-      case sig_alg_to_hash(sig_alg) {
-        Ok(hash_alg) -> ecdsa.verify(key, data, signature, hash_alg)
-        Error(Nil) -> False
-      }
-    x509.RsaPublicKey(key), sig_alg ->
-      case sig_alg_to_hash(sig_alg) {
-        Ok(hash_alg) -> rsa.verify(key, data, signature, hash_alg, rsa.Pkcs1v15)
-        Error(Nil) -> False
-      }
+    x509.EcPublicKey(key), sig_alg -> {
+      use hash_alg <- verify_with_hash(sig_alg)
+      ecdsa.verify(key, data, signature, hash_alg)
+    }
+    x509.RsaPublicKey(key), sig_alg -> {
+      use hash_alg <- verify_with_hash(sig_alg)
+      rsa.verify(key, data, signature, hash_alg, rsa.Pkcs1v15)
+    }
     x509.EdPublicKey(key), x509.Ed25519 | x509.EdPublicKey(key), x509.Ed448 ->
       eddsa.verify(key, data, signature)
     x509.EdPublicKey(_), _ -> False
     x509.XdhPublicKey(_), _ -> False
+  }
+}
+
+fn verify_with_hash(
+  sig_alg: x509.SignatureAlgorithm,
+  verify: fn(hash.HashAlgorithm) -> Bool,
+) -> Bool {
+  case sig_alg_to_hash(sig_alg) {
+    Ok(hash_alg) -> verify(hash_alg)
+    Error(Nil) -> False
   }
 }
 
