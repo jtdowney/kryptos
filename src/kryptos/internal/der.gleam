@@ -89,6 +89,12 @@ pub fn parse_bool(bytes: BitArray) -> Result(#(Bool, BitArray), Nil) {
   }
 }
 
+/// Encode a tag-length-value triple: tag byte, DER length, then content.
+fn encode_tlv(tag: Int, content: BitArray) -> Result(BitArray, Nil) {
+  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
+  Ok(bit_array.concat([<<tag:8>>, len_bytes, content]))
+}
+
 /// Encode bytes as a DER INTEGER.
 ///
 /// Strips leading zeros and adds 0x00 prefix if high bit is set (to keep positive).
@@ -101,8 +107,7 @@ pub fn encode_integer(value: BitArray) -> Result(BitArray, Nil) {
     _ -> stripped
   }
 
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(int_bytes)))
-  Ok(bit_array.concat([<<integer_tag>>, len_bytes, int_bytes]))
+  encode_tlv(integer_tag, int_bytes)
 }
 
 /// Encode a non-negative Int as a DER INTEGER.
@@ -140,8 +145,7 @@ pub fn parse_integer(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
 
 /// Wrap content in a DER SEQUENCE.
 pub fn encode_sequence(content: BitArray) -> Result(BitArray, Nil) {
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-  Ok(bit_array.concat([<<sequence_tag>>, len_bytes, content]))
+  encode_tlv(sequence_tag, content)
 }
 
 /// Parse the content of a DER SEQUENCE, returning (inner bytes, remaining bytes).
@@ -157,8 +161,7 @@ pub fn parse_sequence(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
 
 /// Wrap content in a DER SET.
 pub fn encode_set(content: BitArray) -> Result(BitArray, Nil) {
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-  Ok(bit_array.concat([<<set_tag>>, len_bytes, content]))
+  encode_tlv(set_tag, content)
 }
 
 /// Parse the content of a DER SET, returning (inner bytes, remaining bytes).
@@ -180,8 +183,7 @@ pub fn encode_bit_string(value: BitArray) -> Result(BitArray, Nil) {
   }
   let padded = bit_array.pad_to_bytes(value)
   let content = <<unused_bits:8, padded:bits>>
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-  Ok(bit_array.concat([<<bit_string_tag>>, len_bytes, content]))
+  encode_tlv(bit_string_tag, content)
 }
 
 /// Parse a DER BIT STRING, returning (value bytes, remaining bytes).
@@ -205,8 +207,7 @@ pub fn parse_bit_string(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
 
 /// Encode an OCTET STRING.
 pub fn encode_octet_string(value: BitArray) -> Result(BitArray, Nil) {
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(value)))
-  Ok(bit_array.concat([<<octet_string_tag>>, len_bytes, value]))
+  encode_tlv(octet_string_tag, value)
 }
 
 /// Parse a DER OCTET STRING, returning (value bytes, remaining bytes).
@@ -221,8 +222,7 @@ pub fn parse_octet_string(
 /// Encode a UTF8String.
 pub fn encode_utf8_string(value: String) -> Result(BitArray, Nil) {
   let content = bit_array.from_string(value)
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-  Ok(bit_array.concat([<<utf8_string_tag>>, len_bytes, content]))
+  encode_tlv(utf8_string_tag, content)
 }
 
 /// Parse a DER UTF8String, returning (string value, remaining bytes).
@@ -287,8 +287,7 @@ pub fn encode_printable_string(value: String) -> Result(BitArray, Nil) {
     when: !is_valid_printable_string(content),
     return: Error(Nil),
   )
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-  Ok(bit_array.concat([<<printable_string_tag>>, len_bytes, content]))
+  encode_tlv(printable_string_tag, content)
 }
 
 /// Parse a DER PrintableString, returning (string value, remaining bytes).
@@ -307,8 +306,7 @@ pub fn parse_printable_string(
 /// Encode an IA5String (ASCII).
 pub fn encode_ia5_string(value: String) -> Result(BitArray, Nil) {
   let content = bit_array.from_string(value)
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-  Ok(bit_array.concat([<<ia5_string_tag>>, len_bytes, content]))
+  encode_tlv(ia5_string_tag, content)
 }
 
 /// Parse a DER IA5String, returning (string value, remaining bytes).
@@ -387,8 +385,7 @@ fn encode_utc_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
     <> pad2(time.seconds)
     <> "Z"
   let bytes = bit_array.from_string(content)
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(bytes)))
-  Ok(bit_array.concat([<<utc_time_tag>>, len_bytes, bytes]))
+  encode_tlv(utc_time_tag, bytes)
 }
 
 /// Parse a UTCTime, returning (Timestamp, remaining).
@@ -443,8 +440,7 @@ pub fn encode_generalized_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
     <> pad2(time.seconds)
     <> "Z"
   let bytes = bit_array.from_string(content)
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(bytes)))
-  Ok(bit_array.concat([<<generalized_time_tag>>, len_bytes, bytes]))
+  encode_tlv(generalized_time_tag, bytes)
 }
 
 /// Parse a GeneralizedTime, returning (Timestamp, remaining).
@@ -503,8 +499,7 @@ pub fn encode_oid(components: List(Int)) -> Result(BitArray, Nil) {
         list.append(first_bytes, rest_bytes)
         |> list.map(fn(byte) { <<byte:8>> })
         |> bit_array.concat
-      use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-      Ok(bit_array.concat([<<oid_tag>>, len_bytes, content]))
+      encode_tlv(oid_tag, content)
     }
     _ -> Error(Nil)
   }
@@ -532,9 +527,7 @@ pub fn encode_context_tag(
   tag: Int,
   content: BitArray,
 ) -> Result(BitArray, Nil) {
-  let tag_byte = int.bitwise_or(0xa0, tag)
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-  Ok(bit_array.concat([<<tag_byte:8>>, len_bytes, content]))
+  encode_tlv(int.bitwise_or(0xa0, tag), content)
 }
 
 /// Parse a context-specific constructed tag (e.g., [0], [1]).
@@ -557,9 +550,7 @@ pub fn encode_context_primitive_tag(
   tag: Int,
   content: BitArray,
 ) -> Result(BitArray, Nil) {
-  let tag_byte = int.bitwise_or(0x80, tag)
-  use len_bytes <- result.try(encode_length(bit_array.byte_size(content)))
-  Ok(bit_array.concat([<<tag_byte:8>>, len_bytes, content]))
+  encode_tlv(int.bitwise_or(0x80, tag), content)
 }
 
 /// Parse content of a given length, returning (value, remaining bytes).
