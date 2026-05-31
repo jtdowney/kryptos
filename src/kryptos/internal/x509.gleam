@@ -369,7 +369,7 @@ pub fn parse_general_names(
 /// Decodes one GeneralName from DER encoding (DNS name, email, IP address, etc.).
 /// Returns Error(Nil) if the entry is malformed.
 /// When is_critical is True, unknown GeneralName types return Error.
-pub fn parse_general_name(
+fn parse_general_name(
   bytes: BitArray,
   is_critical: Bool,
 ) -> Result(#(x509.SubjectAltName, BitArray), Nil) {
@@ -426,7 +426,7 @@ pub fn parse_general_name(
 /// DNS names, email addresses, IP addresses, URIs, directory names,
 /// registered IDs, and otherName entries.
 /// Returns Error(Nil) for Unknown SAN types.
-pub fn encode_general_name(san: x509.SubjectAltName) -> Result(BitArray, Nil) {
+fn encode_general_name(san: x509.SubjectAltName) -> Result(BitArray, Nil) {
   case san {
     x509.DnsName(name) ->
       der.encode_context_primitive_tag(2, bit_array.from_string(name))
