@@ -381,9 +381,8 @@ pub fn self_signed_with_ecdsa(
   use sig_alg <- result.try(x509_internal.ecdsa_sig_alg_info(hash))
   let public_key = ec.public_key_from_private_key(key)
   use spki <- result.try(ec.public_key_to_der(public_key))
-  finish_self_signed(builder, sig_alg, spki, fn(tbs) {
-    ecdsa.sign(key, tbs, hash)
-  })
+  use tbs <- finish_self_signed(builder, sig_alg, spki)
+  ecdsa.sign(key, tbs, hash)
 }
 
 /// Signs a self-signed certificate with an RSA private key using PKCS#1 v1.5 padding.
@@ -398,9 +397,8 @@ pub fn self_signed_with_rsa(
   use sig_alg <- result.try(x509_internal.rsa_sig_alg_info(hash))
   let public_key = rsa.public_key_from_private_key(key)
   use spki <- result.try(rsa.public_key_to_der(public_key, rsa.Spki))
-  finish_self_signed(builder, sig_alg, spki, fn(tbs) {
-    rsa.sign(key, tbs, hash, rsa.Pkcs1v15)
-  })
+  use tbs <- finish_self_signed(builder, sig_alg, spki)
+  rsa.sign(key, tbs, hash, rsa.Pkcs1v15)
 }
 
 /// Signs a self-signed certificate with an EdDSA private key.
@@ -415,7 +413,8 @@ pub fn self_signed_with_eddsa(
   let sig_alg = x509_internal.eddsa_sig_alg_info(eddsa.curve(key))
   let public_key = eddsa.public_key_from_private_key(key)
   use spki <- result.try(eddsa.public_key_to_der(public_key))
-  finish_self_signed(builder, sig_alg, spki, fn(tbs) { eddsa.sign(key, tbs) })
+  use tbs <- finish_self_signed(builder, sig_alg, spki)
+  eddsa.sign(key, tbs)
 }
 
 fn finish_self_signed(

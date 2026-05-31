@@ -178,17 +178,8 @@ pub fn sign_with_ecdsa(
   use sig_alg <- result.try(x509_internal.ecdsa_sig_alg_info(hash))
   let public_key = ec.public_key_from_private_key(key)
   use spki <- result.try(ec.public_key_to_der(public_key))
-  use cert_request_info <- result.try(encode_certification_request_info(
-    builder,
-    spki,
-  ))
-  let signature = ecdsa.sign(key, cert_request_info, hash)
-  use csr_der <- result.try(x509_internal.encode_signed(
-    cert_request_info,
-    sig_alg,
-    signature,
-  ))
-  Ok(BuiltCsr(csr_der))
+  use request_info <- finish_sign(builder, sig_alg, spki)
+  ecdsa.sign(key, request_info, hash)
 }
 
 /// Signs the CSR with an RSA private key using PKCS#1 v1.5 padding.
@@ -205,17 +196,8 @@ pub fn sign_with_rsa(
   use sig_alg <- result.try(x509_internal.rsa_sig_alg_info(hash))
   let public_key = rsa.public_key_from_private_key(key)
   use spki <- result.try(rsa.public_key_to_der(public_key, rsa.Spki))
-  use cert_request_info <- result.try(encode_certification_request_info(
-    builder,
-    spki,
-  ))
-  let signature = rsa.sign(key, cert_request_info, hash, rsa.Pkcs1v15)
-  use csr_der <- result.try(x509_internal.encode_signed(
-    cert_request_info,
-    sig_alg,
-    signature,
-  ))
-  Ok(BuiltCsr(csr_der))
+  use request_info <- finish_sign(builder, sig_alg, spki)
+  rsa.sign(key, request_info, hash, rsa.Pkcs1v15)
 }
 
 /// Signs the CSR with an EdDSA private key (Ed25519 or Ed448).
@@ -229,13 +211,23 @@ pub fn sign_with_eddsa(
   let sig_alg = x509_internal.eddsa_sig_alg_info(eddsa.curve(key))
   let public_key = eddsa.public_key_from_private_key(key)
   use spki <- result.try(eddsa.public_key_to_der(public_key))
-  use cert_request_info <- result.try(encode_certification_request_info(
+  use request_info <- finish_sign(builder, sig_alg, spki)
+  eddsa.sign(key, request_info)
+}
+
+fn finish_sign(
+  builder: Builder,
+  sig_alg: x509_internal.SigAlgInfo,
+  spki: BitArray,
+  sign: fn(BitArray) -> BitArray,
+) -> Result(Csr(Built), Nil) {
+  use request_info <- result.try(encode_certification_request_info(
     builder,
     spki,
   ))
-  let signature = eddsa.sign(key, cert_request_info)
+  let signature = sign(request_info)
   use csr_der <- result.try(x509_internal.encode_signed(
-    cert_request_info,
+    request_info,
     sig_alg,
     signature,
   ))
