@@ -16,8 +16,7 @@
 //// // valid == True
 //// ```
 
-import gleam/result
-import gleam/string
+import kryptos/internal/utils
 
 /// An EdDSA private key.
 pub type PrivateKey
@@ -135,7 +134,7 @@ pub fn from_der(der: BitArray) -> Result(#(PrivateKey, PublicKey), Nil)
 ///
 /// The key is exported in PKCS#8 format.
 pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
-  do_to_pem(key) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+  do_to_pem(key) |> utils.normalize_pem
 }
 
 @external(erlang, "kryptos_ffi", "eddsa_export_private_key_pem")
@@ -167,8 +166,7 @@ pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
 ///
 /// The key is exported in SPKI format.
 pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
-  do_public_key_to_pem(key)
-  |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+  do_public_key_to_pem(key) |> utils.normalize_pem
 }
 
 @external(erlang, "kryptos_ffi", "eddsa_export_public_key_pem")

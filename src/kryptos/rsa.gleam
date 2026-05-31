@@ -37,10 +37,9 @@
 //// let assert Ok(decrypted) = rsa.decrypt(private_key, ciphertext, padding)
 //// ```
 
-import gleam/result
-import gleam/string
 import kryptos/hash
 import kryptos/internal/rsa_crt
+import kryptos/internal/utils
 
 /// An RSA private key.
 pub type PrivateKey
@@ -191,7 +190,7 @@ pub fn to_pem(
   key: PrivateKey,
   format: PrivateKeyFormat,
 ) -> Result(String, Nil) {
-  do_to_pem(key, format) |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+  do_to_pem(key, format) |> utils.normalize_pem
 }
 
 @external(erlang, "kryptos_ffi", "rsa_export_private_key_pem")
@@ -227,8 +226,7 @@ pub fn public_key_to_pem(
   key: PublicKey,
   format: PublicKeyFormat,
 ) -> Result(String, Nil) {
-  do_public_key_to_pem(key, format)
-  |> result.map(fn(pem) { string.trim_end(pem) <> "\n" })
+  do_public_key_to_pem(key, format) |> utils.normalize_pem
 }
 
 @external(erlang, "kryptos_ffi", "rsa_export_public_key_pem")

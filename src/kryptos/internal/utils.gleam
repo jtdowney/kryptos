@@ -5,6 +5,11 @@ import gleam/list
 import gleam/result
 import gleam/string
 
+/// Normalize a PEM string so it ends with exactly one trailing newline.
+pub fn normalize_pem(pem: Result(String, Nil)) -> Result(String, Nil) {
+  result.map(pem, fn(text) { string.trim_end(text) <> "\n" })
+}
+
 /// Strip leading zero bytes from a BitArray, preserving at least one byte.
 ///
 /// For example: `<<0, 0, 1, 2>>` becomes `<<1, 2>>`
