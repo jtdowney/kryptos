@@ -13,6 +13,8 @@
 //// let digest = h |> hash.update(<<"hello":utf8>>) |> hash.final()
 //// ```
 
+import gleam/result
+
 /// Supported cryptographic hash algorithms.
 pub type HashAlgorithm {
   /// BLAKE2b (512-bit output).
@@ -153,8 +155,5 @@ pub fn final(hasher: Hasher) -> BitArray
 /// Some algorithms may not be available depending on the platform or
 /// OpenSSL/crypto library version.
 pub fn is_supported(algorithm: HashAlgorithm) -> Bool {
-  case new(algorithm) {
-    Ok(_) -> True
-    Error(_) -> False
-  }
+  result.is_ok(new(algorithm))
 }

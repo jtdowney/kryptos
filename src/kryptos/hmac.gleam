@@ -14,6 +14,7 @@
 //// let mac = h |> hmac.update(<<"hello":utf8>>) |> hmac.final()
 //// ```
 
+import gleam/result
 import kryptos/hash
 import kryptos/internal/subtle
 
@@ -82,14 +83,10 @@ pub fn verify(
   data data: BitArray,
   expected expected: BitArray,
 ) -> Result(Bool, Nil) {
-  case new(algorithm, key) {
-    Ok(hmac_state) -> {
-      let actual =
-        hmac_state
-        |> update(data)
-        |> final()
-      Ok(subtle.constant_time_equal(actual, expected))
-    }
-    Error(e) -> Error(e)
-  }
+  use hmac_state <- result.map(new(algorithm, key))
+  let actual =
+    hmac_state
+    |> update(data)
+    |> final()
+  subtle.constant_time_equal(actual, expected)
 }

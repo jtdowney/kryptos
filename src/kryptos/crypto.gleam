@@ -15,6 +15,7 @@
 import gleam/bytes_tree
 import gleam/int
 import gleam/option.{type Option}
+import gleam/result
 import gleam/string
 import kryptos/hash
 import kryptos/hmac
@@ -28,15 +29,10 @@ pub fn hash(
   algorithm: hash.HashAlgorithm,
   data: BitArray,
 ) -> Result(BitArray, Nil) {
-  case hash.new(algorithm) {
-    Ok(hasher) ->
-      Ok(
-        hasher
-        |> hash.update(data)
-        |> hash.final(),
-      )
-    Error(e) -> Error(e)
-  }
+  use hasher <- result.map(hash.new(algorithm))
+  hasher
+  |> hash.update(data)
+  |> hash.final()
 }
 
 /// Computes the HMAC of input data in one call.
@@ -45,15 +41,10 @@ pub fn hmac(
   key key: BitArray,
   data data: BitArray,
 ) -> Result(BitArray, Nil) {
-  case hmac.new(algorithm, key) {
-    Ok(hmac) ->
-      Ok(
-        hmac
-        |> hmac.update(data)
-        |> hmac.final(),
-      )
-    Error(e) -> Error(e)
-  }
+  use ctx <- result.map(hmac.new(algorithm, key))
+  ctx
+  |> hmac.update(data)
+  |> hmac.final()
 }
 
 /// Derives key material using HKDF (RFC 5869).
