@@ -469,20 +469,8 @@ make_ec_private_key(PrivScalar, OID, PubPoint) ->
     {'ECPrivateKey', ec_private_key_version(), PrivScalar, {namedCurve, OID}, PubPoint,
         asn1_NOVALUE}.
 
-ec_coordinate_size(Curve) ->
-    case Curve of
-        p256 ->
-            32;
-        p384 ->
-            48;
-        p521 ->
-            66;
-        secp256k1 ->
-            32
-    end.
-
 ec_private_key_from_bytes(Curve, PrivateScalar) ->
-    ExpectedSize = ec_coordinate_size(Curve),
+    ExpectedSize = kryptos@ec:coordinate_size(Curve),
     case normalize_ec_scalar(PrivateScalar, ExpectedSize) of
         {ok, NormalizedScalar} ->
             try
@@ -1233,11 +1221,6 @@ rsa_private_format_types(pkcs8) ->
 rsa_private_format_types(pkcs1) ->
     {'RSAPrivateKey', 'RSAPrivateKey'}.
 
-rsa_public_format_types(spki) ->
-    {'SubjectPublicKeyInfo', spki};
-rsa_public_format_types(rsa_public_key) ->
-    {'RSAPublicKey', rsa_public_key}.
-
 rsa_import_private_key_pem(PemData, Format) ->
     try
         {PemType, DerType} = rsa_private_format_types(Format),
@@ -1272,7 +1255,7 @@ rsa_import_private_key_from_der(DerBytes, DerType) ->
 
 rsa_import_public_key_pem(PemData, Format) ->
     try
-        {PemType, _} = rsa_public_format_types(Format),
+        PemType = rsa_public_pem_type(Format),
         case public_key:pem_decode(PemData) of
             [{PemType, DerBytes, not_encrypted}] ->
                 rsa_import_public_key_from_der(DerBytes, Format);
