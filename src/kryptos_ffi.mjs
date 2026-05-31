@@ -903,9 +903,12 @@ export function ecImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["ec"], validateSpkiUsesNamedCurve);
 }
 
-// EC Export Functions
+// Key Export Functions
+//
+// Key export is identical for EC, EdDSA, and XDH keys, so these are shared.
+// RSA export differs (it takes a format) and stays separate.
 
-export function ecExportPrivateKeyPem(key) {
+export function exportPrivateKeyPem(key) {
   try {
     const exported = key.export({ format: "pem", type: "pkcs8" });
     return Result$Ok(exported);
@@ -914,7 +917,7 @@ export function ecExportPrivateKeyPem(key) {
   }
 }
 
-export function ecExportPrivateKeyDer(key) {
+export function exportPrivateKeyDer(key) {
   try {
     const exported = key.export({ format: "der", type: "pkcs8" });
     return Result$Ok(BitArray$BitArray(exported));
@@ -923,7 +926,7 @@ export function ecExportPrivateKeyDer(key) {
   }
 }
 
-export function ecExportPublicKeyPem(key) {
+export function exportPublicKeyPem(key) {
   try {
     const exported = key.export({ format: "pem", type: "spki" });
     return Result$Ok(exported);
@@ -932,7 +935,7 @@ export function ecExportPublicKeyPem(key) {
   }
 }
 
-export function ecExportPublicKeyDer(key) {
+export function exportPublicKeyDer(key) {
   try {
     const exported = key.export({ format: "der", type: "spki" });
     return Result$Ok(BitArray$BitArray(exported));
@@ -1075,44 +1078,6 @@ export function xdhImportPublicKeyPem(pem) {
 
 export function xdhImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["x25519", "x448"]);
-}
-
-// XDH Export Functions
-
-export function xdhExportPrivateKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "pkcs8" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPrivateKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "pkcs8" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPublicKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "spki" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function xdhExportPublicKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "spki" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
 }
 
 // =============================================================================
@@ -1449,42 +1414,4 @@ export function eddsaImportPublicKeyPem(pem) {
 
 export function eddsaImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["ed25519", "ed448"]);
-}
-
-// EdDSA Export Functions
-
-export function eddsaExportPrivateKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "pkcs8" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function eddsaExportPrivateKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "pkcs8" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function eddsaExportPublicKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "spki" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
-}
-
-export function eddsaExportPublicKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "spki" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
 }

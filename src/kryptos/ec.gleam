@@ -78,14 +78,14 @@ pub fn to_pem(key: PrivateKey) -> Result(String, Nil) {
 }
 
 @external(erlang, "kryptos_ffi", "ec_export_private_key_pem")
-@external(javascript, "../kryptos_ffi.mjs", "ecExportPrivateKeyPem")
+@external(javascript, "../kryptos_ffi.mjs", "exportPrivateKeyPem")
 fn do_to_pem(key: PrivateKey) -> Result(String, Nil)
 
 /// Exports an EC private key to DER format.
 ///
 /// The key is exported in PKCS#8 format.
 @external(erlang, "kryptos_ffi", "ec_export_private_key_der")
-@external(javascript, "../kryptos_ffi.mjs", "ecExportPrivateKeyDer")
+@external(javascript, "../kryptos_ffi.mjs", "exportPrivateKeyDer")
 pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 
 /// Imports an EC public key from PEM-encoded data.
@@ -145,14 +145,14 @@ pub fn public_key_to_pem(key: PublicKey) -> Result(String, Nil) {
 }
 
 @external(erlang, "kryptos_ffi", "ec_export_public_key_pem")
-@external(javascript, "../kryptos_ffi.mjs", "ecExportPublicKeyPem")
+@external(javascript, "../kryptos_ffi.mjs", "exportPublicKeyPem")
 fn do_public_key_to_pem(key: PublicKey) -> Result(String, Nil)
 
 /// Exports an EC public key to DER format.
 ///
 /// The key is exported in SPKI format.
 @external(erlang, "kryptos_ffi", "ec_export_public_key_der")
-@external(javascript, "../kryptos_ffi.mjs", "ecExportPublicKeyDer")
+@external(javascript, "../kryptos_ffi.mjs", "exportPublicKeyDer")
 pub fn public_key_to_der(key: PublicKey) -> Result(BitArray, Nil)
 
 /// Derives the public key from an EC private key.
