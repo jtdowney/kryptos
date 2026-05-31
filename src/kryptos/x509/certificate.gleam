@@ -1326,25 +1326,22 @@ fn encode_basic_constraints_extension(
   ca: Bool,
   path_len: Option(Int),
 ) -> Result(BitArray, Nil) {
-  let x509.Oid(oid_components) = oid_basic_constraints
-  use oid_encoded <- result.try(der.encode_oid(oid_components))
-
   let ca_bool = case ca {
     True -> der.encode_bool(True)
     False -> <<>>
   }
+  use path_len_int <- result.try(encode_path_len(path_len))
+  use value <- result.try(
+    der.encode_sequence(bit_array.concat([ca_bool, path_len_int])),
+  )
+  x509_internal.encode_extension(oid_basic_constraints, True, value)
+}
 
+fn encode_path_len(path_len: Option(Int)) -> Result(BitArray, Nil) {
   case path_len {
     option.Some(n) -> der.encode_small_int(n)
     option.None -> Ok(<<>>)
   }
-  |> result.map(fn(path_len_int) { bit_array.concat([ca_bool, path_len_int]) })
-  |> result.try(der.encode_sequence)
-  |> result.try(der.encode_octet_string)
-  |> result.map(fn(value_octet) {
-    bit_array.concat([oid_encoded, der.encode_bool(True), value_octet])
-  })
-  |> result.try(der.encode_sequence)
 }
 
 const key_usages = [
@@ -1362,9 +1359,6 @@ const key_usages = [
 fn encode_key_usage_extension(
   usages: List(x509.KeyUsage),
 ) -> Result(BitArray, Nil) {
-  let x509.Oid(oid_components) = oid_key_usage
-  use oid_encoded <- result.try(der.encode_oid(oid_components))
-
   let last_set_index =
     list.index_fold(key_usages, 0, fn(last_index, usage, index) {
       case list.contains(usages, usage) {
@@ -1384,37 +1378,27 @@ fn encode_key_usage_extension(
       <<acc:bits, bit:1>>
     })
 
-  key_usage_bits
-  |> der.encode_bit_string
-  |> result.try(der.encode_octet_string)
-  |> result.map(fn(value_octet) {
-    bit_array.concat([oid_encoded, der.encode_bool(True), value_octet])
-  })
-  |> result.try(der.encode_sequence)
+  use value <- result.try(der.encode_bit_string(key_usage_bits))
+  x509_internal.encode_extension(oid_key_usage, True, value)
 }
 
 fn encode_extended_key_usage_extension(
   usages: List(x509.ExtendedKeyUsage),
 ) -> Result(BitArray, Nil) {
-  let x509.Oid(oid_components) = oid_extended_key_usage
-  use oid_encoded <- result.try(der.encode_oid(oid_components))
-
-  usages
-  |> list.try_map(fn(usage) {
-    let x509.Oid(components) = case usage {
-      x509.ServerAuth -> oid_server_auth
-      x509.ClientAuth -> oid_client_auth
-      x509.CodeSigning -> oid_code_signing
-      x509.EmailProtection -> oid_email_protection
-      x509.OcspSigning -> oid_ocsp_signing
-    }
-    der.encode_oid(components)
-  })
-  |> result.map(bit_array.concat)
-  |> result.try(der.encode_sequence)
-  |> result.try(der.encode_octet_string)
-  |> result.map(fn(value_octet) { bit_array.concat([oid_encoded, value_octet]) })
-  |> result.try(der.encode_sequence)
+  use oids <- result.try(
+    list.try_map(usages, fn(usage) {
+      let x509.Oid(components) = case usage {
+        x509.ServerAuth -> oid_server_auth
+        x509.ClientAuth -> oid_client_auth
+        x509.CodeSigning -> oid_code_signing
+        x509.EmailProtection -> oid_email_protection
+        x509.OcspSigning -> oid_ocsp_signing
+      }
+      der.encode_oid(components)
+    }),
+  )
+  use value <- result.try(der.encode_sequence(bit_array.concat(oids)))
+  x509_internal.encode_extension(oid_extended_key_usage, False, value)
 }
 
 fn compute_ski(spki: BitArray) -> Result(BitArray, Nil) {
@@ -1426,28 +1410,16 @@ fn compute_ski(spki: BitArray) -> Result(BitArray, Nil) {
 fn encode_subject_key_identifier_extension(
   ski: BitArray,
 ) -> Result(BitArray, Nil) {
-  let x509.Oid(oid_components) = oid_subject_key_identifier
-  use oid_encoded <- result.try(der.encode_oid(oid_components))
-
-  ski
-  |> der.encode_octet_string
-  |> result.try(der.encode_octet_string)
-  |> result.map(fn(value_octet) { bit_array.concat([oid_encoded, value_octet]) })
-  |> result.try(der.encode_sequence)
+  use value <- result.try(der.encode_octet_string(ski))
+  x509_internal.encode_extension(oid_subject_key_identifier, False, value)
 }
 
 fn encode_authority_key_identifier_extension(
   key_identifier: BitArray,
 ) -> Result(BitArray, Nil) {
-  let x509.Oid(oid_components) = oid_authority_key_identifier
-  use oid_encoded <- result.try(der.encode_oid(oid_components))
-
-  key_identifier
-  |> der.encode_context_primitive_tag(0, _)
-  |> result.try(der.encode_sequence)
-  |> result.try(der.encode_octet_string)
-  |> result.map(fn(value_octet) { bit_array.concat([oid_encoded, value_octet]) })
-  |> result.try(der.encode_sequence)
+  use inner <- result.try(der.encode_context_primitive_tag(0, key_identifier))
+  use value <- result.try(der.encode_sequence(inner))
+  x509_internal.encode_extension(oid_authority_key_identifier, False, value)
 }
 
 fn is_xdh_key(key: x509.PublicKey) -> Bool {

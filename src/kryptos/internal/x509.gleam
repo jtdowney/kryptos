@@ -618,6 +618,25 @@ pub fn encode_pem(
   |> string_tree.to_string
 }
 
+/// Encode an X.509 extension: SEQUENCE { OID, [BOOLEAN critical], OCTET STRING
+/// value }. The critical BOOLEAN is omitted (DEFAULT FALSE) when not critical.
+pub fn encode_extension(
+  oid: x509.Oid,
+  critical: Bool,
+  value: BitArray,
+) -> Result(BitArray, Nil) {
+  let x509.Oid(components) = oid
+  use oid_encoded <- result.try(der.encode_oid(components))
+  use value_octet <- result.try(der.encode_octet_string(value))
+  let critical_bytes = case critical {
+    True -> der.encode_bool(True)
+    False -> <<>>
+  }
+  der.encode_sequence(
+    bit_array.concat([oid_encoded, critical_bytes, value_octet]),
+  )
+}
+
 /// Encode a Subject Alternative Name extension to DER format.
 ///
 /// Produces a DER-encoded extension structure with OID, optional critical flag,
@@ -627,21 +646,11 @@ pub fn encode_san_extension(
   sans: List(x509.SubjectAltName),
   critical: Bool,
 ) -> Result(BitArray, Nil) {
-  let oid_components = [2, 5, 29, 17]
-  use oid_encoded <- result.try(der.encode_oid(oid_components))
-
-  sans
-  |> list.reverse
-  |> list.try_map(encode_general_name)
-  |> result.map(bit_array.concat)
-  |> result.try(der.encode_sequence)
-  |> result.try(der.encode_octet_string)
-  |> result.map(fn(value_octet) {
-    case critical {
-      True ->
-        bit_array.concat([oid_encoded, der.encode_bool(True), value_octet])
-      False -> bit_array.concat([oid_encoded, value_octet])
-    }
-  })
-  |> result.try(der.encode_sequence)
+  use names <- result.try(
+    sans
+    |> list.reverse
+    |> list.try_map(encode_general_name),
+  )
+  use value <- result.try(der.encode_sequence(bit_array.concat(names)))
+  encode_extension(x509.Oid([2, 5, 29, 17]), critical, value)
 }
