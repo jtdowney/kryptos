@@ -22,7 +22,7 @@ jobs:
 
   test-erlang:
     name: Erlang (OTP ${{ matrix.otp-version }}, Gleam ${{ matrix.gleam-version }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
