@@ -924,44 +924,25 @@ fn parse_aki_fields(
   issuer issuer: Option(List(x509.SubjectAltName)),
   serial serial: Option(BitArray),
 ) -> Result(x509.AuthorityKeyIdentifier, Nil) {
-  case bytes {
-    <<>> ->
-      Ok(x509.AuthorityKeyIdentifier(
-        key_identifier: key_id,
-        authority_cert_issuer: issuer,
-        authority_cert_serial_number: serial,
-      ))
-    <<0x80, len:8, rest:bits>> -> {
-      use <- bool.guard(
-        when: bit_array.byte_size(rest) < len,
-        return: Error(Nil),
-      )
+  use <- bool.guard(
+    when: bytes == <<>>,
+    return: Ok(x509.AuthorityKeyIdentifier(
+      key_identifier: key_id,
+      authority_cert_issuer: issuer,
+      authority_cert_serial_number: serial,
+    )),
+  )
 
-      use key_bytes <- result.try(bit_array.slice(rest, 0, len))
-      use remaining <- result.try(bit_array.slice(
-        rest,
-        len,
-        bit_array.byte_size(rest) - len,
-      ))
-
-      parse_aki_fields(
-        remaining,
-        key_id: option.Some(key_bytes),
-        issuer:,
-        serial:,
-      )
-    }
-    <<0xa1, _:bits>> -> {
-      use #(issuer_content, remaining) <- result.try(der.parse_context_tag(
-        bytes,
-        1,
-      ))
+  use #(tag, value, remaining) <- result.try(der.parse_tlv(bytes))
+  case tag {
+    0x80 ->
+      parse_aki_fields(remaining, key_id: option.Some(value), issuer:, serial:)
+    0xa1 -> {
       use parsed_issuers <- result.try(x509_internal.parse_general_names(
-        issuer_content,
+        value,
         [],
         False,
       ))
-
       parse_aki_fields(
         remaining,
         key_id:,
@@ -969,26 +950,8 @@ fn parse_aki_fields(
         serial:,
       )
     }
-    <<0x82, len:8, rest:bits>> -> {
-      use <- bool.guard(
-        when: bit_array.byte_size(rest) < len,
-        return: Error(Nil),
-      )
-
-      use serial_bytes <- result.try(bit_array.slice(rest, 0, len))
-      use remaining <- result.try(bit_array.slice(
-        rest,
-        len,
-        bit_array.byte_size(rest) - len,
-      ))
-
-      parse_aki_fields(
-        remaining,
-        key_id:,
-        issuer:,
-        serial: option.Some(serial_bytes),
-      )
-    }
+    0x82 ->
+      parse_aki_fields(remaining, key_id:, issuer:, serial: option.Some(value))
     _ -> Error(Nil)
   }
 }
@@ -1189,7 +1152,7 @@ fn encode_extensions(
   ]
 
   use results <- result.try(result.all(extension_results))
-  let encoded = result.values(results)
+  let encoded = option.values(results)
 
   case encoded {
     [] -> Ok(<<>>)
@@ -1204,65 +1167,65 @@ fn encode_extensions(
 
 fn encode_basic_constraints_opt(
   config: Option(#(Bool, Option(Int))),
-) -> Result(Result(BitArray, Nil), Nil) {
+) -> Result(Option(BitArray), Nil) {
   case config {
-    option.None -> Ok(Error(Nil))
+    option.None -> Ok(option.None)
     option.Some(#(ca, path_len)) ->
-      result.map(encode_basic_constraints_extension(ca, path_len), Ok)
+      result.map(encode_basic_constraints_extension(ca, path_len), option.Some)
   }
 }
 
 fn encode_key_usage_opt(
   usages: List(x509.KeyUsage),
-) -> Result(Result(BitArray, Nil), Nil) {
-  use <- bool.guard(when: list.is_empty(usages), return: Ok(Error(Nil)))
-  result.map(encode_key_usage_extension(usages), Ok)
+) -> Result(Option(BitArray), Nil) {
+  use <- bool.guard(when: list.is_empty(usages), return: Ok(option.None))
+  result.map(encode_key_usage_extension(usages), option.Some)
 }
 
 fn encode_extended_key_usage_opt(
   usages: List(x509.ExtendedKeyUsage),
-) -> Result(Result(BitArray, Nil), Nil) {
-  use <- bool.guard(when: list.is_empty(usages), return: Ok(Error(Nil)))
-  result.map(encode_extended_key_usage_extension(usages), Ok)
+) -> Result(Option(BitArray), Nil) {
+  use <- bool.guard(when: list.is_empty(usages), return: Ok(option.None))
+  result.map(encode_extended_key_usage_extension(usages), option.Some)
 }
 
 fn encode_san_opt(
   sans: List(x509.SubjectAltName),
   critical: Bool,
-) -> Result(Result(BitArray, Nil), Nil) {
-  use <- bool.guard(when: list.is_empty(sans), return: Ok(Error(Nil)))
-  result.map(x509_internal.encode_san_extension(sans, critical), Ok)
+) -> Result(Option(BitArray), Nil) {
+  use <- bool.guard(when: list.is_empty(sans), return: Ok(option.None))
+  result.map(x509_internal.encode_san_extension(sans, critical), option.Some)
 }
 
 fn encode_ski_opt(
   config: Option(SubjectKeyIdentifierConfig),
   spki: BitArray,
-) -> Result(Result(BitArray, Nil), Nil) {
+) -> Result(Option(BitArray), Nil) {
   case config {
-    option.None -> Ok(Error(Nil))
+    option.None -> Ok(option.None)
     option.Some(SkiAuto) ->
       compute_ski(spki)
       |> result.try(encode_subject_key_identifier_extension)
-      |> result.map(Ok)
+      |> result.map(option.Some)
     option.Some(SkiExplicit(ski)) ->
       encode_subject_key_identifier_extension(ski)
-      |> result.map(Ok)
+      |> result.map(option.Some)
   }
 }
 
 fn encode_aki_opt(
   config: AuthorityKeyIdentifierConfig,
   spki: BitArray,
-) -> Result(Result(BitArray, Nil), Nil) {
+) -> Result(Option(BitArray), Nil) {
   case config {
-    AkiExclude -> Ok(Error(Nil))
+    AkiExclude -> Ok(option.None)
     AkiAuto ->
       compute_ski(spki)
       |> result.try(encode_authority_key_identifier_extension)
-      |> result.map(Ok)
+      |> result.map(option.Some)
     AkiExplicit(key_id) ->
       encode_authority_key_identifier_extension(key_id)
-      |> result.map(Ok)
+      |> result.map(option.Some)
   }
 }
 

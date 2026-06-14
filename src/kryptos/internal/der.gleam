@@ -191,9 +191,6 @@ pub fn parse_bit_string(bytes: BitArray) -> Result(#(BitArray, BitArray), Nil) {
   use #(len, content) <- result.try(parse_length(rest))
   use <- bool.guard(when: len < 1, return: Error(Nil))
 
-  let content_size = bit_array.byte_size(content)
-  use <- bool.guard(when: content_size < len, return: Error(Nil))
-
   case content {
     <<0x00, value:bytes-size(len - 1), remaining:bits>> ->
       Ok(#(value, remaining))
@@ -242,34 +239,11 @@ pub fn parse_utf8_string(bytes: BitArray) -> Result(#(String, BitArray), Nil) {
 /// Check if a codepoint is valid for PrintableString per RFC 5280.
 fn is_printable_char(codepoint: Int) -> Bool {
   case codepoint {
-    // A-Z
     c if c >= 65 && c <= 90 -> True
-    // a-z
     c if c >= 97 && c <= 122 -> True
-    // 0-9
     c if c >= 48 && c <= 57 -> True
-    // space
-    32 -> True
-    // '
-    39 -> True
-    // ( )
-    40 | 41 -> True
-    // +
-    43 -> True
-    // ,
-    44 -> True
-    // -
-    45 -> True
-    // .
-    46 -> True
-    // /
-    47 -> True
-    // :
-    58 -> True
-    // =
-    61 -> True
-    // ?
-    63 -> True
+    // space ' ( ) + , - . / : = ?
+    32 | 39 | 40 | 41 | 43 | 44 | 45 | 46 | 47 | 58 | 61 | 63 -> True
     _ -> False
   }
 }
@@ -368,18 +342,21 @@ pub fn encode_timestamp(timestamp: Timestamp) -> Result(BitArray, Nil) {
   }
 }
 
+fn pad(value: Int, width: Int) -> String {
+  string.pad_start(int.to_string(value), width, "0")
+}
+
 /// Format: YYMMDDHHMMSSZ
 fn encode_utc_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
   let #(date, time) = timestamp.to_calendar(timestamp, calendar.utc_offset)
   let yy = date.year % 100
-  let pad2 = fn(n) { string.pad_start(int.to_string(n), 2, "0") }
   let content =
-    pad2(yy)
-    <> pad2(calendar.month_to_int(date.month))
-    <> pad2(date.day)
-    <> pad2(time.hours)
-    <> pad2(time.minutes)
-    <> pad2(time.seconds)
+    pad(yy, 2)
+    <> pad(calendar.month_to_int(date.month), 2)
+    <> pad(date.day, 2)
+    <> pad(time.hours, 2)
+    <> pad(time.minutes, 2)
+    <> pad(time.seconds, 2)
     <> "Z"
   let bytes = bit_array.from_string(content)
   encode_tlv(utc_time_tag, bytes)
@@ -426,15 +403,13 @@ pub fn parse_utc_time(bytes: BitArray) -> Result(#(Timestamp, BitArray), Nil) {
 /// Format: YYYYMMDDHHMMSSZ
 pub fn encode_generalized_time(timestamp: Timestamp) -> Result(BitArray, Nil) {
   let #(date, time) = timestamp.to_calendar(timestamp, calendar.utc_offset)
-  let pad2 = fn(n) { string.pad_start(int.to_string(n), 2, "0") }
-  let pad4 = fn(n) { string.pad_start(int.to_string(n), 4, "0") }
   let content =
-    pad4(date.year)
-    <> pad2(calendar.month_to_int(date.month))
-    <> pad2(date.day)
-    <> pad2(time.hours)
-    <> pad2(time.minutes)
-    <> pad2(time.seconds)
+    pad(date.year, 4)
+    <> pad(calendar.month_to_int(date.month), 2)
+    <> pad(date.day, 2)
+    <> pad(time.hours, 2)
+    <> pad(time.minutes, 2)
+    <> pad(time.seconds, 2)
     <> "Z"
   let bytes = bit_array.from_string(content)
   encode_tlv(generalized_time_tag, bytes)

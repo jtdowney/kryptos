@@ -404,10 +404,8 @@ pub fn attributes(csr: Csr(Parsed)) -> List(#(x509.Oid, BitArray)) {
 }
 
 fn decode_csr_pem(pem: String) -> Result(BitArray, Nil) {
-  case x509_internal.decode_pem(pem, pem_begin, pem_end) {
-    Ok(der) -> Ok(der)
-    Error(_) -> x509_internal.decode_pem(pem, pem_new_begin, pem_new_end)
-  }
+  x509_internal.decode_pem(pem, pem_begin, pem_end)
+  |> result.or(x509_internal.decode_pem(pem, pem_new_begin, pem_new_end))
 }
 
 fn parse_version(bytes: BitArray) -> Result(Int, CsrError) {

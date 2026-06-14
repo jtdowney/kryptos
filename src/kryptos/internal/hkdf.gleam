@@ -30,15 +30,6 @@ pub fn do_derive(
   // T(0) = empty
   // T(i) = HMAC-Hash(PRK, T(i-1) || info || i)
   // OKM = first length octets of T
-  expand(algorithm, prk, info, length)
-}
-
-fn expand(
-  algorithm: HashAlgorithm,
-  prk: BitArray,
-  info: BitArray,
-  length: Int,
-) -> Result(BitArray, Nil) {
   expand_loop(algorithm, prk, info, length, <<>>, 1, bytes_tree.new())
 }
 
@@ -66,12 +57,8 @@ fn expand_loop(
       case remaining <= t_len {
         True ->
           case t {
-            <<final_block:bytes-size(remaining), _:bits>> -> {
-              let result =
-                bytes_tree.append(acc, final_block)
-                |> bytes_tree.to_bit_array
-              Ok(result)
-            }
+            <<final_block:bytes-size(remaining), _:bits>> ->
+              Ok(bytes_tree.append(acc, final_block) |> bytes_tree.to_bit_array)
             _ -> Error(Nil)
           }
         False -> {

@@ -886,17 +886,12 @@ export function ecImportPrivateKeyDer(der) {
 }
 
 export function ecImportPublicKeyPem(pem) {
-  try {
-    // Extract DER from PEM and validate it uses named curves
-    const derBytes = pemToDer(pem);
-    if (!validateSpkiUsesNamedCurve(derBytes)) {
-      return Result$Error(undefined);
-    }
-
-    return importPublicKeyPem(pem, "spki", ["ec"]);
-  } catch {
-    return Result$Error(undefined);
-  }
+  return importPublicKeyDer(
+    BitArray$BitArray(pemToDer(pem)),
+    "spki",
+    ["ec"],
+    validateSpkiUsesNamedCurve,
+  );
 }
 
 export function ecImportPublicKeyDer(der) {

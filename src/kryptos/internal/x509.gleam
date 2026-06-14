@@ -5,7 +5,6 @@ import gleam/bool
 import gleam/list
 import gleam/result
 import gleam/string
-import gleam/string_tree
 import kryptos/ec
 import kryptos/ecdsa
 import kryptos/eddsa
@@ -122,22 +121,14 @@ fn verify_with_hash(
   sig_alg: x509.SignatureAlgorithm,
   verify: fn(hash.HashAlgorithm) -> Bool,
 ) -> Bool {
-  case sig_alg_to_hash(sig_alg) {
-    Ok(hash_alg) -> verify(hash_alg)
-    Error(Nil) -> False
-  }
-}
-
-fn sig_alg_to_hash(
-  sig_alg: x509.SignatureAlgorithm,
-) -> Result(hash.HashAlgorithm, Nil) {
-  case sig_alg {
+  let hash_alg = case sig_alg {
     x509.EcdsaSha1 | x509.RsaSha1 -> Ok(hash.Sha1)
     x509.EcdsaSha256 | x509.RsaSha256 -> Ok(hash.Sha256)
     x509.EcdsaSha384 | x509.RsaSha384 -> Ok(hash.Sha384)
     x509.EcdsaSha512 | x509.RsaSha512 -> Ok(hash.Sha512)
     x509.Ed25519 | x509.Ed448 -> Error(Nil)
   }
+  hash_alg |> result.map(verify) |> result.unwrap(False)
 }
 
 /// Parse a DER SEQUENCE including its tag and length header.
@@ -617,15 +608,11 @@ pub fn encode_pem(
   end_marker: String,
 ) -> String {
   let encoded = bit_array.base64_encode(der, True)
-  let lines =
+  let body =
     utils.chunk_string(encoded, 64)
     |> list.map(fn(line) { line <> "\n" })
-
-  string_tree.new()
-  |> string_tree.append(begin_marker <> "\n")
-  |> string_tree.append_tree(string_tree.from_strings(lines))
-  |> string_tree.append(end_marker <> "\n\n")
-  |> string_tree.to_string
+    |> string.concat
+  begin_marker <> "\n" <> body <> end_marker <> "\n\n"
 }
 
 /// Encode an X.509 extension: SEQUENCE { OID, [BOOLEAN critical], OCTET STRING

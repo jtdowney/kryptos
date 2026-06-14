@@ -168,18 +168,10 @@ hash_algorithm_name({shake256, _OutputLength}) ->
 hash_algorithm_name(Name) ->
     Name.
 
-hash_new({shake128, OutputLength}) ->
+hash_new({Shake, OutputLength}) when Shake =:= shake128; Shake =:= shake256 ->
     try
-        _ = crypto:hash_xof(shake128, <<>>, 8),
-        {ok, {xof, shake128, [], OutputLength}}
-    catch
-        _:_ ->
-            {error, nil}
-    end;
-hash_new({shake256, OutputLength}) ->
-    try
-        _ = crypto:hash_xof(shake256, <<>>, 8),
-        {ok, {xof, shake256, [], OutputLength}}
+        _ = crypto:hash_xof(Shake, <<>>, 8),
+        {ok, {xof, Shake, [], OutputLength}}
     catch
         _:_ ->
             {error, nil}
@@ -1022,13 +1014,6 @@ rsa_build_private_key([E, N, D, P, Q, Dp, Dq, Qi]) ->
         exponent1 = bin_to_int(Dp),
         exponent2 = bin_to_int(Dq),
         coefficient = bin_to_int(Qi)
-    };
-rsa_build_private_key([E, N, D]) ->
-    #'RSAPrivateKey'{
-        version = 'two-prime',
-        modulus = bin_to_int(N),
-        publicExponent = bin_to_int(E),
-        privateExponent = bin_to_int(D)
     }.
 
 rsa_build_public_key([E, N | _]) ->
