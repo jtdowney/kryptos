@@ -5,6 +5,29 @@ import kryptos/crypto
 import kryptos/hash
 import qcheck
 
+fn any_algorithm_generator() -> qcheck.Generator(hash.HashAlgorithm) {
+  qcheck.from_generators(qcheck.return(hash.Sha256), [
+    qcheck.return(hash.Sha512),
+    qcheck.return(hash.Sha384),
+    qcheck.return(hash.Sha1),
+    qcheck.return(hash.Md5),
+    qcheck.return(hash.Blake2b),
+    qcheck.return(hash.Blake2s),
+    qcheck.return(hash.Sha512x224),
+    qcheck.return(hash.Sha512x256),
+    qcheck.return(hash.Sha3x224),
+    qcheck.return(hash.Sha3x256),
+    qcheck.return(hash.Sha3x384),
+    qcheck.return(hash.Sha3x512),
+    qcheck.bounded_int(1, 256) |> qcheck.map(hash.Shake128),
+    qcheck.bounded_int(1, 256) |> qcheck.map(hash.Shake256),
+  ])
+}
+
+pub fn is_supported_sha256_test() {
+  assert hash.is_supported(hash.Sha256)
+}
+
 pub fn digest_table_test() {
   let input = <<"too many secrets":utf8>>
 
@@ -70,23 +93,15 @@ pub fn digest_table_test() {
   })
 }
 
-// Property: hashing in chunks produces same result as hashing all at once
+// Property: the one-shot crypto.hash matches new/update/final for any algorithm.
 pub fn hash_chunking_invariant_property_test() {
   let gen =
-    qcheck.tuple2(
-      qcheck.from_generators(qcheck.return(hash.Sha256), [
-        qcheck.return(hash.Sha512),
-        qcheck.return(hash.Sha1),
-        qcheck.return(hash.Blake2b),
-        qcheck.return(hash.Blake2s),
-      ]),
-      qcheck.byte_aligned_bit_array(),
-    )
+    qcheck.tuple2(any_algorithm_generator(), qcheck.byte_aligned_bit_array())
 
   use input <- qcheck.given(gen)
   let #(algorithm, data) = input
   let data_size = bit_array.byte_size(data)
-  let assert Ok(expected) = crypto.hash(algorithm, data)
+  let expected = crypto.hash(algorithm, data)
 
   // Test with multiple chunk sizes
   list.each([0, data_size / 2, data_size], fn(split_point) {
@@ -98,36 +113,17 @@ pub fn hash_chunking_invariant_property_test() {
     let assert Ok(second) =
       bit_array.slice(data, split_point, data_size - split_point)
 
-    let assert Ok(hasher) = hash.new(algorithm)
-    let result =
-      hasher
-      |> hash.update(first)
-      |> hash.update(second)
-      |> hash.final()
+    let incremental =
+      hash.new(algorithm)
+      |> result.map(fn(hasher) {
+        hasher
+        |> hash.update(first)
+        |> hash.update(second)
+        |> hash.final()
+      })
 
-    assert result == expected
+    assert incremental == expected
   })
-}
-
-// Property: hashing is deterministic
-pub fn hash_deterministic_property_test() {
-  let gen =
-    qcheck.tuple2(
-      qcheck.from_generators(qcheck.return(hash.Sha256), [
-        qcheck.return(hash.Sha512),
-      ]),
-      qcheck.byte_aligned_bit_array(),
-    )
-
-  use input <- qcheck.given(gen)
-  let #(algorithm, data) = input
-  let assert Ok(hash1) = crypto.hash(algorithm, data)
-  let assert Ok(hash2) = crypto.hash(algorithm, data)
-  assert hash1 == hash2
-}
-
-pub fn is_supported_sha256_test() {
-  assert hash.is_supported(hash.Sha256)
 }
 
 pub fn shake_output_length_property_test() {

@@ -120,6 +120,25 @@ export function hashFinal(hasher) {
   return BitArray$BitArray(digest);
 }
 
+export function hashOneshot(algorithm, data) {
+  try {
+    const name = hashAlgorithmName(algorithm);
+    const outputLength = getXofOutputLength(algorithm);
+    // crypto.hash() ignores outputLength before Node 24.4, so XOFs
+    // stay on createHash until Node 22 support is dropped
+    const digest =
+      outputLength !== null
+        ? crypto
+            .createHash(name, { outputLength })
+            .update(data.rawBuffer)
+            .digest()
+        : crypto.hash(name, data.rawBuffer, "buffer");
+    return Result$Ok(BitArray$BitArray(digest));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
 // =============================================================================
 // HMAC
 // =============================================================================

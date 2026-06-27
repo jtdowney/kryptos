@@ -56,6 +56,7 @@
     hash_new/1,
     hash_update/2,
     hash_final/1,
+    hash_oneshot/2,
     hmac_new/2,
     mod_pow/3,
     pbkdf2_derive/5,
@@ -195,6 +196,22 @@ hash_final({xof, Algorithm, AccData, OutputLength}) ->
     crypto:hash_xof(Algorithm, AllData, OutputLength * 8);
 hash_final(State) ->
     crypto:hash_final(State).
+
+hash_oneshot({Shake, OutputLength}, Data) when Shake =:= shake128; Shake =:= shake256 ->
+    try
+        {ok, crypto:hash_xof(Shake, Data, OutputLength * 8)}
+    catch
+        _:_ ->
+            {error, nil}
+    end;
+hash_oneshot(Algorithm, Data) ->
+    try
+        Name = hash_algorithm_name(Algorithm),
+        {ok, crypto:hash(Name, Data)}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
 
 %%------------------------------------------------------------------------------
 %% HMAC

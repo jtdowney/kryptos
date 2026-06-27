@@ -25,15 +25,12 @@ import kryptos/internal/pbkdf2
 import kryptos/internal/subtle
 
 /// Computes the hash digest of input data in one call.
+@external(erlang, "kryptos_ffi", "hash_oneshot")
+@external(javascript, "../kryptos_ffi.mjs", "hashOneshot")
 pub fn hash(
   algorithm: hash.HashAlgorithm,
   data: BitArray,
-) -> Result(BitArray, Nil) {
-  use hasher <- result.map(hash.new(algorithm))
-  hasher
-  |> hash.update(data)
-  |> hash.final()
-}
+) -> Result(BitArray, Nil)
 
 /// Computes the HMAC of input data in one call.
 pub fn hmac(
