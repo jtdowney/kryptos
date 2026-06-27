@@ -15,3 +15,12 @@ test-javascript-wycheproof:
 test-wycheproof: test-erlang-wycheproof test-javascript-wycheproof
 
 test-all: test test-wycheproof
+
+update-deps:
+    gleam update
+    bun update
+
+format:
+    gleam format
+    rebar3 fmt -w
+    bun run format:fix
