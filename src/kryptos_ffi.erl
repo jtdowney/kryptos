@@ -7,6 +7,8 @@
 -include_lib("kryptos/include/kryptos@block_Cbc.hrl").
 -include_lib("kryptos/include/kryptos@block_Ctr.hrl").
 -include_lib("kryptos/include/kryptos@block_Ecb.hrl").
+-include_lib("kryptos/include/kryptos@hash_Shake128.hrl").
+-include_lib("kryptos/include/kryptos@hash_Shake256.hrl").
 -include_lib("kryptos/include/kryptos@rsa_Oaep.hrl").
 -include_lib("public_key/include/public_key.hrl").
 
@@ -162,25 +164,30 @@ hash_algorithm_name(sha3x384) ->
     sha3_384;
 hash_algorithm_name(sha3x512) ->
     sha3_512;
-hash_algorithm_name({shake128, _OutputLength}) ->
+hash_algorithm_name(#shake128{}) ->
     shake128;
-hash_algorithm_name({shake256, _OutputLength}) ->
+hash_algorithm_name(#shake256{}) ->
     shake256;
 hash_algorithm_name(Name) ->
     Name.
 
-hash_new({Shake, OutputLength}) when Shake =:= shake128; Shake =:= shake256 ->
-    try
-        _ = crypto:hash_xof(Shake, <<>>, 8),
-        {ok, {xof, Shake, [], OutputLength}}
-    catch
-        _:_ ->
-            {error, nil}
-    end;
+hash_new(#shake128{output_length = OutputLength}) ->
+    hash_new_xof(shake128, OutputLength);
+hash_new(#shake256{output_length = OutputLength}) ->
+    hash_new_xof(shake256, OutputLength);
 hash_new(Algorithm) ->
     try
         Name = hash_algorithm_name(Algorithm),
         {ok, crypto:hash_init(Name)}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+hash_new_xof(Shake, OutputLength) ->
+    try
+        _ = crypto:hash_xof(Shake, <<>>, 8),
+        {ok, {xof, Shake, [], OutputLength}}
     catch
         _:_ ->
             {error, nil}
@@ -197,17 +204,22 @@ hash_final({xof, Algorithm, AccData, OutputLength}) ->
 hash_final(State) ->
     crypto:hash_final(State).
 
-hash_oneshot({Shake, OutputLength}, Data) when Shake =:= shake128; Shake =:= shake256 ->
-    try
-        {ok, crypto:hash_xof(Shake, Data, OutputLength * 8)}
-    catch
-        _:_ ->
-            {error, nil}
-    end;
+hash_oneshot(#shake128{output_length = OutputLength}, Data) ->
+    hash_oneshot_xof(shake128, OutputLength, Data);
+hash_oneshot(#shake256{output_length = OutputLength}, Data) ->
+    hash_oneshot_xof(shake256, OutputLength, Data);
 hash_oneshot(Algorithm, Data) ->
     try
         Name = hash_algorithm_name(Algorithm),
         {ok, crypto:hash(Name, Data)}
+    catch
+        _:_ ->
+            {error, nil}
+    end.
+
+hash_oneshot_xof(Shake, OutputLength, Data) ->
+    try
+        {ok, crypto:hash_xof(Shake, Data, OutputLength * 8)}
     catch
         _:_ ->
             {error, nil}
