@@ -44,9 +44,10 @@ gleam add kryptos
 | [eddsa](https://hexdocs.pm/kryptos/kryptos/eddsa.html)                       | Ed25519, Ed448                                          |
 | [hash](https://hexdocs.pm/kryptos/kryptos/hash.html)                         | SHA-1, SHA-2, SHA-3, SHAKE, BLAKE2                      |
 | [hmac](https://hexdocs.pm/kryptos/kryptos/hmac.html)                         | All hash algorithms                                     |
+| [mldsa](https://hexdocs.pm/kryptos/kryptos/mldsa.html)                       | ML-DSA-44, ML-DSA-65, ML-DSA-87                         |
 | [rsa](https://hexdocs.pm/kryptos/kryptos/rsa.html)                           | OAEP, PKCS#1 v1.5, PSS, PKCS#1 v1.5 signatures          |
 | [x509/certificate](https://hexdocs.pm/kryptos/kryptos/x509/certificate.html) | Certificate parsing and self-signed generation          |
-| [x509/csr](https://hexdocs.pm/kryptos/kryptos/x509/csr.html)                 | CSR generation with ECDSA/RSA/EdDSA, SANs               |
+| [x509/csr](https://hexdocs.pm/kryptos/kryptos/x509/csr.html)                 | CSR generation with ECDSA/RSA/EdDSA/ML-DSA, SANs        |
 | [xdh](https://hexdocs.pm/kryptos/kryptos/xdh.html)                           | X25519, X448                                            |
 
 ## Getting Started

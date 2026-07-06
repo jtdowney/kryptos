@@ -51,6 +51,15 @@ import {
   algorithm_name as hashAlgorithmName,
 } from "./kryptos/hash.mjs";
 import {
+  ParameterSet$isMldsa44,
+  ParameterSet$isMldsa65,
+  ParameterSet$isMldsa87,
+  ParameterSet$Mldsa44,
+  ParameterSet$Mldsa65,
+  ParameterSet$Mldsa87,
+  key_size as mldsaKeySize,
+} from "./kryptos/mldsa.mjs";
+import {
   EncryptPadding$isEncryptPkcs1v15,
   EncryptPadding$isOaep,
   PrivateKeyFormat$isPkcs1,
@@ -879,24 +888,27 @@ function importPublicKeyDer(der, type, allowedTypes) {
   }
 }
 
-// EC Import Functions
+// =============================================================================
+// Key Export (shared by EC, EdDSA, XDH, ML-DSA)
+// =============================================================================
 
-export function ecImportPrivateKeyPem(pem) {
-  return importPrivateKeyPem(pem, "pkcs8", ["ec"]);
+export function exportPublicKeyPem(key) {
+  try {
+    const exported = key.export({ format: "pem", type: "spki" });
+    return Result$Ok(exported);
+  } catch {
+    return Result$Error(undefined);
+  }
 }
 
-export function ecImportPrivateKeyDer(der) {
-  return importPrivateKeyDer(der, "pkcs8", ["ec"]);
+export function exportPublicKeyDer(key) {
+  try {
+    const exported = key.export({ format: "der", type: "spki" });
+    return Result$Ok(BitArray$BitArray(exported));
+  } catch {
+    return Result$Error(undefined);
+  }
 }
-
-export function ecImportPublicKeyDer(der) {
-  return importPublicKeyDer(der, "spki", ["ec"]);
-}
-
-// Key Export Functions
-//
-// Key export is identical for EC, EdDSA, and XDH keys, so these are shared.
-// RSA export differs (it takes a format) and stays separate.
 
 export function exportPrivateKeyPem(key) {
   try {
@@ -916,22 +928,18 @@ export function exportPrivateKeyDer(key) {
   }
 }
 
-export function exportPublicKeyPem(key) {
-  try {
-    const exported = key.export({ format: "pem", type: "spki" });
-    return Result$Ok(exported);
-  } catch {
-    return Result$Error(undefined);
-  }
+// EC Import Functions
+
+export function ecImportPrivateKeyPem(pem) {
+  return importPrivateKeyPem(pem, "pkcs8", ["ec"]);
 }
 
-export function exportPublicKeyDer(key) {
-  try {
-    const exported = key.export({ format: "der", type: "spki" });
-    return Result$Ok(BitArray$BitArray(exported));
-  } catch {
-    return Result$Error(undefined);
-  }
+export function ecImportPrivateKeyDer(der) {
+  return importPrivateKeyDer(der, "pkcs8", ["ec"]);
+}
+
+export function ecImportPublicKeyDer(der) {
+  return importPublicKeyDer(der, "spki", ["ec"]);
 }
 
 // =============================================================================
@@ -1420,4 +1428,238 @@ export function eddsaImportPublicKeyPem(pem) {
 
 export function eddsaImportPublicKeyDer(der) {
   return importPublicKeyDer(der, "spki", ["ed25519", "ed448"]);
+}
+
+// =============================================================================
+// ML-DSA (FIPS 204)
+// =============================================================================
+
+const MLDSA_KEY_TYPES = ["ml-dsa-44", "ml-dsa-65", "ml-dsa-87"];
+
+const MLDSA_SEED_PKCS8_PREFIX = {
+  "ml-dsa-44": Buffer.from(
+    "3034020100300b060960864801650304031104228020",
+    "hex",
+  ),
+  "ml-dsa-65": Buffer.from(
+    "3034020100300b060960864801650304031204228020",
+    "hex",
+  ),
+  "ml-dsa-87": Buffer.from(
+    "3034020100300b060960864801650304031304228020",
+    "hex",
+  ),
+};
+
+const MLDSA_PUBLIC_DER_PREFIX = {
+  // ML-DSA-44: OID 2.16.840.1.101.3.4.3.17
+  "ml-dsa-44": Buffer.from(
+    "30820532300b06096086480165030403110382052100",
+    "hex",
+  ),
+  // ML-DSA-65: OID 2.16.840.1.101.3.4.3.18
+  "ml-dsa-65": Buffer.from(
+    "308207b2300b0609608648016503040312038207a100",
+    "hex",
+  ),
+  // ML-DSA-87: OID 2.16.840.1.101.3.4.3.19
+  "ml-dsa-87": Buffer.from(
+    "30820a32300b060960864801650304031303820a2100",
+    "hex",
+  ),
+};
+
+function mldsaKeyType(param) {
+  if (ParameterSet$isMldsa44(param)) return "ml-dsa-44";
+  if (ParameterSet$isMldsa65(param)) return "ml-dsa-65";
+  if (ParameterSet$isMldsa87(param)) return "ml-dsa-87";
+  throw new Error("Unsupported ML-DSA parameter set");
+}
+
+function mldsaParamFromKeyType(keyType) {
+  switch (keyType) {
+    case "ml-dsa-44":
+      return ParameterSet$Mldsa44();
+    case "ml-dsa-65":
+      return ParameterSet$Mldsa65();
+    case "ml-dsa-87":
+      return ParameterSet$Mldsa87();
+    default:
+      throw new Error(`Unsupported ML-DSA key type: ${keyType}`);
+  }
+}
+
+let mldsaSupportedCache;
+
+export function mldsaSupported() {
+  if (mldsaSupportedCache === undefined) {
+    try {
+      crypto.generateKeyPairSync("ml-dsa-44");
+      mldsaSupportedCache = true;
+    } catch {
+      mldsaSupportedCache = false;
+    }
+  }
+  return mldsaSupportedCache;
+}
+
+export function mldsaGenerateKeyPair(param) {
+  const keyType = mldsaKeyType(param);
+  const { privateKey, publicKey } = crypto.generateKeyPairSync(keyType);
+  return [privateKey, publicKey];
+}
+
+export function mldsaSign(privateKey, message) {
+  const signature = crypto.sign(null, BitArray$BitArray$data(message), privateKey);
+  return BitArray$BitArray(signature);
+}
+
+export function mldsaVerify(publicKey, message, signature) {
+  try {
+    return crypto.verify(
+      null,
+      BitArray$BitArray$data(message),
+      publicKey,
+      BitArray$BitArray$data(signature),
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function mldsaPublicKeyToBytes(publicKey) {
+  const der = publicKey.export({ format: "der", type: "spki" });
+  const keyType = publicKey.asymmetricKeyType;
+  const prefixLen = MLDSA_PUBLIC_DER_PREFIX[keyType].length;
+  return BitArray$BitArray(der.subarray(prefixLen));
+}
+
+export function mldsaPublicKeyFromBytes(param, publicBytes) {
+  try {
+    const keyType = mldsaKeyType(param);
+    const expectedSize = mldsaKeySize(param);
+    if (publicBytes.byteSize !== expectedSize) {
+      return Result$Error(undefined);
+    }
+    const prefix = MLDSA_PUBLIC_DER_PREFIX[keyType];
+    const der = BitArray$BitArray$data(
+      bitArrayAppend(BitArray$BitArray(prefix), publicBytes),
+    );
+    const publicKey = crypto.createPublicKey({
+      key: der,
+      format: "der",
+      type: "spki",
+    });
+    return Result$Ok(publicKey);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function mldsaPublicKeyFromPrivate(privateKey) {
+  return crypto.createPublicKey(privateKey);
+}
+
+export function mldsaPrivateKeyParameterSet(privateKey) {
+  return mldsaParamFromKeyType(privateKey.asymmetricKeyType);
+}
+
+export function mldsaPublicKeyParameterSet(publicKey) {
+  return mldsaParamFromKeyType(publicKey.asymmetricKeyType);
+}
+
+export function mldsaFromSeed(param, seed) {
+  try {
+    if (seed.byteSize !== 32) {
+      return Result$Error(undefined);
+    }
+    const keyType = mldsaKeyType(param);
+    const prefix = MLDSA_SEED_PKCS8_PREFIX[keyType];
+    const der = BitArray$BitArray$data(
+      bitArrayAppend(BitArray$BitArray(prefix), seed),
+    );
+    const privateKey = crypto.createPrivateKey({
+      key: der,
+      format: "der",
+      type: "pkcs8",
+    });
+    const publicKey = crypto.createPublicKey(privateKey);
+    return Result$Ok([privateKey, publicKey]);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+function mldsaSeedBytes(privateKey) {
+  // Node exports the seed-format PKCS#8 on some versions (22, 26+) and the
+  // expanded key on others (24), so try the seed prefix first and fall back
+  // to the JWK `priv` field, which carries the 32-byte seed either way.
+  const prefix = MLDSA_SEED_PKCS8_PREFIX[privateKey.asymmetricKeyType];
+  const der = privateKey.export({ format: "der", type: "pkcs8" });
+  if (
+    prefix &&
+    der.length === prefix.length + 32 &&
+    der.subarray(0, prefix.length).equals(prefix)
+  ) {
+    return der.subarray(prefix.length);
+  }
+  try {
+    const jwk = privateKey.export({ format: "jwk" });
+    if (jwk && jwk.priv) {
+      const seed = Buffer.from(jwk.priv, "base64url");
+      if (seed.length === 32) {
+        return seed;
+      }
+    }
+  } catch {
+    // JWK export unsupported for ML-DSA on this Node version.
+  }
+  return null;
+}
+
+export function mldsaPrivateKeyToSeed(privateKey) {
+  try {
+    const seed = mldsaSeedBytes(privateKey);
+    return seed === null
+      ? Result$Error(undefined)
+      : Result$Ok(BitArray$BitArray(seed));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function mldsaImportPrivateKeyPem(pem) {
+  return mldsaImportPrivateKey({ key: pem, format: "pem", type: "pkcs8" });
+}
+
+export function mldsaImportPrivateKeyDer(der) {
+  return mldsaImportPrivateKey({
+    key: BitArray$BitArray$data(der),
+    format: "der",
+    type: "pkcs8",
+  });
+}
+
+function mldsaImportPrivateKey(options) {
+  try {
+    const privateKey = crypto.createPrivateKey(options);
+    if (
+      !MLDSA_KEY_TYPES.includes(privateKey.asymmetricKeyType) ||
+      mldsaSeedBytes(privateKey) === null
+    ) {
+      return Result$Error(undefined);
+    }
+    const publicKey = crypto.createPublicKey(privateKey);
+    return Result$Ok([privateKey, publicKey]);
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+export function mldsaImportPublicKeyPem(pem) {
+  return importPublicKeyPem(pem, "spki", MLDSA_KEY_TYPES);
+}
+
+export function mldsaImportPublicKeyDer(der) {
+  return importPublicKeyDer(der, "spki", MLDSA_KEY_TYPES);
 }
