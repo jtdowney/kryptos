@@ -238,7 +238,15 @@ export function aeadSeal(ctx, nonce, plaintext, aad) {
     );
     cipher.setAAD(BitArray$BitArray$data(aad), aadOptions);
 
-    const updateOutput = cipher.update(BitArray$BitArray$data(plaintext));
+    // Node 22 ignores update() on a zero-length DataView backed by a pooled
+    // buffer, so CCM never finalizes ("tag not set"). Feed a fresh empty
+    // array for empty plaintext.
+    // Drop the guard once Node 22 is unsupported.
+    const plaintextData =
+      plaintext.byteSize === 0
+        ? new Uint8Array(0)
+        : BitArray$BitArray$data(plaintext);
+    const updateOutput = cipher.update(plaintextData);
     const finalOutput = cipher.final();
     const ciphertext = Buffer.concat([updateOutput, finalOutput]);
     const tag = cipher.getAuthTag();
