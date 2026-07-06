@@ -28,7 +28,6 @@
     ec_import_private_key_der/1,
     ec_import_private_key_pem/1,
     ec_import_public_key_der/1,
-    ec_import_public_key_pem/1,
     ec_private_key_from_bytes/2,
     ec_private_key_to_bytes/1,
     ec_public_key_from_private/1,
@@ -489,47 +488,16 @@ make_ec_private_key(PrivScalar, OID, PubPoint) ->
         asn1_NOVALUE}.
 
 ec_private_key_from_bytes(Curve, PrivateScalar) ->
-    ExpectedSize = kryptos@ec:coordinate_size(Curve),
-    case normalize_ec_scalar(PrivateScalar, ExpectedSize) of
-        {ok, NormalizedScalar} ->
-            try
-                CurveName = ec_curve_name(Curve),
-                OID = curve_to_oid(CurveName),
-                {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, NormalizedScalar),
-                PrivKey = make_ec_private_key(NormalizedScalar, OID, PublicPoint),
-                PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
-                {ok, {PrivKey, PubKey}}
-            catch
-                _:_ ->
-                    {error, nil}
-            end;
-        error ->
+    try
+        CurveName = ec_curve_name(Curve),
+        OID = curve_to_oid(CurveName),
+        {PublicPoint, _} = crypto:generate_key(ecdh, CurveName, PrivateScalar),
+        PrivKey = make_ec_private_key(PrivateScalar, OID, PublicPoint),
+        PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
+        {ok, {PrivKey, PubKey}}
+    catch
+        _:_ ->
             {error, nil}
-    end.
-
-%% Normalize EC scalar to expected size, handling DER integer encoding
-normalize_ec_scalar(Scalar, ExpectedSize) ->
-    ActualSize = byte_size(Scalar),
-    if
-        ActualSize =:= 0 ->
-            %% Empty scalar is invalid
-            error;
-        ActualSize =:= ExpectedSize ->
-            {ok, Scalar};
-        ActualSize =:= ExpectedSize + 1 ->
-            %% May have leading 0x00 for DER sign byte
-            case Scalar of
-                <<0, Rest/binary>> ->
-                    {ok, Rest};
-                _ ->
-                    error
-            end;
-        ActualSize < ExpectedSize ->
-            %% Pad with leading zeros
-            PadSize = ExpectedSize - ActualSize,
-            {ok, <<0:PadSize/unit:8, Scalar/binary>>};
-        true ->
-            error
     end.
 
 ec_private_key_to_bytes(#'ECPrivateKey'{privateKey = PrivateScalar}) ->
@@ -685,19 +653,6 @@ ec_import_private_key_from_der(DerBytes) ->
             PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},
             {ok, {PrivKey, PubKey}};
         _ ->
-            {error, nil}
-    end.
-
-ec_import_public_key_pem(PemData) ->
-    try
-        case public_key:pem_decode(PemData) of
-            [{'SubjectPublicKeyInfo', DerBytes, not_encrypted}] ->
-                ec_import_public_key_from_der(DerBytes);
-            _ ->
-                {error, nil}
-        end
-    catch
-        _:_ ->
             {error, nil}
     end.
 

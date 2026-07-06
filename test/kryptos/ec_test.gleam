@@ -127,6 +127,12 @@ pub fn import_p256_spki_pub_der_test() {
   )
 }
 
+pub fn public_key_from_der_rejects_explicit_curve_parameters_test() {
+  let assert Ok(der) =
+    simplifile.read_bits("test/fixtures/p256_explicit_params_spki_pub.der")
+  assert ec.public_key_from_der(der) == Error(Nil)
+}
+
 pub fn import_p384_pkcs8_pem_test() {
   let assert Ok(pem) = simplifile.read("test/fixtures/p384_pkcs8.pem")
   let assert Ok(#(private, public)) = ec.from_pem(pem)
@@ -483,4 +489,15 @@ pub fn from_bytes_rejects_empty_scalar_test() {
   assert ec.from_bytes(ec.P384, <<>>) == Error(Nil)
   assert ec.from_bytes(ec.P521, <<>>) == Error(Nil)
   assert ec.from_bytes(ec.Secp256k1, <<>>) == Error(Nil)
+}
+
+pub fn from_bytes_strips_der_sign_byte_test() {
+  let scalar = <<1:size(32)-unit(8)>>
+  let assert Ok(#(private_key, _)) = ec.from_bytes(ec.P256, <<0, scalar:bits>>)
+  assert ec.to_bytes(private_key) == scalar
+}
+
+pub fn from_bytes_left_pads_short_scalar_test() {
+  let assert Ok(#(private_key, _)) = ec.from_bytes(ec.P256, <<1>>)
+  assert ec.to_bytes(private_key) == <<1:size(32)-unit(8)>>
 }

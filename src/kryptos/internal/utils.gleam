@@ -10,6 +10,23 @@ pub fn normalize_pem(pem: Result(String, Nil)) -> Result(String, Nil) {
   result.map(pem, fn(text) { string.trim_end(text) <> "\n" })
 }
 
+/// Decode a PEM document to its DER payload, ignoring the armor lines.
+pub fn pem_to_der(pem: String) -> Result(BitArray, Nil) {
+  pem
+  |> string.split("\n")
+  |> list.filter_map(pem_body_line)
+  |> string.join("")
+  |> bit_array.base64_decode
+}
+
+fn pem_body_line(line: String) -> Result(String, Nil) {
+  let trimmed = string.trim(line)
+  case trimmed == "" || string.starts_with(trimmed, "-----") {
+    True -> Error(Nil)
+    False -> Ok(trimmed)
+  }
+}
+
 /// Strip leading zero bytes from a BitArray, preserving at least one byte.
 ///
 /// For example: `<<0, 0, 1, 2>>` becomes `<<1, 2>>`

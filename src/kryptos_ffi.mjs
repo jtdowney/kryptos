@@ -647,39 +647,6 @@ export function xdhPublicKeyCurve(key) {
   return keyTypeToXdhCurve(key.asymmetricKeyType);
 }
 
-// Extracts DER bytes from a PEM-encoded string.
-function pemToDer(pem) {
-  const lines = pem.split("\n");
-  const base64Lines = lines.filter(
-    (line) => !line.startsWith("-----") && line.trim() !== "",
-  );
-  const base64 = base64Lines.join("");
-  return Buffer.from(base64, "base64");
-}
-
-// OID 1.2.840.10045.2.1 (id-ecPublicKey)
-const EC_PUBLIC_KEY_OID = Buffer.from([
-  0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-]);
-
-// Validates that an EC SPKI DER uses a named curve OID (not explicit parameters).
-// This mirrors Erlang's behavior which only accepts {namedCurve, OID} format.
-function validateSpkiUsesNamedCurve(derBytes) {
-  const buf = Buffer.from(derBytes);
-  const oidIndex = buf.indexOf(EC_PUBLIC_KEY_OID);
-  if (oidIndex === -1) {
-    return false;
-  }
-
-  const paramTagIndex = oidIndex + EC_PUBLIC_KEY_OID.length;
-  if (paramTagIndex >= buf.length) {
-    return false;
-  }
-
-  const paramTag = buf[paramTagIndex];
-  return paramTag === 0x06;
-}
-
 // =============================================================================
 // Elliptic Curve (EC/ECDSA/ECDH)
 // =============================================================================
@@ -697,26 +664,9 @@ export function ecPrivateKeyFromBytes(curve, privateScalar) {
   try {
     const curveName = ecCurveToOpensslName(curve);
     const coordSize = ecCoordinateSize(curve);
-    let privBuffer = Buffer.from(privateScalar.rawBuffer);
-
-    // Handle DER integer encoding: may have leading 0x00 for sign or be shorter
-    if (privBuffer.length === 0 || privBuffer.length > coordSize + 1) {
-      return Result$Error(undefined);
-    }
-    if (privBuffer.length === coordSize + 1) {
-      if (privBuffer[0] !== 0x00) {
-        return Result$Error(undefined);
-      }
-      privBuffer = privBuffer.subarray(1);
-    } else if (privBuffer.length < coordSize) {
-      // Pad with leading zeros
-      const padded = Buffer.alloc(coordSize);
-      privBuffer.copy(padded, coordSize - privBuffer.length);
-      privBuffer = padded;
-    }
 
     const ecdh = crypto.createECDH(curveName);
-    ecdh.setPrivateKey(privBuffer);
+    ecdh.setPrivateKey(BitArray$BitArray$data(privateScalar));
     const publicPoint = ecdh.getPublicKey();
 
     const x = publicPoint.subarray(1, 1 + coordSize);
@@ -727,7 +677,7 @@ export function ecPrivateKeyFromBytes(curve, privateScalar) {
       crv: ecCurveToJwkCrv(curve),
       x: x.toString("base64url"),
       y: y.toString("base64url"),
-      d: privBuffer.toString("base64url"),
+      d: bitArrayBase64UrlEncode(privateScalar, false),
     };
 
     const privateKey = crypto.createPrivateKey({ key: jwk, format: "jwk" });
@@ -903,14 +853,10 @@ function importPublicKeyPem(pem, type, allowedTypes) {
   }
 }
 
-function importPublicKeyDer(der, type, allowedTypes, preValidate) {
+function importPublicKeyDer(der, type, allowedTypes) {
   try {
-    if (preValidate && !preValidate(der.rawBuffer)) {
-      return Result$Error(undefined);
-    }
-
     const publicKey = crypto.createPublicKey({
-      key: der.rawBuffer,
+      key: BitArray$BitArray$data(der),
       format: "der",
       type,
     });
@@ -935,17 +881,8 @@ export function ecImportPrivateKeyDer(der) {
   return importPrivateKeyDer(der, "pkcs8", ["ec"]);
 }
 
-export function ecImportPublicKeyPem(pem) {
-  return importPublicKeyDer(
-    BitArray$BitArray(pemToDer(pem)),
-    "spki",
-    ["ec"],
-    validateSpkiUsesNamedCurve,
-  );
-}
-
 export function ecImportPublicKeyDer(der) {
-  return importPublicKeyDer(der, "spki", ["ec"], validateSpkiUsesNamedCurve);
+  return importPublicKeyDer(der, "spki", ["ec"]);
 }
 
 // Key Export Functions

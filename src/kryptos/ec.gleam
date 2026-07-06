@@ -22,6 +22,10 @@
 //// let assert Ok(#(imported_private, _)) = ec.from_pem(pem)
 //// ```
 
+import gleam/bit_array
+import gleam/bool
+import gleam/result
+import kryptos/internal/der
 import kryptos/internal/utils
 
 /// An elliptic curve private key.
@@ -91,16 +95,32 @@ pub fn to_der(key: PrivateKey) -> Result(BitArray, Nil)
 /// Imports an EC public key from PEM-encoded data.
 ///
 /// The key must be in SPKI format.
-@external(erlang, "kryptos_ffi", "ec_import_public_key_pem")
-@external(javascript, "../kryptos_ffi.mjs", "ecImportPublicKeyPem")
-pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil)
+pub fn public_key_from_pem(pem: String) -> Result(PublicKey, Nil) {
+  utils.pem_to_der(pem)
+  |> result.try(public_key_from_der)
+}
 
 /// Imports an EC public key from DER-encoded data.
 ///
-/// The key must be in SPKI format.
+/// The key must be in SPKI format and use a named curve.
+pub fn public_key_from_der(der_bytes: BitArray) -> Result(PublicKey, Nil) {
+  use <- bool.guard(when: !is_named_curve(der_bytes), return: Error(Nil))
+  do_public_key_from_der(der_bytes)
+}
+
 @external(erlang, "kryptos_ffi", "ec_import_public_key_der")
 @external(javascript, "../kryptos_ffi.mjs", "ecImportPublicKeyDer")
-pub fn public_key_from_der(der: BitArray) -> Result(PublicKey, Nil)
+fn do_public_key_from_der(der_bytes: BitArray) -> Result(PublicKey, Nil)
+
+fn is_named_curve(spki: BitArray) -> Bool {
+  let parsed = {
+    use #(spki_content, _) <- result.try(der.parse_sequence(spki))
+    use #(alg_id, _) <- result.try(der.parse_sequence(spki_content))
+    use #(_alg_oid, params) <- result.try(der.parse_oid(alg_id))
+    der.parse_oid(params)
+  }
+  result.is_ok(parsed)
+}
 
 /// Imports an EC public key from an uncompressed SEC1 point.
 ///
@@ -202,9 +222,30 @@ pub fn to_bytes(key: PrivateKey) -> BitArray
 /// let scalar = ec.to_bytes(private_key)
 /// let assert Ok(#(imported, _pub)) = ec.from_bytes(ec.P256, scalar)
 /// ```
-@external(erlang, "kryptos_ffi", "ec_private_key_from_bytes")
-@external(javascript, "../kryptos_ffi.mjs", "ecPrivateKeyFromBytes")
 pub fn from_bytes(
   curve: Curve,
   private_bytes: BitArray,
+) -> Result(#(PrivateKey, PublicKey), Nil) {
+  case normalize_scalar(private_bytes, coordinate_size(curve)) {
+    Ok(scalar) -> do_from_bytes(curve, scalar)
+    Error(Nil) -> Error(Nil)
+  }
+}
+
+@external(erlang, "kryptos_ffi", "ec_private_key_from_bytes")
+@external(javascript, "../kryptos_ffi.mjs", "ecPrivateKeyFromBytes")
+fn do_from_bytes(
+  curve: Curve,
+  scalar: BitArray,
 ) -> Result(#(PrivateKey, PublicKey), Nil)
+
+fn normalize_scalar(scalar: BitArray, size: Int) -> Result(BitArray, Nil) {
+  let actual_size = bit_array.byte_size(scalar)
+  use <- bool.guard(when: actual_size == 0, return: Error(Nil))
+  case scalar {
+    _ if actual_size == size -> Ok(scalar)
+    <<0, rest:bytes-size(size)>> -> Ok(rest)
+    _ if actual_size < size -> Ok(utils.pad_left(scalar, size))
+    _ -> Error(Nil)
+  }
+}
