@@ -43,7 +43,7 @@ jobs:
 
   test-javascript:
     name: JavaScript (Node ${{ matrix.node-version }}, Gleam ${{ matrix.gleam-version }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
