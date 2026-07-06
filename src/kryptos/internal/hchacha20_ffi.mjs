@@ -1,15 +1,16 @@
-import { BitArray$BitArray, Result$Error, Result$Ok } from "../../gleam.mjs";
+import {
+  BitArray$BitArray,
+  BitArray$BitArray$data,
+  Result$Error,
+  Result$Ok,
+} from "../../gleam.mjs";
 
 export function subkey(key, input) {
-  if (key.rawBuffer.byteLength !== 32 || input.rawBuffer.byteLength !== 16) {
+  const kv = BitArray$BitArray$data(key);
+  const iv = BitArray$BitArray$data(input);
+  if (kv.byteLength !== 32 || iv.byteLength !== 16) {
     return Result$Error(undefined);
   }
-  const kv = new DataView(key.rawBuffer.buffer, key.rawBuffer.byteOffset, 32);
-  const iv = new DataView(
-    input.rawBuffer.buffer,
-    input.rawBuffer.byteOffset,
-    16,
-  );
 
   // "expand 32-byte k" constants
   let s0 = 0x61707865;

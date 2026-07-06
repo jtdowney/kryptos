@@ -1,6 +1,16 @@
 import crypto from "node:crypto";
 
-import { BitArray$BitArray, Result$Error, Result$Ok } from "./gleam.mjs";
+import {
+  append as bitArrayAppend,
+  base16_encode as bitArrayBase16Encode,
+  base64_url_encode as bitArrayBase64UrlEncode,
+} from "../gleam_stdlib/gleam/bit_array.mjs";
+import {
+  BitArray$BitArray,
+  BitArray$BitArray$data,
+  Result$Error,
+  Result$Ok,
+} from "./gleam.mjs";
 import {
   cipher_key as aeadCipherKey,
   cipher_name as aeadCipherName,
@@ -82,7 +92,10 @@ export function constantTimeEqual(a, b) {
     return false;
   }
 
-  return crypto.timingSafeEqual(a.rawBuffer, b.rawBuffer);
+  return crypto.timingSafeEqual(
+    BitArray$BitArray$data(a),
+    BitArray$BitArray$data(b),
+  );
 }
 
 // =============================================================================
@@ -111,7 +124,7 @@ export function hashNew(algorithm) {
 }
 
 export function hashUpdate(hasher, input) {
-  hasher.update(input.rawBuffer);
+  hasher.update(BitArray$BitArray$data(input));
   return hasher;
 }
 
@@ -130,9 +143,9 @@ export function hashOneshot(algorithm, data) {
       outputLength !== null
         ? crypto
             .createHash(name, { outputLength })
-            .update(data.rawBuffer)
+            .update(BitArray$BitArray$data(data))
             .digest()
-        : crypto.hash(name, data.rawBuffer, "buffer");
+        : crypto.hash(name, BitArray$BitArray$data(data), "buffer");
     return Result$Ok(BitArray$BitArray(digest));
   } catch {
     return Result$Error(undefined);
@@ -146,14 +159,16 @@ export function hashOneshot(algorithm, data) {
 export function hmacNew(algorithm, key) {
   try {
     const algorithmName = hashAlgorithmName(algorithm);
-    return Result$Ok(crypto.createHmac(algorithmName, key.rawBuffer));
+    return Result$Ok(
+      crypto.createHmac(algorithmName, BitArray$BitArray$data(key)),
+    );
   } catch {
     return Result$Error(undefined);
   }
 }
 
 export function hmacUpdate(hmac, data) {
-  hmac.update(data.rawBuffer);
+  hmac.update(BitArray$BitArray$data(data));
   return hmac;
 }
 
@@ -171,9 +186,9 @@ export function hkdfDerive(algorithm, ikm, salt, info, length) {
     const name = hashAlgorithmName(algorithm);
     const result = crypto.hkdfSync(
       name,
-      ikm.rawBuffer,
-      salt.rawBuffer,
-      info.rawBuffer,
+      BitArray$BitArray$data(ikm),
+      BitArray$BitArray$data(salt),
+      BitArray$BitArray$data(info),
       length,
     );
     const buffer = new Uint8Array(result);
@@ -187,8 +202,8 @@ export function pbkdf2Derive(algorithm, password, salt, iterations, length) {
   try {
     const name = hashAlgorithmName(algorithm);
     const result = crypto.pbkdf2Sync(
-      password.rawBuffer,
-      salt.rawBuffer,
+      BitArray$BitArray$data(password),
+      BitArray$BitArray$data(salt),
       iterations,
       length,
       name,
@@ -213,12 +228,17 @@ export function aeadSeal(ctx, nonce, plaintext, aad) {
       ? { plaintextLength: plaintext.byteSize }
       : undefined;
 
-    const cipher = crypto.createCipheriv(name, key.rawBuffer, nonce.rawBuffer, {
-      authTagLength,
-    });
-    cipher.setAAD(aad.rawBuffer, aadOptions);
+    const cipher = crypto.createCipheriv(
+      name,
+      BitArray$BitArray$data(key),
+      BitArray$BitArray$data(nonce),
+      {
+        authTagLength,
+      },
+    );
+    cipher.setAAD(BitArray$BitArray$data(aad), aadOptions);
 
-    const updateOutput = cipher.update(plaintext.rawBuffer);
+    const updateOutput = cipher.update(BitArray$BitArray$data(plaintext));
     const finalOutput = cipher.final();
     const ciphertext = Buffer.concat([updateOutput, finalOutput]);
     const tag = cipher.getAuthTag();
@@ -240,14 +260,14 @@ export function aeadOpen(ctx, nonce, tag, ciphertext, aad) {
 
     const decipher = crypto.createDecipheriv(
       name,
-      key.rawBuffer,
-      nonce.rawBuffer,
+      BitArray$BitArray$data(key),
+      BitArray$BitArray$data(nonce),
       { authTagLength },
     );
-    decipher.setAAD(aad.rawBuffer, aadOptions);
-    decipher.setAuthTag(tag.rawBuffer);
+    decipher.setAAD(BitArray$BitArray$data(aad), aadOptions);
+    decipher.setAuthTag(BitArray$BitArray$data(tag));
 
-    const updateOutput = decipher.update(ciphertext.rawBuffer);
+    const updateOutput = decipher.update(BitArray$BitArray$data(ciphertext));
     const finalOutput = decipher.final();
     const plaintext = Buffer.concat([updateOutput, finalOutput]);
     return Result$Ok(BitArray$BitArray(plaintext));
@@ -270,12 +290,16 @@ export function blockCipherEncrypt(mode, plaintext) {
     const key = blockCipherKey(mode);
     const iv = blockCipherIv(mode);
 
-    const ivBuffer = iv.byteSize === 0 ? null : iv.rawBuffer;
+    const ivBuffer = iv.byteSize === 0 ? null : BitArray$BitArray$data(iv);
 
-    const cipher = crypto.createCipheriv(name, key.rawBuffer, ivBuffer);
+    const cipher = crypto.createCipheriv(
+      name,
+      BitArray$BitArray$data(key),
+      ivBuffer,
+    );
     cipher.setAutoPadding(blockCipherNeedsPadding(mode));
 
-    const updateOutput = cipher.update(plaintext.rawBuffer);
+    const updateOutput = cipher.update(BitArray$BitArray$data(plaintext));
     const finalOutput = cipher.final();
     const ciphertext = Buffer.concat([updateOutput, finalOutput]);
 
@@ -291,12 +315,16 @@ export function blockCipherDecrypt(mode, ciphertext) {
     const key = blockCipherKey(mode);
     const iv = blockCipherIv(mode);
 
-    const ivBuffer = iv.byteSize === 0 ? null : iv.rawBuffer;
+    const ivBuffer = iv.byteSize === 0 ? null : BitArray$BitArray$data(iv);
 
-    const decipher = crypto.createDecipheriv(name, key.rawBuffer, ivBuffer);
+    const decipher = crypto.createDecipheriv(
+      name,
+      BitArray$BitArray$data(key),
+      ivBuffer,
+    );
     decipher.setAutoPadding(blockCipherNeedsPadding(mode));
 
-    const updateOutput = decipher.update(ciphertext.rawBuffer);
+    const updateOutput = decipher.update(BitArray$BitArray$data(ciphertext));
     const finalOutput = decipher.final();
     const plaintext = Buffer.concat([updateOutput, finalOutput]);
 
@@ -332,10 +360,10 @@ function keywrapCipherName(cipher) {
 export function blockCipherWrap(cipher, plaintext) {
   try {
     const algorithm = keywrapCipherName(cipher);
-    const key = blockAesKey(cipher).rawBuffer;
+    const key = BitArray$BitArray$data(blockAesKey(cipher));
 
     const cipherObj = crypto.createCipheriv(algorithm, key, KEYWRAP_DEFAULT_IV);
-    const updateOutput = cipherObj.update(plaintext.rawBuffer);
+    const updateOutput = cipherObj.update(BitArray$BitArray$data(plaintext));
     const finalOutput = cipherObj.final();
     const ciphertext = Buffer.concat([updateOutput, finalOutput]);
 
@@ -348,14 +376,14 @@ export function blockCipherWrap(cipher, plaintext) {
 export function blockCipherUnwrap(cipher, ciphertext) {
   try {
     const algorithm = keywrapCipherName(cipher);
-    const key = blockAesKey(cipher).rawBuffer;
+    const key = BitArray$BitArray$data(blockAesKey(cipher));
 
     const decipherObj = crypto.createDecipheriv(
       algorithm,
       key,
       KEYWRAP_DEFAULT_IV,
     );
-    const updateOutput = decipherObj.update(ciphertext.rawBuffer);
+    const updateOutput = decipherObj.update(BitArray$BitArray$data(ciphertext));
     const finalOutput = decipherObj.final();
     const plaintext = Buffer.concat([updateOutput, finalOutput]);
 
@@ -542,8 +570,8 @@ export function rsaPublicKeyFromComponents(n, e) {
   try {
     const jwk = {
       kty: "RSA",
-      n: Buffer.from(n.rawBuffer).toString("base64url"),
-      e: Buffer.from(e.rawBuffer).toString("base64url"),
+      n: bitArrayBase64UrlEncode(n, false),
+      e: bitArrayBase64UrlEncode(e, false),
     };
     const publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
     return Result$Ok(publicKey);
@@ -553,15 +581,9 @@ export function rsaPublicKeyFromComponents(n, e) {
 }
 
 export function modPow(baseBits, expBits, modBits) {
-  const base = BigInt(
-    "0x" + (Buffer.from(baseBits.rawBuffer).toString("hex") || "0"),
-  );
-  const exp = BigInt(
-    "0x" + (Buffer.from(expBits.rawBuffer).toString("hex") || "0"),
-  );
-  const mod = BigInt(
-    "0x" + (Buffer.from(modBits.rawBuffer).toString("hex") || "0"),
-  );
+  const base = BigInt("0x" + (bitArrayBase16Encode(baseBits) || "0"));
+  const exp = BigInt("0x" + (bitArrayBase16Encode(expBits) || "0"));
+  const mod = BigInt("0x" + (bitArrayBase16Encode(modBits) || "0"));
 
   let result = 1n;
   let b = base % mod;
@@ -581,14 +603,14 @@ export function rsaPrivateKeyFromFullComponents(n, e, d, p, q, dp, dq, qi) {
   try {
     const jwk = {
       kty: "RSA",
-      n: Buffer.from(n.rawBuffer).toString("base64url"),
-      e: Buffer.from(e.rawBuffer).toString("base64url"),
-      d: Buffer.from(d.rawBuffer).toString("base64url"),
-      p: Buffer.from(p.rawBuffer).toString("base64url"),
-      q: Buffer.from(q.rawBuffer).toString("base64url"),
-      dp: Buffer.from(dp.rawBuffer).toString("base64url"),
-      dq: Buffer.from(dq.rawBuffer).toString("base64url"),
-      qi: Buffer.from(qi.rawBuffer).toString("base64url"),
+      n: bitArrayBase64UrlEncode(n, false),
+      e: bitArrayBase64UrlEncode(e, false),
+      d: bitArrayBase64UrlEncode(d, false),
+      p: bitArrayBase64UrlEncode(p, false),
+      q: bitArrayBase64UrlEncode(q, false),
+      dp: bitArrayBase64UrlEncode(dp, false),
+      dq: bitArrayBase64UrlEncode(dq, false),
+      qi: bitArrayBase64UrlEncode(qi, false),
     };
     const privateKey = crypto.createPrivateKey({ key: jwk, format: "jwk" });
     const publicKey = crypto.createPublicKey(privateKey);
@@ -731,7 +753,12 @@ export function ecPublicKeyFromRawPoint(curve, point) {
       return Result$Error(undefined);
     }
 
-    const pointBuffer = Buffer.from(point.rawBuffer);
+    const rawPoint = BitArray$BitArray$data(point);
+    const pointBuffer = Buffer.from(
+      rawPoint.buffer,
+      rawPoint.byteOffset,
+      rawPoint.byteLength,
+    );
 
     if (pointBuffer[0] !== 0x04) {
       return Result$Error(undefined);
@@ -778,10 +805,14 @@ export function ecPublicKeyToRawPoint(key) {
 
 export function ecdsaSign(privateKey, message, hashAlgorithm) {
   const algorithmName = hashAlgorithmName(hashAlgorithm);
-  const signature = crypto.sign(algorithmName, message.rawBuffer, {
-    key: privateKey,
-    dsaEncoding: "der",
-  });
+  const signature = crypto.sign(
+    algorithmName,
+    BitArray$BitArray$data(message),
+    {
+      key: privateKey,
+      dsaEncoding: "der",
+    },
+  );
   return BitArray$BitArray(signature);
 }
 
@@ -790,12 +821,12 @@ export function ecdsaVerify(publicKey, message, signature, hashAlgorithm) {
     const algorithmName = hashAlgorithmName(hashAlgorithm);
     return crypto.verify(
       algorithmName,
-      message.rawBuffer,
+      BitArray$BitArray$data(message),
       {
         key: publicKey,
         dsaEncoding: "der",
       },
-      signature.rawBuffer,
+      BitArray$BitArray$data(signature),
     );
   } catch {
     return false;
@@ -838,7 +869,7 @@ function importPrivateKeyPem(pem, type, allowedTypes) {
 function importPrivateKeyDer(der, type, allowedTypes) {
   try {
     const privateKey = crypto.createPrivateKey({
-      key: der.rawBuffer,
+      key: BitArray$BitArray$data(der),
       format: "der",
       type,
     });
@@ -1029,7 +1060,9 @@ export function xdhPrivateKeyFromBytes(curve, privateBytes) {
       return Result$Error(undefined);
     }
     const prefix = XDH_PRIVATE_DER_PREFIX[curveName];
-    const der = Buffer.concat([prefix, privateBytes.rawBuffer]);
+    const der = BitArray$BitArray$data(
+      bitArrayAppend(BitArray$BitArray(prefix), privateBytes),
+    );
     const privateKey = crypto.createPrivateKey({
       key: der,
       format: "der",
@@ -1050,7 +1083,9 @@ export function xdhPublicKeyFromBytes(curve, publicBytes) {
       return Result$Error(undefined);
     }
     const prefix = XDH_PUBLIC_DER_PREFIX[curveName];
-    const der = Buffer.concat([prefix, publicBytes.rawBuffer]);
+    const der = BitArray$BitArray$data(
+      bitArrayAppend(BitArray$BitArray(prefix), publicBytes),
+    );
     const publicKey = crypto.createPublicKey({
       key: der,
       format: "der",
@@ -1139,10 +1174,14 @@ function rsaSignPaddingOpts(padding) {
 
 export function rsaSign(privateKey, message, hash, padding) {
   const algorithmName = hashAlgorithmName(hash);
-  const signature = crypto.sign(algorithmName, message.rawBuffer, {
-    key: privateKey,
-    ...rsaSignPaddingOpts(padding),
-  });
+  const signature = crypto.sign(
+    algorithmName,
+    BitArray$BitArray$data(message),
+    {
+      key: privateKey,
+      ...rsaSignPaddingOpts(padding),
+    },
+  );
   return BitArray$BitArray(signature);
 }
 
@@ -1158,9 +1197,9 @@ export function rsaVerify(publicKey, message, signature, hash, padding) {
     }
     return crypto.verify(
       algorithmName,
-      message.rawBuffer,
+      BitArray$BitArray$data(message),
       { key: publicKey, ...opts },
-      signature.rawBuffer,
+      BitArray$BitArray$data(signature),
     );
   } catch {
     return false;
@@ -1179,7 +1218,7 @@ function rsaEncryptPaddingOpts(padding) {
       oaepHash: hashAlgorithmName(padding.hash),
     };
     if (padding.label?.byteSize > 0) {
-      opts.oaepLabel = padding.label.rawBuffer;
+      opts.oaepLabel = BitArray$BitArray$data(padding.label);
     }
     return opts;
   }
@@ -1191,7 +1230,7 @@ export function rsaEncrypt(publicKey, plaintext, padding) {
     const opts = rsaEncryptPaddingOpts(padding);
     const ciphertext = crypto.publicEncrypt(
       { key: publicKey, ...opts },
-      plaintext.rawBuffer,
+      BitArray$BitArray$data(plaintext),
     );
     return Result$Ok(BitArray$BitArray(ciphertext));
   } catch {
@@ -1204,7 +1243,7 @@ export function rsaDecrypt(privateKey, ciphertext, padding) {
     const opts = rsaEncryptPaddingOpts(padding);
     const plaintext = crypto.privateDecrypt(
       { key: privateKey, ...opts },
-      ciphertext.rawBuffer,
+      BitArray$BitArray$data(ciphertext),
     );
     return Result$Ok(BitArray$BitArray(plaintext));
   } catch {
@@ -1347,7 +1386,9 @@ export function eddsaPrivateKeyFromBytes(curve, privateBytes) {
       return Result$Error(undefined);
     }
     const prefix = EDDSA_PRIVATE_DER_PREFIX[curveName];
-    const der = Buffer.concat([prefix, privateBytes.rawBuffer]);
+    const der = BitArray$BitArray$data(
+      bitArrayAppend(BitArray$BitArray(prefix), privateBytes),
+    );
     const privateKey = crypto.createPrivateKey({
       key: der,
       format: "der",
@@ -1368,7 +1409,9 @@ export function eddsaPublicKeyFromBytes(curve, publicBytes) {
       return Result$Error(undefined);
     }
     const prefix = EDDSA_PUBLIC_DER_PREFIX[curveName];
-    const der = Buffer.concat([prefix, publicBytes.rawBuffer]);
+    const der = BitArray$BitArray$data(
+      bitArrayAppend(BitArray$BitArray(prefix), publicBytes),
+    );
     const publicKey = crypto.createPublicKey({
       key: der,
       format: "der",
@@ -1395,7 +1438,11 @@ export function eddsaPublicKeyToBytes(publicKey) {
 }
 
 export function eddsaSign(privateKey, message) {
-  const signature = crypto.sign(null, message.rawBuffer, privateKey);
+  const signature = crypto.sign(
+    null,
+    BitArray$BitArray$data(message),
+    privateKey,
+  );
   return BitArray$BitArray(signature);
 }
 
@@ -1403,9 +1450,9 @@ export function eddsaVerify(publicKey, message, signature) {
   try {
     return crypto.verify(
       null,
-      message.rawBuffer,
+      BitArray$BitArray$data(message),
       publicKey,
-      signature.rawBuffer,
+      BitArray$BitArray$data(signature),
     );
   } catch {
     return false;
