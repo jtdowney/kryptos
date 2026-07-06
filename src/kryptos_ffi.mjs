@@ -1029,7 +1029,7 @@ export function xdhPrivateKeyFromBytes(curve, privateBytes) {
       return Result$Error(undefined);
     }
     const prefix = XDH_PRIVATE_DER_PREFIX[curveName];
-    const der = Buffer.concat([prefix, Buffer.from(privateBytes.rawBuffer)]);
+    const der = Buffer.concat([prefix, privateBytes.rawBuffer]);
     const privateKey = crypto.createPrivateKey({
       key: der,
       format: "der",
@@ -1050,7 +1050,7 @@ export function xdhPublicKeyFromBytes(curve, publicBytes) {
       return Result$Error(undefined);
     }
     const prefix = XDH_PUBLIC_DER_PREFIX[curveName];
-    const der = Buffer.concat([prefix, Buffer.from(publicBytes.rawBuffer)]);
+    const der = Buffer.concat([prefix, publicBytes.rawBuffer]);
     const publicKey = crypto.createPublicKey({
       key: der,
       format: "der",
@@ -1347,7 +1347,7 @@ export function eddsaPrivateKeyFromBytes(curve, privateBytes) {
       return Result$Error(undefined);
     }
     const prefix = EDDSA_PRIVATE_DER_PREFIX[curveName];
-    const der = Buffer.concat([prefix, Buffer.from(privateBytes.rawBuffer)]);
+    const der = Buffer.concat([prefix, privateBytes.rawBuffer]);
     const privateKey = crypto.createPrivateKey({
       key: der,
       format: "der",
@@ -1368,7 +1368,7 @@ export function eddsaPublicKeyFromBytes(curve, publicBytes) {
       return Result$Error(undefined);
     }
     const prefix = EDDSA_PUBLIC_DER_PREFIX[curveName];
-    const der = Buffer.concat([prefix, Buffer.from(publicBytes.rawBuffer)]);
+    const der = Buffer.concat([prefix, publicBytes.rawBuffer]);
     const publicKey = crypto.createPublicKey({
       key: der,
       format: "der",
