@@ -75,7 +75,8 @@ import kryptos/eddsa
 import kryptos/hash.{type HashAlgorithm}
 import kryptos/internal/der
 import kryptos/internal/utils
-import kryptos/internal/x509.{type SigAlgInfo} as x509_internal
+import kryptos/internal/x509 as x509_internal
+import kryptos/mldsa
 import kryptos/rsa
 import kryptos/x509
 import kryptos/xdh
@@ -211,6 +212,7 @@ pub opaque type Certificate(status) {
 /// - `self_signed_with_ecdsa()` for ECDSA keys
 /// - `self_signed_with_rsa()` for RSA keys
 /// - `self_signed_with_eddsa()` for Ed25519/Ed448 keys
+/// - `self_signed_with_mldsa()` for ML-DSA keys
 pub opaque type Builder {
   Builder(
     subject: x509.Name,
@@ -404,7 +406,7 @@ pub fn self_signed_with_eddsa(
 
 fn finish_self_signed(
   builder: Builder,
-  sig_alg: SigAlgInfo,
+  sig_alg: x509_internal.SigAlgInfo,
   spki: BitArray,
   sign: fn(BitArray) -> BitArray,
 ) -> Result(Certificate(Built), Nil) {
@@ -424,6 +426,25 @@ fn finish_self_signed(
     signature,
   ))
   Ok(BuiltCertificate(cert_der))
+}
+
+/// Signs a self-signed certificate with an ML-DSA private key.
+///
+/// The public key is derived from the private key and used as both
+/// the issuer and subject public key. ML-DSA has built-in hashing, so no
+/// hash algorithm parameter is needed.
+///
+/// ML-DSA is a post-quantum signature algorithm (FIPS 204); support may be
+/// limited with browsers and certificate authorities.
+pub fn self_signed_with_mldsa(
+  builder: Builder,
+  key: mldsa.PrivateKey,
+) -> Result(Certificate(Built), Nil) {
+  let sig_alg = x509_internal.mldsa_sig_alg_info(mldsa.parameter_set(key))
+  let public_key = mldsa.public_key_from_private_key(key)
+  let spki = mldsa.public_key_to_der(public_key)
+  use tbs <- finish_self_signed(builder, sig_alg, spki)
+  mldsa.sign(key, tbs)
 }
 
 /// Exports the certificate as DER-encoded bytes.
@@ -698,7 +719,7 @@ pub fn extensions(
 
 /// Verify a certificate's signature against an issuer's public key.
 ///
-/// The public key must be RSA, ECDSA, or EdDSA (XDH keys cannot sign).
+/// The public key must be RSA, ECDSA, EdDSA, or ML-DSA (XDH keys cannot sign).
 pub fn verify(
   cert: Certificate(Parsed),
   issuer_public_key: x509.PublicKey,
@@ -1092,7 +1113,7 @@ fn parse_eku_oids(
 fn encode_tbs_certificate(
   builder: Builder,
   serial: BitArray,
-  sig_alg: SigAlgInfo,
+  sig_alg: x509_internal.SigAlgInfo,
   spki: BitArray,
   validity: x509.Validity,
 ) -> Result(BitArray, Nil) {

@@ -11,6 +11,7 @@ import kryptos/eddsa
 import kryptos/hash
 import kryptos/internal/der
 import kryptos/internal/utils
+import kryptos/mldsa
 import kryptos/rsa
 import kryptos/x509
 import kryptos/xdh
@@ -34,6 +35,12 @@ const oid_ecdsa_with_sha512 = x509.Oid([1, 2, 840, 10_045, 4, 3, 4])
 const oid_ed25519 = x509.Oid([1, 3, 101, 112])
 
 const oid_ed448 = x509.Oid([1, 3, 101, 113])
+
+const oid_mldsa44 = x509.Oid([2, 16, 840, 1, 101, 3, 4, 3, 17])
+
+const oid_mldsa65 = x509.Oid([2, 16, 840, 1, 101, 3, 4, 3, 18])
+
+const oid_mldsa87 = x509.Oid([2, 16, 840, 1, 101, 3, 4, 3, 19])
 
 type PemError {
   PemNotFound
@@ -94,6 +101,15 @@ pub fn eddsa_sig_alg_info(curve: eddsa.Curve) -> SigAlgInfo {
   }
 }
 
+/// Map an ML-DSA parameter set to signature algorithm information.
+pub fn mldsa_sig_alg_info(param: mldsa.ParameterSet) -> SigAlgInfo {
+  case param {
+    mldsa.Mldsa44 -> SigAlgInfo(oid_mldsa44, False)
+    mldsa.Mldsa65 -> SigAlgInfo(oid_mldsa65, False)
+    mldsa.Mldsa87 -> SigAlgInfo(oid_mldsa87, False)
+  }
+}
+
 /// Verify a signature using the appropriate algorithm based on public key and signature algorithm.
 pub fn verify_signature(
   public_key: x509.PublicKey,
@@ -112,8 +128,13 @@ pub fn verify_signature(
     }
     x509.EdPublicKey(key), x509.Ed25519 | x509.EdPublicKey(key), x509.Ed448 ->
       eddsa.verify(key, data, signature)
+    x509.MldsaPublicKey(key), x509.Mldsa44
+    | x509.MldsaPublicKey(key), x509.Mldsa65
+    | x509.MldsaPublicKey(key), x509.Mldsa87
+    -> mldsa.verify(key, data, signature)
     x509.EdPublicKey(_), _ -> False
     x509.XdhPublicKey(_), _ -> False
+    x509.MldsaPublicKey(_), _ -> False
   }
 }
 
@@ -126,7 +147,8 @@ fn verify_with_hash(
     x509.EcdsaSha256 | x509.RsaSha256 -> Ok(hash.Sha256)
     x509.EcdsaSha384 | x509.RsaSha384 -> Ok(hash.Sha384)
     x509.EcdsaSha512 | x509.RsaSha512 -> Ok(hash.Sha512)
-    x509.Ed25519 | x509.Ed448 -> Error(Nil)
+    x509.Ed25519 | x509.Ed448 | x509.Mldsa44 | x509.Mldsa65 | x509.Mldsa87 ->
+      Error(Nil)
   }
   hash_alg |> result.map(verify) |> result.unwrap(False)
 }
@@ -175,6 +197,9 @@ pub fn parse_signature_algorithm(
         [1, 2, 840, 10_045, 4, 3, 4] -> Ok(x509.EcdsaSha512)
         [1, 3, 101, 112] -> Ok(x509.Ed25519)
         [1, 3, 101, 113] -> Ok(x509.Ed448)
+        [2, 16, 840, 1, 101, 3, 4, 3, 17] -> Ok(x509.Mldsa44)
+        [2, 16, 840, 1, 101, 3, 4, 3, 18] -> Ok(x509.Mldsa65)
+        [2, 16, 840, 1, 101, 3, 4, 3, 19] -> Ok(x509.Mldsa87)
         _ -> Error(x509.Oid(oid_components))
       }
     Error(_) -> Error(x509.Oid([]))
@@ -332,6 +357,15 @@ fn dispatch_public_key_parse(
     // id-Ed25519 / id-Ed448 (RFC 8410)
     [1, 3, 101, 112] | [1, 3, 101, 113] ->
       wrap_key(eddsa.public_key_from_der(spki_bytes), x509.EdPublicKey, alg_oid)
+    // id-ML-DSA-44 / id-ML-DSA-65 / id-ML-DSA-87 (FIPS 204)
+    [2, 16, 840, 1, 101, 3, 4, 3, 17]
+    | [2, 16, 840, 1, 101, 3, 4, 3, 18]
+    | [2, 16, 840, 1, 101, 3, 4, 3, 19] ->
+      wrap_key(
+        mldsa.public_key_from_der(spki_bytes),
+        x509.MldsaPublicKey,
+        alg_oid,
+      )
     _ -> Error(x509.Oid(alg_oid))
   }
 }

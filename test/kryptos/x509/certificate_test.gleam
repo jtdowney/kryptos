@@ -9,6 +9,7 @@ import kryptos/crypto
 import kryptos/ec
 import kryptos/eddsa
 import kryptos/hash
+import kryptos/mldsa
 import kryptos/rsa
 import kryptos/x509
 import kryptos/x509/certificate
@@ -17,6 +18,7 @@ import kryptos/xdh
 import qcheck
 import shellout
 import simplifile
+import unitest
 
 fn make_builder(domain: String) -> Result(certificate.Builder, Nil) {
   let subject = x509.name([x509.cn(domain)])
@@ -784,4 +786,42 @@ pub fn san_not_critical_when_subject_present_test() {
     })
 
   assert !is_critical
+}
+
+pub fn verify_mldsa_fails_with_wrong_key_test() {
+  use <- unitest.guard(mldsa.supported())
+
+  let #(private_key, _) = mldsa.generate_key_pair(mldsa.Mldsa44)
+  let #(_, wrong_public_key) = mldsa.generate_key_pair(mldsa.Mldsa44)
+  let assert Ok(builder) = make_builder("mldsa-verify.example.com")
+
+  let assert Ok(cert) = certificate.self_signed_with_mldsa(builder, private_key)
+
+  let assert Ok(parsed) = certificate.from_der(certificate.to_der(cert))
+  assert certificate.verify(parsed, x509.MldsaPublicKey(wrong_public_key))
+    == Error(certificate.SignatureVerificationFailed)
+}
+
+pub fn self_signed_mldsa_roundtrip_test() {
+  use <- unitest.guard(mldsa.supported())
+
+  let cases = [
+    #(mldsa.Mldsa44, x509.Mldsa44, "mldsa44.example.com"),
+    #(mldsa.Mldsa65, x509.Mldsa65, "mldsa65.example.com"),
+    #(mldsa.Mldsa87, x509.Mldsa87, "mldsa87.example.com"),
+  ]
+
+  list.each(cases, fn(tc) {
+    let #(param, expected_alg, domain) = tc
+    let #(private_key, _) = mldsa.generate_key_pair(param)
+    let assert Ok(builder) = make_builder(domain)
+
+    let assert Ok(cert) =
+      certificate.self_signed_with_mldsa(builder, private_key)
+    let assert Ok(parsed) = certificate.from_der(certificate.to_der(cert))
+    assert certificate.version(parsed) == 2
+    let assert x509.MldsaPublicKey(_) = certificate.public_key(parsed)
+    assert certificate.signature_algorithm(parsed) == expected_alg
+    let assert Ok(_) = certificate.verify_self_signed(parsed)
+  })
 }
