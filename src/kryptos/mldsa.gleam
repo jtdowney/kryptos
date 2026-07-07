@@ -56,7 +56,7 @@
 //// let #(private_key, public_key) = mldsa.generate_key_pair(mldsa.Mldsa44)
 //// let message = <<"hello world":utf8>>
 //// let signature = mldsa.sign(private_key, message)
-//// let valid = mldsa.verify(public_key, message, signature)
+//// let valid = mldsa.verify(public_key, message:, signature:)
 //// // valid == True
 //// ```
 
@@ -122,7 +122,7 @@ pub fn sign(private_key: PrivateKey, message: BitArray) -> BitArray
 @external(javascript, "../kryptos_ffi.mjs", "mldsaVerify")
 pub fn verify(
   public_key: PublicKey,
-  message: BitArray,
+  message message: BitArray,
   signature signature: BitArray,
 ) -> Bool
 
