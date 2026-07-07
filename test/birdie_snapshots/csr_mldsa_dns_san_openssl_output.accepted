@@ -1,6 +1,8 @@
 ---
 version: 2.0.1
 title: csr mldsa dns san openssl output
+file: ./test/kryptos/x509/csr_test.gleam
+test_name: csr_mldsa_dns_san_verified_by_openssl_test
 ---
    N:d=0  hl=N l= NNN cons: SEQUENCE          
    N:d=1  hl=N l= NNN cons:  SEQUENCE          

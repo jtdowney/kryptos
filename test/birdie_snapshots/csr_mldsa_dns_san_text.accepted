@@ -1,6 +1,8 @@
 ---
 version: 2.0.1
 title: csr mldsa dns san text
+file: ./test/kryptos/x509/csr_test.gleam
+test_name: csr_mldsa_dns_san_verified_by_openssl_test
 ---
 Certificate Request:
     Data:
