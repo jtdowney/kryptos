@@ -26,10 +26,9 @@ repos:
         pass_filenames: false
       - id: prettier
         name: prettier --check
-        entry: bun run format
+        entry: bunx prettier --check
         language: system
-        files: ^src/.*\.*$
-        pass_filenames: false
+        files: ^src/.*\.{md|json|mjs}$
       - id: eslint
         name: eslint
         entry: bun run lint
