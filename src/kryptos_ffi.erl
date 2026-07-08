@@ -15,10 +15,10 @@
 -export([
     aead_open/5,
     aead_seal/4,
-    aes_decrypt_block/2,
-    aes_encrypt_block/2,
     block_cipher_decrypt/2,
     block_cipher_encrypt/2,
+    block_cipher_unwrap/2,
+    block_cipher_wrap/2,
     constant_time_equal/2,
     ec_export_private_key_der/1,
     ec_export_private_key_pem/1,
@@ -410,7 +410,63 @@ block_cipher_decrypt(Mode, Ciphertext) ->
             {error, nil}
     end.
 
-%% Raw AES block encryption/decryption (no padding, for key wrap)
+%% AES Key Wrap (RFC 3394)
+
+-define(KEY_WRAP_IV, <<16#A6A6A6A6A6A6A6A6:64>>).
+
+block_cipher_wrap(Cipher, PlainText) ->
+    Blocks = [Block || <<Block:8/binary>> <= PlainText],
+    {Check, WrappedBlocks} = wrap_rounds(Cipher, ?KEY_WRAP_IV, Blocks, length(Blocks), 0),
+    {ok, iolist_to_binary([Check | WrappedBlocks])}.
+
+wrap_rounds(_Cipher, Check, Blocks, _BlockCount, 6) ->
+    {Check, Blocks};
+wrap_rounds(Cipher, Check, Blocks, BlockCount, Round) ->
+    {NextCheck, NextBlocks} = wrap_round(Cipher, Check, Blocks, BlockCount, Round, 1, []),
+    wrap_rounds(Cipher, NextCheck, NextBlocks, BlockCount, Round + 1).
+
+wrap_round(_Cipher, Check, [], _BlockCount, _Round, _Index, Acc) ->
+    {Check, lists:reverse(Acc)};
+wrap_round(Cipher, Check, [Block | Rest], BlockCount, Round, Index, Acc) ->
+    <<CheckHalf:8/binary, BlockHalf:8/binary>> =
+        aes_ecb_block(Cipher, true, <<Check/binary, Block/binary>>),
+    Counter = BlockCount * Round + Index,
+    NextCheck = crypto:exor(CheckHalf, <<Counter:64>>),
+    wrap_round(Cipher, NextCheck, Rest, BlockCount, Round, Index + 1, [BlockHalf | Acc]).
+
+block_cipher_unwrap(Cipher, <<Check:8/binary, Body/binary>>) ->
+    Blocks = [Block || <<Block:8/binary>> <= Body],
+    {FinalCheck, PlainBlocks} = unwrap_rounds(Cipher, Check, Blocks, length(Blocks), 5),
+    case constant_time_equal(FinalCheck, ?KEY_WRAP_IV) of
+        true ->
+            {ok, iolist_to_binary(PlainBlocks)};
+        false ->
+            {error, nil}
+    end.
+
+unwrap_rounds(_Cipher, Check, Blocks, _BlockCount, Round) when Round < 0 ->
+    {Check, Blocks};
+unwrap_rounds(Cipher, Check, Blocks, BlockCount, Round) ->
+    {NextCheck, NextBlocks} =
+        unwrap_round(Cipher, Check, lists:reverse(Blocks), BlockCount, Round, BlockCount, []),
+    unwrap_rounds(Cipher, NextCheck, NextBlocks, BlockCount, Round - 1).
+
+unwrap_round(_Cipher, Check, [], _BlockCount, _Round, _Index, Acc) ->
+    {Check, Acc};
+unwrap_round(Cipher, Check, [Block | Rest], BlockCount, Round, Index, Acc) ->
+    Counter = BlockCount * Round + Index,
+    XoredCheck = crypto:exor(Check, <<Counter:64>>),
+    <<CheckHalf:8/binary, BlockHalf:8/binary>> =
+        aes_ecb_block(Cipher, false, <<XoredCheck/binary, Block/binary>>),
+    unwrap_round(Cipher, CheckHalf, Rest, BlockCount, Round, Index - 1, [BlockHalf | Acc]).
+
+aes_ecb_block(Cipher, Encrypt, Data) ->
+    crypto:crypto_one_time(
+        aes_cipher_name(Cipher),
+        Cipher#aes.key,
+        Data,
+        [{encrypt, Encrypt}, {padding, none}]
+    ).
 
 aes_cipher_name(#aes{key_size = 128}) ->
     aes_128_ecb;
@@ -418,16 +474,6 @@ aes_cipher_name(#aes{key_size = 192}) ->
     aes_192_ecb;
 aes_cipher_name(#aes{key_size = 256}) ->
     aes_256_ecb.
-
-aes_encrypt_block(Cipher, Block) ->
-    CipherName = aes_cipher_name(Cipher),
-    Key = Cipher#aes.key,
-    crypto:crypto_one_time(CipherName, Key, Block, [{encrypt, true}, {padding, none}]).
-
-aes_decrypt_block(Cipher, Block) ->
-    CipherName = aes_cipher_name(Cipher),
-    Key = Cipher#aes.key,
-    crypto:crypto_one_time(CipherName, Key, Block, [{encrypt, false}, {padding, none}]).
 
 %%------------------------------------------------------------------------------
 %% Curve/OID Mapping (shared by EC, EdDSA, XDH)
