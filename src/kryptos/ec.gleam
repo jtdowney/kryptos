@@ -122,10 +122,14 @@ fn is_named_curve(spki: BitArray) -> Bool {
   result.is_ok(parsed)
 }
 
-/// Imports an EC public key from an uncompressed SEC1 point.
+/// Imports an EC public key from a compressed or uncompressed SEC1 point.
 ///
-/// The point must be in uncompressed format: `0x04 || x || y`
-/// where x and y are the coordinates padded to the curve's coordinate size.
+/// A compressed point must be encoded as `0x02 || x` or `0x03 || x`.
+/// An uncompressed point must be encoded as `0x04 || x || y`. Coordinates
+/// must be padded to the curve's coordinate size.
+///
+/// Imported points are validated on the selected curve. Malformed encodings,
+/// unsupported point formats, and points not on the curve return `Error(Nil)`.
 ///
 /// ## Example
 ///
@@ -152,7 +156,7 @@ pub fn public_key_from_raw_point(
 /// If the key was imported with a compressed point format, it will be
 /// automatically decompressed.
 ///
-/// This is the inverse of `public_key_from_raw_point`.
+/// Importing a point exported by this function returns the same public key.
 @external(erlang, "kryptos_ffi", "ec_public_key_to_raw_point")
 @external(javascript, "../kryptos_ffi.mjs", "ecPublicKeyToRawPoint")
 pub fn public_key_to_raw_point(key: PublicKey) -> BitArray
