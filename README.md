@@ -12,7 +12,7 @@ A cryptography library for Gleam targeting both Erlang and JavaScript runtimes.
 - Runs on both Erlang and JavaScript (Node.js), wrapping each platform's native crypto APIs for consistent behavior.
 - All cryptographic operations delegate to the runtime's implementations (Erlang's `crypto` module, Node.js `crypto` module).
 - Inspired by Go's crypto library, the API guides you toward safe defaults and makes dangerous operations explicit.
-- Validated against Google's [Wycheproof](https://github.com/C2SP/wycheproof) test vectors to catch edge-case vulnerabilities.
+- Validated against [Wycheproof](https://github.com/C2SP/wycheproof) test vectors to catch edge-case vulnerabilities.
 
 > [!NOTE]
 > **Browser JavaScript is not supported.** The WebCrypto API is promise-based,
