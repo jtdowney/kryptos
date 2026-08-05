@@ -274,6 +274,7 @@ fn webcrypto_curve_from_name(name: String) -> Result(ec.Curve, Nil) {
     "P-256" -> Ok(ec.P256)
     "P-384" -> Ok(ec.P384)
     "P-521" -> Ok(ec.P521)
+    "P-256K" -> Ok(ec.Secp256k1)
     _ -> Error(Nil)
   }
 }
@@ -295,19 +296,31 @@ fn jwk_to_public_key(
   curve: ec.Curve,
   jwk: WebCryptoJwk,
 ) -> Result(ec.PublicKey, Nil) {
-  use x <- result.try(base64url_decode(jwk.x))
-  use y <- result.try(base64url_decode(jwk.y))
-  let point = <<0x04, x:bits, y:bits>>
-  ec.public_key_from_raw_point(curve, point)
+  use jwk_curve <- result.try(webcrypto_curve_from_name(jwk.crv))
+  case jwk_curve == curve {
+    False -> Error(Nil)
+    True -> {
+      use x <- result.try(base64url_decode(jwk.x))
+      use y <- result.try(base64url_decode(jwk.y))
+      let point = <<0x04, x:bits, y:bits>>
+      ec.public_key_from_raw_point(curve, point)
+    }
+  }
 }
 
 fn jwk_to_private_key(
   curve: ec.Curve,
   jwk: WebCryptoJwk,
 ) -> Result(#(ec.PrivateKey, ec.PublicKey), Nil) {
-  use d_str <- result.try(option.to_result(jwk.d, Nil))
-  use d <- result.try(base64url_decode(d_str))
-  ec.from_bytes(curve, d)
+  use jwk_curve <- result.try(webcrypto_curve_from_name(jwk.crv))
+  case jwk_curve == curve {
+    False -> Error(Nil)
+    True -> {
+      use d_str <- result.try(option.to_result(jwk.d, Nil))
+      use d <- result.try(base64url_decode(d_str))
+      ec.from_bytes(curve, d)
+    }
+  }
 }
 
 fn run_webcrypto_test(group: WebCryptoTestGroup, tc: WebCryptoTestCase) -> Nil {
@@ -378,6 +391,16 @@ pub fn wycheproof_ecdh_secp521r1_webcrypto_test() {
   let assert Ok(test_file) =
     utils.load_test_file(
       "ecdh_secp521r1_webcrypto_test.json",
+      webcrypto_test_file_decoder(),
+    )
+  utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_webcrypto_test)
+}
+
+pub fn wycheproof_ecdh_secp256k1_webcrypto_test() {
+  use <- unitest.tag("wycheproof")
+  let assert Ok(test_file) =
+    utils.load_test_file(
+      "ecdh_secp256k1_webcrypto_test.json",
       webcrypto_test_file_decoder(),
     )
   utils.run_tests(test_file.test_groups, fn(g) { g.tests }, run_webcrypto_test)

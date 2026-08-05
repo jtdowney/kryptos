@@ -174,6 +174,11 @@ pub fn wycheproof_ecdsa_secp256r1_sha3_512_test() {
   run_wycheproof_tests(Der, "ecdsa_secp256r1_sha3_512_test.json", hash.Sha3x512)
 }
 
+pub fn wycheproof_ecdsa_secp384r1_sha256_test() {
+  use <- unitest.tag("wycheproof")
+  run_wycheproof_tests(Der, "ecdsa_secp384r1_sha256_test.json", hash.Sha256)
+}
+
 pub fn wycheproof_ecdsa_secp384r1_sha384_test() {
   use <- unitest.tag("wycheproof")
   run_wycheproof_tests(Der, "ecdsa_secp384r1_sha384_test.json", hash.Sha384)
