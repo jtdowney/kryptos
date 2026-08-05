@@ -714,12 +714,6 @@ export function ecPrivateKeyToBytes(privateKey) {
 export function ecPublicKeyFromRawPoint(curve, point) {
   try {
     const coordSize = ecCoordinateSize(curve);
-    const expectedSize = 1 + 2 * coordSize;
-
-    if (point.byteSize !== expectedSize) {
-      return Result$Error(undefined);
-    }
-
     const rawPoint = BitArray$BitArray$data(point);
     const pointBuffer = Buffer.from(
       rawPoint.buffer,
@@ -727,12 +721,36 @@ export function ecPublicKeyFromRawPoint(curve, point) {
       rawPoint.byteLength,
     );
 
-    if (pointBuffer[0] !== 0x04) {
+    const prefix = pointBuffer[0];
+    const expectedSize =
+      prefix === 0x02 || prefix === 0x03
+        ? 1 + coordSize
+        : prefix === 0x04
+          ? 1 + 2 * coordSize
+          : 0;
+
+    if (point.byteSize !== expectedSize) {
       return Result$Error(undefined);
     }
 
-    const x = pointBuffer.subarray(1, 1 + coordSize);
-    const y = pointBuffer.subarray(1 + coordSize);
+    const curveName = ecCurveToOpensslName(curve);
+    const normalizedPoint = crypto.ECDH.convertKey(
+      pointBuffer,
+      curveName,
+      undefined,
+      undefined,
+      "uncompressed",
+    );
+
+    if (
+      normalizedPoint.length !== 1 + 2 * coordSize ||
+      normalizedPoint[0] !== 0x04
+    ) {
+      return Result$Error(undefined);
+    }
+
+    const x = normalizedPoint.subarray(1, 1 + coordSize);
+    const y = normalizedPoint.subarray(1 + coordSize);
 
     const jwk = {
       kty: "EC",
@@ -743,12 +761,9 @@ export function ecPublicKeyFromRawPoint(curve, point) {
 
     const publicKey = crypto.createPublicKey({ key: jwk, format: "jwk" });
 
-    // Validate point is on the curve by attempting ECDH computation.
-    // This mirrors Erlang's validate_ec_point which uses crypto:compute_key.
-    const curveName = ecCurveToOpensslName(curve);
     const ecdh = crypto.createECDH(curveName);
     ecdh.generateKeys();
-    ecdh.computeSecret(pointBuffer);
+    ecdh.computeSecret(normalizedPoint);
 
     return Result$Ok(publicKey);
   } catch {

@@ -12,6 +12,20 @@ fn load_test_key() -> String {
   pem
 }
 
+fn compress_raw_point(point: BitArray, coordinate_size: Int) -> BitArray {
+  let assert <<
+    0x04,
+    x:bytes-size(coordinate_size),
+    y:bytes-size(coordinate_size),
+  >> = point
+  let assert Ok(<<final_y:8>>) = bit_array.slice(y, coordinate_size - 1, 1)
+  let prefix = case final_y % 2 {
+    0 -> 0x02
+    _ -> 0x03
+  }
+  <<prefix, x:bits>>
+}
+
 pub fn export_private_key_pem_test() {
   let assert Ok(#(private_key, _public_key)) = ec.from_pem(load_test_key())
   let assert Ok(pem) = ec.to_pem(private_key)
@@ -357,6 +371,86 @@ pub fn public_key_to_raw_point_secp256k1_test() {
   let assert Ok(original_der) = ec.public_key_to_der(public_key)
   let assert Ok(reimported_der) = ec.public_key_to_der(reimported)
   assert original_der == reimported_der
+}
+
+pub fn public_key_from_compressed_raw_point_roundtrip_property_test() {
+  let gen =
+    qcheck.from_generators(qcheck.return(#(ec.P256, hash.Sha256)), [
+      qcheck.return(#(ec.P384, hash.Sha384)),
+      qcheck.return(#(ec.P521, hash.Sha512)),
+      qcheck.return(#(ec.Secp256k1, hash.Sha256)),
+    ])
+
+  use #(curve, hash_algorithm) <- qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(20),
+    gen,
+  )
+  let #(private_key, public_key) = ec.generate_key_pair(curve)
+  let expected_point = ec.public_key_to_raw_point(public_key)
+  let compressed = compress_raw_point(expected_point, ec.coordinate_size(curve))
+
+  let assert Ok(imported) = ec.public_key_from_raw_point(curve, compressed)
+  assert ec.public_key_to_raw_point(imported) == expected_point
+
+  let message = <<"compressed SEC1 point":utf8>>
+  let signature = ecdsa.sign(private_key, message, hash_algorithm)
+  assert ecdsa.verify(imported, message, signature, hash_algorithm)
+}
+
+pub fn public_key_from_raw_point_accepts_both_compressed_prefixes_test() {
+  let assert Ok(p256_compressed) =
+    bit_array.base16_decode(
+      "036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+    )
+  let assert Ok(p256_uncompressed) =
+    bit_array.base16_decode(
+      "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
+    )
+  let assert Ok(p256_key) =
+    ec.public_key_from_raw_point(ec.P256, p256_compressed)
+  assert ec.public_key_to_raw_point(p256_key) == p256_uncompressed
+
+  let assert Ok(k256_compressed) =
+    bit_array.base16_decode(
+      "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    )
+  let assert Ok(k256_uncompressed) =
+    bit_array.base16_decode(
+      "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8",
+    )
+  let assert Ok(k256_key) =
+    ec.public_key_from_raw_point(ec.Secp256k1, k256_compressed)
+  assert ec.public_key_to_raw_point(k256_key) == k256_uncompressed
+}
+
+pub fn public_key_from_raw_point_rejects_malformed_compressed_points_test() {
+  let assert Error(Nil) =
+    ec.public_key_from_raw_point(ec.P256, <<0x02, 0:size(31)-unit(8)>>)
+  let assert Error(Nil) =
+    ec.public_key_from_raw_point(ec.P256, <<0x02, 0:size(33)-unit(8)>>)
+  let assert Error(Nil) = ec.public_key_from_raw_point(ec.P256, <<0x00>>)
+  let assert Error(Nil) =
+    ec.public_key_from_raw_point(ec.P256, <<0x06, 0:size(64)-unit(8)>>)
+}
+
+pub fn public_key_from_raw_point_rejects_invalid_compressed_points_test() {
+  let assert Ok(invalid_p256) =
+    bit_array.base16_decode(
+      "02fd4bf61763b46581fd9174d623516cf3c81edd40e29ffa2777fb6cb0ae3ce535",
+    )
+  let assert Error(Nil) = ec.public_key_from_raw_point(ec.P256, invalid_p256)
+
+  let invalid_k256 = <<0x02, 0:size(32)-unit(8)>>
+  let assert Error(Nil) =
+    ec.public_key_from_raw_point(ec.Secp256k1, invalid_k256)
+}
+
+pub fn public_key_from_raw_point_rejects_compressed_point_on_wrong_curve_test() {
+  let assert Ok(k256_generator) =
+    bit_array.base16_decode(
+      "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    )
+  let assert Error(Nil) = ec.public_key_from_raw_point(ec.P256, k256_generator)
 }
 
 pub fn public_key_to_raw_point_decompresses_p256_test() {
