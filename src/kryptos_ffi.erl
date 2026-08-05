@@ -556,6 +556,9 @@ ec_public_key_from_raw_point(Curve, Point) ->
         case Point of
             <<16#04, _X:CoordSize/binary, _Y:CoordSize/binary>> ->
                 validate_ec_point(CurveName, Point);
+            <<Prefix, _X:CoordSize/binary>> when Prefix == 2; Prefix == 3 ->
+                UncompressedPoint = ec_decompress_point(Point, CurveName),
+                validate_ec_point(CurveName, UncompressedPoint);
             _ ->
                 {error, nil}
         end

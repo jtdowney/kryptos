@@ -1,5 +1,6 @@
 import gleam/bit_array
 import gleam/dynamic/decode
+import gleam/list
 import kryptos/ec
 import kryptos/ecdh
 import unitest
@@ -13,6 +14,7 @@ type TestCase {
     private: String,
     shared: String,
     result: TestResult,
+    flags: List(String),
   )
 }
 
@@ -31,7 +33,16 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
   use private <- decode.field("private", decode.string)
   use shared <- decode.field("shared", decode.string)
   use result <- decode.field("result", utils.test_result_decoder())
-  decode.success(TestCase(tc_id:, comment:, public:, private:, shared:, result:))
+  use flags <- decode.field("flags", decode.list(decode.string))
+  decode.success(TestCase(
+    tc_id:,
+    comment:,
+    public:,
+    private:,
+    shared:,
+    result:,
+    flags:,
+  ))
 }
 
 fn test_group_decoder() -> decode.Decoder(TestGroup) {
@@ -74,8 +85,32 @@ fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
   let pub_key_result = ec.public_key_from_raw_point(curve, public_point)
   let priv_key_result = ec.from_bytes(curve, private_bytes)
 
-  case tc.result, pub_key_result, priv_key_result {
-    utils.Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
+  let must_accept_compressed = list.contains(tc.flags, "CompressedPublic")
+  let is_compressed_wrong_curve =
+    list.contains(tc.flags, "WrongCurve")
+    && list.contains(tc.flags, "CompressedPoint")
+  let must_reject_compressed =
+    list.contains(tc.flags, "InvalidCompressedPublic")
+    || is_compressed_wrong_curve
+
+  case
+    must_accept_compressed,
+    must_reject_compressed,
+    tc.result,
+    pub_key_result,
+    priv_key_result
+  {
+    True, _, _, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+      let assert Ok(shared) = ecdh.compute_shared_secret(priv_key, peer_pub)
+      assert shared == expected_shared as context
+    }
+    True, _, _, _, _ -> panic as { "Compressed key import failed: " <> context }
+
+    _, True, _, Error(Nil), _ -> Nil
+    _, True, _, Ok(_), _ ->
+      panic as { "Invalid compressed key was imported: " <> context }
+
+    False, False, utils.Invalid, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case ecdh.compute_shared_secret(priv_key, peer_pub) {
         Error(Nil) -> Nil
         Ok(shared) -> {
@@ -83,23 +118,23 @@ fn run_test_for_curve(curve: ec.Curve, tc: TestCase) -> Nil {
             as { "ECDH succeeded for invalid test: " <> context }
         }
       }
-    utils.Invalid, _, _ -> Nil
+    False, False, utils.Invalid, _, _ -> Nil
 
-    utils.Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
+    False, False, utils.Valid, Ok(peer_pub), Ok(#(priv_key, _)) -> {
       let assert Ok(shared) = ecdh.compute_shared_secret(priv_key, peer_pub)
       assert shared == expected_shared as context
     }
-    utils.Valid, _, _ ->
+    False, False, utils.Valid, _, _ ->
       panic as { "Key import failed for valid test: " <> context }
 
-    utils.Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
+    False, False, utils.Acceptable, Ok(peer_pub), Ok(#(priv_key, _)) ->
       case ecdh.compute_shared_secret(priv_key, peer_pub) {
         Ok(shared) -> {
           assert shared == expected_shared as context
         }
         Error(Nil) -> Nil
       }
-    utils.Acceptable, _, _ -> Nil
+    False, False, utils.Acceptable, _, _ -> Nil
   }
 }
 
