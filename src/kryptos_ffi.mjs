@@ -415,18 +415,34 @@ export function blockCipherUnwrap(cipher, ciphertext) {
 // =============================================================================
 
 function ecCurveToOpensslName(curve) {
-  if (Curve$isP256(curve)) return "prime256v1";
-  if (Curve$isP384(curve)) return "secp384r1";
-  if (Curve$isP521(curve)) return "secp521r1";
-  if (Curve$isSecp256k1(curve)) return "secp256k1";
+  if (Curve$isP256(curve)) {
+    return "prime256v1";
+  }
+  if (Curve$isP384(curve)) {
+    return "secp384r1";
+  }
+  if (Curve$isP521(curve)) {
+    return "secp521r1";
+  }
+  if (Curve$isSecp256k1(curve)) {
+    return "secp256k1";
+  }
   throw new Error(`Unsupported curve: ${curve.constructor.name}`);
 }
 
 function ecCurveToJwkCrv(curve) {
-  if (Curve$isP256(curve)) return "P-256";
-  if (Curve$isP384(curve)) return "P-384";
-  if (Curve$isP521(curve)) return "P-521";
-  if (Curve$isSecp256k1(curve)) return "secp256k1";
+  if (Curve$isP256(curve)) {
+    return "P-256";
+  }
+  if (Curve$isP384(curve)) {
+    return "P-384";
+  }
+  if (Curve$isP521(curve)) {
+    return "P-521";
+  }
+  if (Curve$isSecp256k1(curve)) {
+    return "secp256k1";
+  }
   throw new Error(`Unsupported curve: ${curve.constructor.name}`);
 }
 
@@ -446,7 +462,9 @@ function jwkCrvToCurve(crv) {
 }
 
 function padStart(buffer, length) {
-  if (buffer.length >= length) return buffer;
+  if (buffer.length >= length) {
+    return buffer;
+  }
   const padding = Buffer.alloc(length - buffer.length, 0);
   return Buffer.concat([padding, buffer]);
 }
@@ -606,13 +624,17 @@ export function modPow(baseBits, expBits, modBits) {
   let b = base % mod;
   let e = exp;
   while (e > 0n) {
-    if (e % 2n === 1n) result = (result * b) % mod;
+    if (e % 2n === 1n) {
+      result = (result * b) % mod;
+    }
     e /= 2n;
     b = (b * b) % mod;
   }
 
   let hex = result.toString(16);
-  if (hex.length % 2 !== 0) hex = "0" + hex;
+  if (hex.length % 2 !== 0) {
+    hex = "0" + hex;
+  }
   return BitArray$BitArray(Buffer.from(hex, "hex"));
 }
 
@@ -1009,8 +1031,12 @@ const XDH_PUBLIC_DER_PREFIX = {
 };
 
 function xdhCurveName(curve) {
-  if (Curve$isX25519(curve)) return "x25519";
-  if (Curve$isX448(curve)) return "x448";
+  if (Curve$isX25519(curve)) {
+    return "x25519";
+  }
+  if (Curve$isX448(curve)) {
+    return "x448";
+  }
   throw new Error(`Unsupported XDH curve: ${curve.constructor.name}`);
 }
 
@@ -1223,12 +1249,20 @@ export function rsaDecrypt(privateKey, ciphertext, padding) {
 
 function rsaFormatToType(format, isPrivate) {
   if (isPrivate) {
-    if (PrivateKeyFormat$isPkcs1(format)) return "pkcs1";
-    if (PrivateKeyFormat$isPkcs8(format)) return "pkcs8";
+    if (PrivateKeyFormat$isPkcs1(format)) {
+      return "pkcs1";
+    }
+    if (PrivateKeyFormat$isPkcs8(format)) {
+      return "pkcs8";
+    }
     throw new Error(`Unknown private key format: ${format.constructor.name}`);
   } else {
-    if (PublicKeyFormat$isRsaPublicKey(format)) return "pkcs1";
-    if (PublicKeyFormat$isSpki(format)) return "spki";
+    if (PublicKeyFormat$isRsaPublicKey(format)) {
+      return "pkcs1";
+    }
+    if (PublicKeyFormat$isSpki(format)) {
+      return "spki";
+    }
     throw new Error(`Unknown public key format: ${format.constructor.name}`);
   }
 }
@@ -1335,8 +1369,12 @@ const EDDSA_PUBLIC_DER_PREFIX = {
 };
 
 function eddsaCurveName(curve) {
-  if (Curve$isEd25519(curve)) return "ed25519";
-  if (Curve$isEd448(curve)) return "ed448";
+  if (Curve$isEd25519(curve)) {
+    return "ed25519";
+  }
+  if (Curve$isEd448(curve)) {
+    return "ed448";
+  }
   throw new Error(`Unsupported EdDSA curve: ${curve.constructor.name}`);
 }
 
@@ -1485,9 +1523,15 @@ const MLDSA_PUBLIC_DER_PREFIX = {
 };
 
 function mldsaKeyType(param) {
-  if (ParameterSet$isMldsa44(param)) return "ml-dsa-44";
-  if (ParameterSet$isMldsa65(param)) return "ml-dsa-65";
-  if (ParameterSet$isMldsa87(param)) return "ml-dsa-87";
+  if (ParameterSet$isMldsa44(param)) {
+    return "ml-dsa-44";
+  }
+  if (ParameterSet$isMldsa65(param)) {
+    return "ml-dsa-65";
+  }
+  if (ParameterSet$isMldsa87(param)) {
+    return "ml-dsa-87";
+  }
   throw new Error("Unsupported ML-DSA parameter set");
 }
 
@@ -1525,7 +1569,11 @@ export function mldsaGenerateKeyPair(param) {
 }
 
 export function mldsaSign(privateKey, message) {
-  const signature = crypto.sign(null, BitArray$BitArray$data(message), privateKey);
+  const signature = crypto.sign(
+    null,
+    BitArray$BitArray$data(message),
+    privateKey,
+  );
   return BitArray$BitArray(signature);
 }
 

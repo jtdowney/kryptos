@@ -10,10 +10,13 @@ export default defineConfig([
     plugins: { js, perfectionist },
     extends: ["js/recommended"],
     languageOptions: { globals: globals.node },
-    rules: {
-      "perfectionist/sort-imports": "error",
-    },
   },
   eslintConfigPrettier,
   globalIgnores(["build"]),
+  {
+    rules: {
+      curly: "error",
+      "perfectionist/sort-imports": "error",
+    },
+  },
 ]);
