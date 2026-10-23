@@ -1,7 +1,10 @@
 import birdie
 import gleam/bit_array
 import gleam/int
+import gleam/list
+import kryptos/ec
 import kryptos/eddsa
+import kryptos/xdh
 import qcheck
 import simplifile
 
@@ -344,4 +347,29 @@ pub fn import_ed448_spki_pub_der_test() {
   let assert Ok(public) = eddsa.public_key_from_der(pub_der)
   let signature = eddsa.sign(private, <<"too many secrets":utf8>>)
   assert eddsa.verify(public, <<"too many secrets":utf8>>, signature)
+}
+
+pub fn import_rejects_xdh_keys_test() {
+  use curve <- list.each([xdh.X25519, xdh.X448])
+  let #(private_key, public_key) = xdh.generate_key_pair(curve)
+  let assert Ok(pem) = xdh.to_pem(private_key)
+  let assert Ok(der) = xdh.to_der(private_key)
+  let assert Ok(public_pem) = xdh.public_key_to_pem(public_key)
+  let assert Ok(public_der) = xdh.public_key_to_der(public_key)
+  assert eddsa.from_pem(pem) == Error(Nil)
+  assert eddsa.from_der(der) == Error(Nil)
+  assert eddsa.public_key_from_pem(public_pem) == Error(Nil)
+  assert eddsa.public_key_from_der(public_der) == Error(Nil)
+}
+
+pub fn import_rejects_ec_keys_test() {
+  let #(private_key, public_key) = ec.generate_key_pair(ec.P256)
+  let assert Ok(pem) = ec.to_pem(private_key)
+  let assert Ok(der) = ec.to_der(private_key)
+  let assert Ok(public_pem) = ec.public_key_to_pem(public_key)
+  let assert Ok(public_der) = ec.public_key_to_der(public_key)
+  assert eddsa.from_pem(pem) == Error(Nil)
+  assert eddsa.from_der(der) == Error(Nil)
+  assert eddsa.public_key_from_pem(public_pem) == Error(Nil)
+  assert eddsa.public_key_from_der(public_der) == Error(Nil)
 }

@@ -713,7 +713,12 @@ ec_import_private_key_from_der(DerBytes) ->
     %% der_decode returns ECPrivateKey tuple
     %% OTP 27/28: {'ECPrivateKey', Version, PrivScalar, {namedCurve, OID}, PubPoint, asn1_NOVALUE}
     case public_key:der_decode('PrivateKeyInfo', DerBytes) of
-        {'ECPrivateKey', _, PrivateScalar, {namedCurve, CurveOID}, PublicPoint, _} ->
+        {'ECPrivateKey', _, PrivateScalar, {namedCurve, CurveOID}, PublicPoint, _} when
+            CurveOID == {1, 2, 840, 10045, 3, 1, 7};
+            CurveOID == {1, 3, 132, 0, 34};
+            CurveOID == {1, 3, 132, 0, 35};
+            CurveOID == {1, 3, 132, 0, 10}
+        ->
             CurveName = oid_to_curve(CurveOID),
             PrivKey = make_ec_private_key(PrivateScalar, CurveOID, PublicPoint),
             PubKey = {{'ECPoint', PublicPoint}, {namedCurve, CurveName}},

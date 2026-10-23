@@ -1,5 +1,8 @@
 import birdie
 import gleam/bit_array
+import gleam/list
+import kryptos/ec
+import kryptos/eddsa
 import kryptos/xdh
 import qcheck
 import simplifile
@@ -353,4 +356,29 @@ pub fn import_x448_spki_pub_der_test() {
   let assert Ok(shared1) = xdh.compute_shared_secret(private, public)
   let assert Ok(shared2) = xdh.compute_shared_secret(other_private, public)
   assert shared1 != shared2
+}
+
+pub fn import_rejects_eddsa_keys_test() {
+  use curve <- list.each([eddsa.Ed25519, eddsa.Ed448])
+  let #(private_key, public_key) = eddsa.generate_key_pair(curve)
+  let assert Ok(pem) = eddsa.to_pem(private_key)
+  let assert Ok(der) = eddsa.to_der(private_key)
+  let assert Ok(public_pem) = eddsa.public_key_to_pem(public_key)
+  let assert Ok(public_der) = eddsa.public_key_to_der(public_key)
+  assert xdh.from_pem(pem) == Error(Nil)
+  assert xdh.from_der(der) == Error(Nil)
+  assert xdh.public_key_from_pem(public_pem) == Error(Nil)
+  assert xdh.public_key_from_der(public_der) == Error(Nil)
+}
+
+pub fn import_rejects_ec_keys_test() {
+  let #(private_key, public_key) = ec.generate_key_pair(ec.P256)
+  let assert Ok(pem) = ec.to_pem(private_key)
+  let assert Ok(der) = ec.to_der(private_key)
+  let assert Ok(public_pem) = ec.public_key_to_pem(public_key)
+  let assert Ok(public_der) = ec.public_key_to_der(public_key)
+  assert xdh.from_pem(pem) == Error(Nil)
+  assert xdh.from_der(der) == Error(Nil)
+  assert xdh.public_key_from_pem(public_pem) == Error(Nil)
+  assert xdh.public_key_from_der(public_der) == Error(Nil)
 }

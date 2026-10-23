@@ -1,9 +1,12 @@
 import birdie
 import gleam/bit_array
+import gleam/list
 import kryptos/ec
 import kryptos/ecdh
 import kryptos/ecdsa
+import kryptos/eddsa
 import kryptos/hash
+import kryptos/xdh
 import qcheck
 import simplifile
 
@@ -98,6 +101,32 @@ pub fn public_key_from_private_key_test() {
   let valid2 = ecdsa.verify(derived_public, message, signature, hash.Sha256)
   assert valid1
   assert valid2
+}
+
+pub fn import_rejects_eddsa_keys_test() {
+  use curve <- list.each([eddsa.Ed25519, eddsa.Ed448])
+  let #(private_key, public_key) = eddsa.generate_key_pair(curve)
+  let assert Ok(pem) = eddsa.to_pem(private_key)
+  let assert Ok(der) = eddsa.to_der(private_key)
+  let assert Ok(public_pem) = eddsa.public_key_to_pem(public_key)
+  let assert Ok(public_der) = eddsa.public_key_to_der(public_key)
+  assert ec.from_pem(pem) == Error(Nil)
+  assert ec.from_der(der) == Error(Nil)
+  assert ec.public_key_from_pem(public_pem) == Error(Nil)
+  assert ec.public_key_from_der(public_der) == Error(Nil)
+}
+
+pub fn import_rejects_xdh_keys_test() {
+  use curve <- list.each([xdh.X25519, xdh.X448])
+  let #(private_key, public_key) = xdh.generate_key_pair(curve)
+  let assert Ok(pem) = xdh.to_pem(private_key)
+  let assert Ok(der) = xdh.to_der(private_key)
+  let assert Ok(public_pem) = xdh.public_key_to_pem(public_key)
+  let assert Ok(public_der) = xdh.public_key_to_der(public_key)
+  assert ec.from_pem(pem) == Error(Nil)
+  assert ec.from_der(der) == Error(Nil)
+  assert ec.public_key_from_pem(public_pem) == Error(Nil)
+  assert ec.public_key_from_der(public_der) == Error(Nil)
 }
 
 pub fn import_p256_pkcs8_der_test() {
