@@ -19,6 +19,7 @@
     block_cipher_encrypt/2,
     block_cipher_unwrap/2,
     block_cipher_wrap/2,
+    chacha20_xor/3,
     constant_time_equal/2,
     ec_export_private_key_der/1,
     ec_export_private_key_pem/1,
@@ -474,6 +475,19 @@ aes_cipher_name(#aes{key_size = 192}) ->
     aes_192_ecb;
 aes_cipher_name(#aes{key_size = 256}) ->
     aes_256_ecb.
+
+%%------------------------------------------------------------------------------
+%% Stream Ciphers (ChaCha20)
+%%------------------------------------------------------------------------------
+
+%% Iv is the 4-byte little-endian block counter followed by the 12-byte nonce.
+chacha20_xor(Key, Iv, Data) ->
+    try
+        {ok, crypto:crypto_one_time(chacha20, Key, Iv, Data, true)}
+    catch
+        error:_ ->
+            {error, nil}
+    end.
 
 %%------------------------------------------------------------------------------
 %% Curve/OID Mapping (shared by EC, EdDSA, XDH)

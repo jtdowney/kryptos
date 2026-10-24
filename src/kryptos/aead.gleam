@@ -167,7 +167,10 @@ pub fn seal_with_aad(
     True ->
       case ctx {
         XChaCha20Poly1305(key) -> {
-          use #(subkey, chacha_nonce) <- result.try(xchacha20_derive(key, nonce))
+          use #(subkey, chacha_nonce) <- result.try(hchacha20.xchacha20_derive(
+            key,
+            nonce,
+          ))
           do_seal(ChaCha20Poly1305(subkey), chacha_nonce, plaintext, aad)
         }
         Gcm(..) | Ccm(..) | ChaCha20Poly1305(..) ->
@@ -214,7 +217,10 @@ pub fn open_with_aad(
     True ->
       case ctx {
         XChaCha20Poly1305(key) -> {
-          use #(subkey, chacha_nonce) <- result.try(xchacha20_derive(key, nonce))
+          use #(subkey, chacha_nonce) <- result.try(hchacha20.xchacha20_derive(
+            key,
+            nonce,
+          ))
           do_open(ChaCha20Poly1305(subkey), chacha_nonce, tag, ciphertext, aad)
         }
         Gcm(..) | Ccm(..) | ChaCha20Poly1305(..) ->
@@ -233,24 +239,6 @@ fn do_open(
   ciphertext: BitArray,
   aad: BitArray,
 ) -> Result(BitArray, Nil)
-
-/// Derives the subkey and ChaCha20 nonce for XChaCha20-Poly1305.
-fn xchacha20_derive(
-  key: BitArray,
-  nonce: BitArray,
-) -> Result(#(BitArray, BitArray), Nil) {
-  // Split 24-byte nonce: first 16 bytes for HChaCha20, last 8 bytes for ChaCha20
-  case nonce {
-    <<hchacha_input:bytes-size(16), nonce_suffix:bytes-size(8)>> -> {
-      // Derive 32-byte subkey using HChaCha20
-      use subkey <- result.try(hchacha20.subkey(key, hchacha_input))
-      // Construct 12-byte ChaCha20 nonce: 4 zero bytes + last 8 bytes of original nonce
-      let chacha_nonce = <<0:32, nonce_suffix:bits>>
-      Ok(#(subkey, chacha_nonce))
-    }
-    _ -> Error(Nil)
-  }
-}
 
 @internal
 pub fn cipher_name(ctx: AeadContext) -> String {

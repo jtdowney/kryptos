@@ -1,9 +1,26 @@
-//// Internal HChaCha20 implementation for XChaCha20-Poly1305.
+//// Internal HChaCha20 implementation for XChaCha20 and XChaCha20-Poly1305.
 ////
 //// HChaCha20 derives a 256-bit subkey from a 256-bit key and 128-bit input.
 //// It uses the ChaCha20 quarter-round function but outputs different words.
 
 import gleam/int
+import gleam/result
+
+/// Derives the ChaCha20 subkey and 12-byte nonce for a 24-byte XChaCha20
+/// nonce.
+pub fn xchacha20_derive(
+  key: BitArray,
+  nonce: BitArray,
+) -> Result(#(BitArray, BitArray), Nil) {
+  // Split 24-byte nonce: first 16 bytes for HChaCha20, last 8 bytes for ChaCha20
+  case nonce {
+    <<hchacha_input:bytes-size(16), nonce_suffix:bytes-size(8)>> -> {
+      use subkey <- result.try(subkey(key, hchacha_input))
+      Ok(#(subkey, <<0:32, nonce_suffix:bits>>))
+    }
+    _ -> Error(Nil)
+  }
+}
 
 /// HChaCha20 key derivation function.
 /// Takes a 32-byte key and 16-byte input, returns 32-byte subkey.

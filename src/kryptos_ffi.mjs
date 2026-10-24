@@ -352,6 +352,28 @@ export function blockCipherDecrypt(mode, ciphertext) {
 }
 
 // =============================================================================
+// Stream Ciphers (ChaCha20)
+// =============================================================================
+
+// iv is the 4-byte little-endian block counter followed by the 12-byte nonce.
+export function chacha20Xor(key, iv, data) {
+  try {
+    const cipher = crypto.createCipheriv(
+      "chacha20",
+      BitArray$BitArray$data(key),
+      BitArray$BitArray$data(iv),
+    );
+    const output = Buffer.concat([
+      cipher.update(BitArray$BitArray$data(data)),
+      cipher.final(),
+    ]);
+    return Result$Ok(BitArray$BitArray(output));
+  } catch {
+    return Result$Error(undefined);
+  }
+}
+
+// =============================================================================
 // Key Wrapping (AES-KW, RFC 3394)
 // =============================================================================
 

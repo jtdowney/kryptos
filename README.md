@@ -46,6 +46,7 @@ gleam add kryptos
 | [hmac](https://hexdocs.pm/kryptos/kryptos/hmac.html)                         | All hash algorithms                                     |
 | [mldsa](https://hexdocs.pm/kryptos/kryptos/mldsa.html)                       | ML-DSA-44, ML-DSA-65, ML-DSA-87                         |
 | [rsa](https://hexdocs.pm/kryptos/kryptos/rsa.html)                           | OAEP, PKCS#1 v1.5, PSS, PKCS#1 v1.5 signatures          |
+| [stream](https://hexdocs.pm/kryptos/kryptos/stream.html)                     | ChaCha20, XChaCha20                                     |
 | [x509/certificate](https://hexdocs.pm/kryptos/kryptos/x509/certificate.html) | Certificate parsing and self-signed generation          |
 | [x509/csr](https://hexdocs.pm/kryptos/kryptos/x509/csr.html)                 | CSR generation with ECDSA/RSA/EdDSA/ML-DSA, SANs        |
 | [xdh](https://hexdocs.pm/kryptos/kryptos/xdh.html)                           | X25519, X448                                            |
