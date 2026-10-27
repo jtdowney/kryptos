@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-10-27
+
+### Added
+
+- ChaCha20 and XChaCha20 stream ciphers in the new `kryptos/stream` module
+
+### Fixed
+
+- Reject EC private keys on non-EC curves on Erlang so EdDSA and XDH keys can't load through the wrong import
+- Bound CRT parameter recovery in `rsa.from_components` and reject moduli larger than 16384 bits
+
 ## [1.5.0] - 2026-08-04
 
 ### Added
@@ -156,6 +167,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Wycheproof test vector validation for ECDSA, AES-GCM, AES-CBC, ChaCha20-Poly1305, XDH, and ECDH
 
+[1.6.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.6.0
 [1.5.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.5.0
 [1.4.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.4.0
 [1.3.0]: https://github.com/jtdowney/kryptos/releases/tag/v1.3.0
