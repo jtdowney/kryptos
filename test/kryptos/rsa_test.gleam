@@ -539,6 +539,36 @@ pub fn from_components_rejects_invalid_components_test() {
   assert rsa.from_components(<<2>>, <<1, 0, 1>>, <<0>>) == Error(Nil)
 }
 
+pub fn from_components_rejects_out_of_range_components_test() {
+  let #(private, _) = load_test_key_pair()
+  let n = rsa.modulus(private)
+  let e = rsa.public_exponent_bytes(private)
+  let d = rsa.private_exponent_bytes(private)
+
+  // even n
+  assert rsa.from_components(<<n:bits, 0>>, e, d) == Error(Nil)
+  // e >= n
+  assert rsa.from_components(n, <<1, n:bits>>, d) == Error(Nil)
+  // d >= n
+  assert rsa.from_components(n, e, <<1, n:bits>>) == Error(Nil)
+  // modulus larger than 16384 bits
+  assert rsa.from_components(<<1, 0:size(16_384), 1>>, e, d) == Error(Nil)
+}
+
+pub fn from_components_rejects_prime_modulus_test() {
+  let #(private, _) = load_test_key_pair()
+  let p = rsa.prime1(private)
+  let e = rsa.public_exponent_bytes(private)
+
+  // d unrelated to p fails the g^(ed-1) = 1 check immediately
+  let assert Ok(other_d) =
+    bit_array.slice(rsa.private_exponent_bytes(private), 0, 64)
+  assert rsa.from_components(p, e, other_d) == Error(Nil)
+
+  // dp satisfies e*dp = 1 mod (p-1), so every factoring attempt runs and fails
+  assert rsa.from_components(p, e, rsa.exponent1(private)) == Error(Nil)
+}
+
 pub fn public_key_from_components_roundtrip_property_test() {
   use message <- qcheck.run(
     qcheck.default_config() |> qcheck.with_test_count(5),

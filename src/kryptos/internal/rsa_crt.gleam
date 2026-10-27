@@ -6,6 +6,12 @@ import gleam/result
 import kryptos/crypto
 import kryptos/internal/utils
 
+/// 16384 bits, the largest modulus OpenSSL accepts.
+const max_modulus_bytes = 2048
+
+/// Each attempt on a genuine key succeeds with probability at least 1/2.
+const max_factor_attempts = 64
+
 /// Compute CRT parameters from minimal RSA components. This is used for
 /// loading RSA keys where only the modulus, public exponent, and private
 /// exponent are known. The JS implementation requires the precomputed
@@ -20,15 +26,31 @@ pub fn compute_crt_params(
   use d <- result.try(bigi.from_bytes(d_bytes, bigi.BigEndian, bigi.Unsigned))
 
   let one = bigi.from_int(1)
+  let byte_len = bit_array.byte_size(n_bytes)
   let valid =
-    bigi.compare(n, one) == order.Gt
+    byte_len <= max_modulus_bytes
+    && bigi.is_odd(n)
+    && bigi.compare(n, bigi.from_int(3)) == order.Gt
     && bigi.compare(e, one) == order.Gt
+    && bigi.compare(e, n) == order.Lt
     && bigi.compare(d, bigi.from_int(0)) == order.Gt
+    && bigi.compare(d, n) == order.Lt
   use <- bool.guard(when: !valid, return: Error(Nil))
 
-  let byte_len = bit_array.byte_size(n_bytes)
+  let k = bigi.subtract(bigi.multiply(e, d), one)
+  use <- bool.guard(
+    when: !satisfies_exponent_relation(n, k, byte_len),
+    return: Error(Nil),
+  )
 
-  use #(p, q) <- result.try(factor_rsa_modulus(n, e, d, byte_len, 500))
+  let #(t, r) = factor_out_twos(k, bigi.from_int(2), 0)
+  use #(p, q) <- result.try(factor_rsa_modulus(
+    n,
+    t,
+    r,
+    byte_len,
+    max_factor_attempts,
+  ))
 
   let dp = bigi.modulo(d, bigi.subtract(p, one))
   let dq = bigi.modulo(d, bigi.subtract(q, one))
@@ -102,36 +124,37 @@ fn compute_byte_length(value: BigInt, len: Int) -> Int {
   }
 }
 
+/// For a genuine key, g^(e*d - 1) ≡ 1 (mod n) for every g coprime to n.
+/// Checking one random base rejects bogus components with a single
+/// exponentiation instead of exhausting every factoring attempt.
+fn satisfies_exponent_relation(n: BigInt, k: BigInt, byte_len: Int) -> Bool {
+  mod_pow(random_base(n, byte_len), k, n, byte_len) == Ok(bigi.from_int(1))
+}
+
+/// Random g in [2, n - 2].
+fn random_base(n: BigInt, byte_len: Int) -> BigInt {
+  let g_bytes = crypto.random_bytes(byte_len)
+  // safe: `byte_len > 0` for any RSA modulus, so `g_bytes` is valid unsigned bytes
+  let assert Ok(g_raw) = bigi.from_bytes(g_bytes, bigi.BigEndian, bigi.Unsigned)
+  let n_minus_3 = bigi.subtract(n, bigi.from_int(3))
+  bigi.add(bigi.modulo(g_raw, n_minus_3), bigi.from_int(2))
+}
+
 fn factor_rsa_modulus(
   n: BigInt,
-  e: BigInt,
-  d: BigInt,
+  t: Int,
+  r: BigInt,
   byte_len: Int,
   attempts_left: Int,
 ) -> Result(#(BigInt, BigInt), Nil) {
   case attempts_left {
     0 -> Error(Nil)
     _ -> {
-      let one = bigi.from_int(1)
-      let two = bigi.from_int(2)
-      let three = bigi.from_int(3)
-
-      let k = bigi.subtract(bigi.multiply(e, d), one)
-      let #(t, r) = factor_out_twos(k, two, 0)
-
-      let g_bytes = crypto.random_bytes(byte_len)
-      // safe: `byte_len > 0` for any RSA modulus, so `g_bytes` is valid unsigned bytes
-      let assert Ok(g_raw) =
-        bigi.from_bytes(g_bytes, bigi.BigEndian, bigi.Unsigned)
-
-      let n_minus_3 = bigi.subtract(n, three)
-      let g = bigi.add(bigi.modulo(g_raw, n_minus_3), two)
-
-      use x <- result.try(mod_pow(g, r, n, byte_len))
+      use x <- result.try(mod_pow(random_base(n, byte_len), r, n, byte_len))
 
       case try_factor(n, t, x, byte_len) {
         Ok(#(p, q)) -> Ok(#(p, q))
-        Error(Nil) -> factor_rsa_modulus(n, e, d, byte_len, attempts_left - 1)
+        Error(Nil) -> factor_rsa_modulus(n, t, r, byte_len, attempts_left - 1)
       }
     }
   }

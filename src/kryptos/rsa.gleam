@@ -337,6 +337,8 @@ pub fn public_key_from_components(
 /// for key import since the caller already possesses the secret material,
 /// but avoid calling this in timing-sensitive contexts.
 ///
+/// Moduli larger than 16384 bits (OpenSSL's limit) are rejected.
+///
 /// ## Example
 ///
 /// ```gleam
